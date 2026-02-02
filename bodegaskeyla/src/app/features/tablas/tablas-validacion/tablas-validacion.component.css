@@ -1,0 +1,75 @@
+/* Estilos específicos para Mantenimiento de Tablas */
+
+.center-content {
+    justify-content: center;
+    align-items: center;
+    background: #e9ecef;
+}
+
+.form-container-v2 {
+    width: 600px;
+    max-width: 90%;
+}
+
+.p-6 {
+    padding: 30px;
+}
+
+.tab-indicator {
+    background: var(--primary-color) !important;
+    color: white;
+    display: inline-block;
+    padding: 5px 15px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    margin-bottom: 25px;
+}
+
+.vertical-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.input-composite {
+    display: flex;
+    gap: 10px;
+}
+
+.w-tiny {
+    width: 80px;
+}
+
+.w-medium {
+    width: 150px;
+}
+
+.card-inset {
+    background: #f8fafb;
+    border: 1px solid var(--border-v2);
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 10px;
+}
+
+.section-title {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--primary-color);
+    margin-bottom: 15px;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border-v2);
+    padding-bottom: 5px;
+}
+
+.grid-3-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 15px;
+}
+
+.footer-actions-v2 {
+    display: flex;
+    gap: 8px;
+}

@@ -1,0 +1,373 @@
+.app-header-v2 {
+    background: var(--primary-color) !important;
+    z-index: 50;
+}
+
+.brand-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.logo-accent {
+    width: 10px;
+    height: 10px;
+    background: var(--accent-color);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--accent-color);
+}
+
+.brand-name {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.view-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-left: 20px;
+    border-left: 2px solid rgba(255, 255, 255, 0.2);
+    padding-left: 20px;
+}
+
+.header-session-info {
+    display: flex;
+    gap: 20px;
+    font-size: 0.75rem;
+}
+
+.info-item {
+    display: flex;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    padding-right: 10px;
+    gap: 8px;
+    align-items: center;
+}
+
+.info-item .label {
+    color: #bdc3c7;
+}
+
+.info-item .value.highlight {
+    color: var(--accent-color);
+    font-weight: 700;
+}
+
+
+
+.composition-header {
+    background: #f8fafb;
+    padding: 10px 18px;
+    font-weight: 700;
+    font-size: 0.8rem;
+    color: var(--primary-color);
+    border-bottom: 1px solid var(--border-v2);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.form-group-v2.flex-grow {
+    flex: 1;
+}
+
+.form-group-v2.w-full {
+    width: 100%;
+}
+
+.input-composite {
+    display: flex;
+    gap: 6px;
+}
+
+.input-v2.w-tiny {
+    width: 70px;
+    text-align: center;
+    font-weight: 700;
+}
+
+.action-scanner-v2 {
+    padding: 12px 20px;
+}
+
+.scanner-interface {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.scanner-prompt {
+    font-weight: 700;
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.scanner-input-container {
+    flex: 1;
+    position: relative;
+}
+
+.scanner-input-v2 {
+    width: 100%;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.1);
+    padding: 12px 18px;
+    border-radius: 8px;
+    color: white;
+    font-size: 1.1rem;
+    font-weight: 700;
+    transition: all 0.2s;
+}
+
+.scanner-input-v2:focus {
+    background: white;
+    color: var(--primary-color);
+    border-color: white;
+    outline: none;
+}
+
+.scanner-input-v2::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.grid-header-v2 {
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-v2);
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.header-left h3 {
+    font-size: 0.95rem;
+    margin: 0;
+    font-weight: 600;
+}
+
+.badge-v2 {
+    background: #e3f2fd;
+    color: #1565c0;
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 4px;
+}
+
+.work-grid-v2 {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.grid-body-v2 {
+    flex: 1;
+    overflow: auto;
+}
+
+.neu-table-v2 {
+    table-layout: fixed;
+}
+
+.cell-code {
+    font-weight: 700;
+    color: var(--primary-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cell-name {
+    font-weight: 500;
+    color: var(--accent-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.qty-bubble {
+    background: var(--info-color);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-weight: 800;
+}
+
+.status-marker {
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 4px 8px;
+    border-radius: 6px;
+}
+
+.status-marker.negro {
+    background: #f1f2f6;
+    color: #2f3542;
+}
+
+.status-marker.azul {
+    background: #e8f4fd;
+    color: #1e88e5;
+}
+
+.status-marker.verde {
+    background: #e9fbf0;
+    color: #27ae60;
+}
+
+.reference-card {
+    border-top: 5px solid var(--primary-color);
+    display: flex;
+    flex-direction: column;
+}
+
+.reference-grid-v2 {
+    flex: 1;
+    overflow: auto;
+    background: #fafbfc;
+}
+
+.neu-table-compact {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.neu-table-compact th {
+    background: #f1f3f5;
+    padding: 10px;
+    font-size: 0.7rem;
+    border-bottom: 1px solid var(--border-v2);
+}
+
+.neu-table-compact td {
+    padding: 10px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    cursor: pointer;
+}
+
+.cell-product-ref {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.prod-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    line-height: 1.2;
+}
+
+.prod-meta {
+    font-size: 0.65rem;
+    color: var(--text-dim-v2);
+}
+
+.solicita-val {
+    background: #fff9c4;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 800;
+    color: #f57f17;
+}
+
+.row-completed {
+    background: #f1f8e9;
+    opacity: 0.6;
+}
+
+.composition-footer-v2 {
+    padding: 12px;
+    background: #f8f9fa;
+    border-top: 1px solid var(--border-v2);
+    display: flex;
+    justify-content: space-around;
+    font-size: 0.75rem;
+}
+
+.stat-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.stat-lbl {
+    color: var(--text-dim-v2);
+}
+
+.stat-val {
+    font-weight: 800;
+    font-size: 0.9rem;
+}
+
+.stat-group.ok {
+    color: var(--success-color);
+}
+
+.footer-status-v2 {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.8rem;
+    color: var(--text-dim-v2);
+    font-weight: 500;
+}
+
+.pulse-indicator-v2 {
+    width: 10px;
+    height: 10px;
+    background: var(--success-color);
+    border-radius: 50%;
+    animation: pulse-v2 2s infinite;
+}
+
+@keyframes pulse-v2 {
+
+    0%,
+    100% {
+        opacity: 0.4;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+.qty-input-v2 {
+    width: 55px;
+    border: 1.5px solid var(--border-v2);
+    border-radius: 6px;
+    padding: 4px 8px;
+    text-align: center;
+    font-weight: 800;
+    color: var(--info-color);
+    background: #f8f9fa;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+}
+
+.qty-input-v2:focus {
+    border-color: var(--accent-color);
+    background: white;
+    box-shadow: 0 0 0 3px rgba(53, 160, 171, 0.15);
+    outline: none;
+    transform: scale(1.05);
+}
+
+.qty-input-v2::-webkit-outer-spin-button,
+.qty-input-v2::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    appearance: none;
+    margin: 0;
+}
+
+.qty-input-v2[type=number] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}

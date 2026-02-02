@@ -1,0 +1,83 @@
+<div class="app-workspace-v2">
+    <!-- 1. HEADER INTERNO -->
+    <header class="app-header-v2">
+        <div class="header-main-info">
+            <div class="brand-logo">
+                <span class="logo-accent"></span>
+                <span class="brand-name">NEU360 - Configuración</span>
+            </div>
+            <div class="view-title">Mantenimiento de Tablas</div>
+        </div>
+        <div class="header-session-info">
+            <div class="info-item">
+                <span class="label">Módulo:</span>
+                <span class="value highlight">BODEGA</span>
+            </div>
+            <div class="info-item">
+                <span class="value">14/11/2025</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- 2. CONTENIDO PRINCIPAL -->
+    <main class="main-content-v2 center-content">
+        <div class="form-container-v2 card-v2">
+            <div class="composition-header">
+                <span class="icon">⚙️</span> Configuración de Líneas de Productos
+            </div>
+
+            <div class="composition-body p-6">
+                <div class="tab-indicator">LINEAS DE PRODUCTOS (LABORATORIOS)</div>
+
+                <div class="field-grid-v2 vertical-stack">
+                    <div class="form-group-v2">
+                        <label>Código y Descripción del Laboratorio</label>
+                        <div class="input-composite">
+                            <input type="text" value="0002" class="input-v2 w-tiny">
+                            <input type="text" value="ABBOTT" class="input-v2 flex-grow">
+                        </div>
+                    </div>
+
+                    <div class="form-group-v2">
+                        <label>Vendedor Asignado</label>
+                        <input type="text" value="00449" class="input-v2 w-medium">
+                    </div>
+
+                    <div class="sub-section-v2 card-inset">
+                        <div class="section-title">Parámetros Adicionales</div>
+                        <div class="grid-3-cols">
+                            <div class="form-group-v2">
+                                <label>Porcentaje (%)</label>
+                                <input type="text" value="0.00" class="input-v2">
+                            </div>
+                            <div class="form-group-v2">
+                                <label>Ingreso E / Egreso</label>
+                                <input type="text" placeholder="E" class="input-v2">
+                            </div>
+                            <div class="form-group-v2">
+                                <label>Tipo Despacho</label>
+                                <input type="text" placeholder="D" class="input-v2">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 3. FOOTER DE ACCIONES -->
+    <footer class="app-footer-v2">
+        <div class="footer-status-v2">
+            <span class="pulse-indicator-v2"></span>
+            <span class="text-system">Modo: EDICIÓN | Estabilidad: ÓPTIMA | NEU360 Control</span>
+        </div>
+        <div class="footer-actions-v2">
+            <button class="btn-v2 btn-primary">Agregar</button>
+            <button class="btn-v2 btn-outline">Editar</button>
+            <button class="btn-v2 btn-danger">Eliminar</button>
+            <button class="btn-v2 btn-outline">Buscar</button>
+            <button class="btn-v2 btn-dark">Imprimir</button>
+            <button class="btn-v2 btn-dark" routerLink="/revisor">Cerrar</button>
+        </div>
+    </footer>
+</div>

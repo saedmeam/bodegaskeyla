@@ -1,1 +1,342 @@
-/* You can add global styles to this file, and also import other style files */
+﻿/* --- NEU360 GLOBAL STYLE SYSTEM v2.5 --- */
+
+:root {
+    --primary-color: #1a252f;
+    /* Azul muy oscuro/negro prolijo */
+    --accent-color: #35a0ab;
+    /* Teal vibrante */
+    --success-color: #27ae60;
+    /* Verde */
+    --danger-color: #e74c3c;
+    /* Rojo */
+    --warning-color: #f1c40f;
+    /* Amarillo */
+    --info-color: #3498db;
+    /* Azul info */
+    --background-v2: #f4f7f6;
+    /* Gris neutral */
+    --card-bg-v2: #ffffff;
+    --border-v2: #e0e6ed;
+    --text-v2: #2d3436;
+    --text-dim-v2: #636e72;
+    --font-v2: 'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+
+*,
+::before,
+::after {
+    box-sizing: border-box;
+}
+
+body,
+html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    font-family: var(--font-v2);
+    background-color: var(--background-v2);
+    color: var(--text-v2);
+}
+
+.global-layout {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.router-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* --- COMPONENTES BASE --- */
+
+.card-v2 {
+    background: var(--card-bg-v2);
+    border-radius: 10px;
+    border: 1px solid var(--border-v2);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+    overflow: hidden;
+}
+
+.card-v2.accent {
+    background: var(--accent-color) !important;
+    color: white !important;
+    border: none;
+}
+
+.btn-v2 {
+    padding: 10px 22px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1.5px solid var(--border-v2);
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-primary {
+    background: var(--accent-color);
+    color: white;
+    border: none;
+}
+
+.btn-dark {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+}
+
+.btn-danger {
+    color: var(--danger-color);
+    border-color: var(--danger-color);
+}
+
+.input-v2 {
+    border: 1px solid var(--border-v2);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: #f8f9fa;
+}
+
+.readonly-field {
+    background-color: #f0f2f5 !important;
+    color: var(--text-dim-v2);
+    cursor: not-allowed;
+    border-color: var(--border-v2);
+}
+
+.neu-table-v2 {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    /* Asegura que se respeten los anchos definidos en TH */
+}
+
+.neu-table-v2 th {
+    background: #f8f9fa;
+    padding: 12px 15px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--text-dim-v2);
+    border-bottom: 2px solid var(--border-v2);
+    text-align: left;
+}
+
+/* --- LAYOUT DEL SISTEMA (75% / 25%) --- */
+
+.main-content-v2 {
+    display: flex;
+    flex: 1;
+    padding: 15px 20px;
+    gap: 20px;
+    overflow: hidden;
+    height: 100%;
+    align-items: flex-start;
+    /* Evita que los hijos se estiren si no es necesario */
+}
+
+.operational-area-v2 {
+    flex: 3;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    height: 100%;
+    overflow-y: auto;
+    position: relative;
+    max-width: 75%;
+}
+
+.app-footer-v2 {
+    background: white;
+    padding: 12px 25px;
+    border-top: 1px solid var(--border-v2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    min-height: 75px;
+}
+
+.footer-actions-v2 {
+    display: flex;
+    gap: 12px;
+}
+
+/* Clases de utilidad para anchos de celda */
+.col-code {
+    width: 120px;
+}
+
+.col-u {
+    width: 60px;
+}
+
+.col-qty {
+    width: 90px;
+}
+
+.col-status {
+    width: 130px;
+}
+
+.reference-area-v2 {
+    flex: 1;
+    max-width: 25%;
+    min-width: 300px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.full-height {
+    height: 100%;
+}
+
+/* Grids de Datos (Cabeceras) */
+.field-grid-v2 {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px 25px;
+    padding: 20px;
+}
+
+.form-group-v2 {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.form-group-v2 label {
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: var(--text-dim-v2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* --- COMPONENTES AVANZADOS --- */
+
+/* LEYENDA */
+.legend-v2 {
+    display: flex;
+    gap: 15px;
+    background: rgba(0, 0, 0, 0.03);
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border-v2);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.legend-item .marker {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.marker.negro {
+    background: #2c3e50;
+    box-shadow: 0 0 5px rgba(44, 62, 80, 0.4);
+}
+
+.marker.azul {
+    background: #3498db;
+    box-shadow: 0 0 5px rgba(52, 152, 219, 0.4);
+}
+
+.marker.verde {
+    background: #2ecc71;
+    box-shadow: 0 0 5px rgba(46, 204, 113, 0.4);
+}
+
+.legend-item .lbl {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--text-v2);
+    text-transform: uppercase;
+}
+
+/* TOASTS */
+.app-toast-v2 {
+    position: absolute;
+    top: 25px;
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 320px;
+    padding: 15px 20px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    z-index: 999;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    animation: slideDownToast 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.toast-ok {
+    background: linear-gradient(135deg, #27ae60, #2ecc71);
+    color: white;
+}
+
+.toast-err {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    color: white;
+}
+
+.toast-icon {
+    font-size: 1.5rem;
+    background: rgba(255, 255, 255, 0.2);
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.toast-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.toast-title {
+    font-size: 0.9rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.toast-body {
+    font-size: 0.8rem;
+    opacity: 0.9;
+    font-weight: 500;
+}
+
+@keyframes slideDownToast {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+}

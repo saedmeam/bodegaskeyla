@@ -1,0 +1,153 @@
+.header-container {
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+}
+
+.neu-header {
+    display: flex;
+    align-items: center;
+    background-color: #0d2a2a;
+    color: #ffffff;
+    height: 32px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 10px;
+    padding: 0 5px;
+    white-space: nowrap;
+}
+
+.segment {
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    height: 100%;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.menu-trigger {
+    cursor: pointer;
+    background-color: #1a4d4d;
+    font-weight: bold;
+}
+
+.menu-trigger:hover {
+    background-color: #266b6b;
+}
+
+.info-field .label {
+    color: #88aaaa;
+    margin-right: 4px;
+}
+
+.info-field .value {
+    font-weight: bold;
+}
+
+.badge {
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: bold;
+    font-size: 9px;
+}
+
+.badge.open {
+    background-color: #2ecc71;
+    color: #0d2a2a;
+}
+
+.badge.disconnected {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.clock-container {
+    color: #f1c40f;
+    font-weight: bold;
+    margin: 0 10px;
+}
+
+.doc-pend .highlight {
+    background-color: #34495e;
+    padding: 1px 6px;
+    border-radius: 10px;
+    margin-left: 4px;
+}
+
+.shortcuts {
+    margin-left: auto;
+    display: flex;
+    gap: 12px;
+}
+
+.shortcut-item .keys {
+    color: #88aaaa;
+    font-size: 8px;
+    margin-left: 3px;
+}
+
+.shortcut-item.logout {
+    color: #e74c3c;
+    font-weight: bold;
+}
+
+/* BARRA DE PESTAÑAS */
+.sub-header-tabs {
+    background-color: #f8f9fa;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    padding: 0 15px;
+    gap: 5px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.tab {
+    padding: 8px 20px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #495057;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 6px 6px 0 0;
+    transition: all 0.2s;
+}
+
+.tab.active {
+    background-color: #1a4d4d;
+    color: white;
+}
+
+.tab:hover:not(.active) {
+    background-color: #e9ecef;
+}
+
+.spacer {
+    flex: 1;
+}
+
+.action-btn-header {
+    background-color: #e9ecef;
+    border: 1px solid #ced4da;
+    padding: 5px 15px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: bold;
+    color: #495057;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.action-btn-header:hover {
+    background-color: #dee2e6;
+}
+
+.hide-mobile {
+    @media (max-width: 1000px) {
+        display: none;
+    }
+}

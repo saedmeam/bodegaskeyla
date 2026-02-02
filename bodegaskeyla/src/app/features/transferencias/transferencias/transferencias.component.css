@@ -1,0 +1,96 @@
+/* Estilos específicos para Transferencias NEU360 v2.0 */
+
+.w-tiny {
+    width: 60px;
+}
+
+.w-medium {
+    width: 160px;
+}
+
+.input-composite {
+    display: flex;
+    gap: 8px;
+}
+
+.p-4 {
+    padding: 20px;
+}
+
+.mt-6 {
+    margin-top: 25px;
+}
+
+.reference-card {
+    border-top: 5px solid var(--primary-color);
+}
+
+.total-big-box {
+    background: var(--primary-color) !important;
+    color: white;
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.total-big-box label {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    opacity: 0.7;
+    margin-bottom: 5px;
+}
+
+.total-value {
+    font-size: 2rem;
+    font-weight: 800;
+}
+
+.stats-v2 .stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-v2);
+    font-size: 0.85rem;
+    color: var(--text-v2);
+}
+
+.stat-row.highlight {
+    font-weight: 700;
+    color: var(--accent-color);
+    border: none;
+}
+
+.v-divider {
+    width: 1px;
+    height: 30px;
+    background: var(--border-v2);
+    margin: 0 10px;
+}
+
+.grid-header-v2 {
+    padding: 12px 18px;
+    background: #fdfdfe;
+    border-bottom: 1px solid var(--border-v2);
+}
+
+.badge-v2 {
+    background: #e9fbf0;
+    color: #27ae60;
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 4px;
+}
+
+.grid-body-v2 {
+    flex: 1;
+    overflow: auto;
+}
+
+.footer-actions-v2 {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}

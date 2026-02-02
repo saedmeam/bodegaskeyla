@@ -1,0 +1,58 @@
+<div class="header-container">
+    <!-- BARRA TOP -->
+    <header class="neu-header">
+        <div class="segment menu-trigger" (click)="navService.toggleMenu()">
+            <span class="icon">☰</span>
+            <span class="label">Menu <span class="shortcut">(Shift + TAB)</span></span>
+        </div>
+
+        <div class="segment info-field">
+            <span class="label">Cajero:</span>
+            <span class="value">{{ cajero }}</span>
+        </div>
+
+        <div class="segment info-field">
+            <span class="label">Empresa:</span>
+            <span class="value">{{ empresa }}</span>
+        </div>
+
+        <div class="segment info-field hide-mobile">
+            <span class="label">Sucursal:</span>
+            <span class="value">{{ sucursal }}</span>
+        </div>
+
+        <div class="segment info-field">
+            <span class="label">Caja:</span>
+            <span class="value">{{ caja }}</span>
+        </div>
+
+        <div class="segment badge-container">
+            <span class="badge open">ABIERTA</span>
+        </div>
+
+        <div class="segment clock-container">
+            <span class="time-value">🕒 {{ currentTime() }}</span>
+        </div>
+
+        <div class="segment status-container hide-mobile">
+            <span class="label">Estado:</span>
+            <span class="badge disconnected">DESCONECTADO</span>
+        </div>
+
+        <div class="segment doc-pend">
+            <span class="label">Doc. Pend:</span>
+            <span class="value highlight">0</span>
+        </div>
+
+        <div class="segment shortcuts">
+            <div class="shortcut-item">
+                <span class="label">Info</span>
+                <span class="keys">(Ctrl + I)</span>
+            </div>
+            <div class="shortcut-item logout">
+                <span class="label">Salir</span>
+                <span class="keys">(Shift + Q)</span>
+            </div>
+        </div>
+    </header>
+</div>

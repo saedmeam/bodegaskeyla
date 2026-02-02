@@ -1,0 +1,206 @@
+<div class="app-workspace-v2">
+    <!-- 1. BARRA DE NAVEGACIÓN SUPERIOR (Brand & Session) -->
+    <header class="app-header-v2">
+        <div class="header-main-info">
+            <div class="brand-logo">
+                <span class="logo-accent"></span>
+                <span class="brand-name">NEU360 - Pantalla de Revisor v2.0</span>
+            </div>
+            <div class="view-title">Reposición de Mercadería</div>
+        </div>
+        <div class="header-session-info">
+            <div class="info-item">
+                <span class="label">Usuario:</span>
+                <span class="value highlight">ADMINISTRA</span>
+            </div>
+            <div class="info-item">
+                <span class="value">{{ fecha }}</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- 2. CONTENEDOR PRINCIPAL DIVIDIDO -->
+    <main class="main-content-v2">
+
+        <!-- ÁREA OPERATIVA (LADO IZQUIERDO - 75%) -->
+        <section class="operational-area-v2">
+            <!-- Notificación Flotante -->
+            @if (notificationMessage()) {
+            <div class="app-toast-v2" [ngClass]="isError() ? 'toast-err' : 'toast-ok'">
+                <span class="toast-icon">{{ isError() ? '✖' : '✔' }}</span>
+                <div class="toast-content">
+                    <span class="toast-title">{{ isError() ? 'Error de Pistoleo' : 'Registro Exitoso' }}</span>
+                    <span class="toast-body">{{ notificationMessage() }}</span>
+                </div>
+            </div>
+            }
+
+            <!-- Agrupación de Datos de Cabecera -->
+            <div class="data-composition-v2 card-v2">
+                <div class="composition-header">
+                    <span class="icon">📋</span> Datos Generales de la Orden
+                </div>
+                <div class="composition-body">
+                    <div class="field-grid-v2">
+                        <div class="form-group-v2">
+                            <label>Número de Orden</label>
+                            <input type="text" [(ngModel)]="numero" (keyup.enter)="consultarOrden()"
+                                (blur)="consultarOrden()" placeholder="Ingrese # de Orden..." class="input-v2">
+                        </div>
+                        <div class="form-group-v2">
+                            <label>Bodega</label>
+                            <input type="text" [(ngModel)]="bodega" readonly class="input-v2 w-tiny readonly-field">
+                        </div>
+                        <div class="form-group-v2 flex-grow">
+                            <label>Movimiento</label>
+                            <div class="input-composite">
+                                <input type="text" [(ngModel)]="movimiento" readonly
+                                    class="input-v2 w-tiny readonly-field">
+                                <input type="text" [(ngModel)]="movimientoNombre" readonly
+                                    class="input-v2 flex-grow readonly-field">
+                            </div>
+                        </div>
+                        <div class="form-group-v2 w-full">
+                            <label>Concepto / Observaciones</label>
+                            <input type="text" [(ngModel)]="concepto" class="input-v2">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Agrupación de Pistoleo (Input activo) -->
+            <div class="action-scanner-v2 card-v2 accent">
+                <div class="scanner-interface">
+                    <div class="scanner-prompt">
+                        <span class="prompt-text">Escaneo de Códigos <span class="blink">|</span></span>
+                    </div>
+                    <div class="scanner-input-container">
+                        <input type="text" [(ngModel)]="barcodeInput" (keyup.enter)="simularEscaneo()"
+                            [disabled]="ordenProductos().length === 0"
+                            [placeholder]="ordenProductos().length === 0 ? 'Cargue una orden para activar...' : 'Pistolee el código de barras aquí...'"
+                            class="scanner-input-v2">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Agrupación de Listado de Resultados (Despacho) -->
+            <div class="work-grid-v2 card-v2">
+                <div class="grid-header-v2">
+                    <div class="header-left">
+                        <span class="badge-v2">PROCESO</span>
+                        <h3>Productos Despachados (Pistoleados)</h3>
+                    </div>
+                    <div class="header-right">
+                        <span class="text-muted">Total: {{ escaneados().length }} ítems</span>
+                    </div>
+                </div>
+                <div class="grid-body-v2">
+                    <table class="neu-table-v2">
+                        <thead>
+                            <tr>
+                                <th class="col-code">Cód. Item</th>
+                                <th>Descripción del Producto</th>
+                                <th class="col-u text-center">U</th>
+                                <th class="col-qty text-center">DESP</th>
+                                <th class="col-status">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (p of escaneados(); track p.item) {
+                            <tr [className]="'tr-status-' + p.color">
+                                <td class="cell-code">{{ p.item }}</td>
+                                <td class="cell-name">{{ p.nombre }}</td>
+                                <td class="text-center">{{ p.unidad }}</td>
+                                <td class="text-center">
+                                    <input type="number" [ngModel]="p.despachado"
+                                        (ngModelChange)="updateQty(p.item, $event)" class="qty-input-v2">
+                                </td>
+                                <td><span class="status-marker" [ngClass]="p.color">{{ p.color.toUpperCase() }}</span>
+                                </td>
+                            </tr>
+                            }
+                            @if (escaneados().length === 0) {
+                            <tr>
+                                <td colspan="5" class="empty-state">No hay registros pistoleados aún</td>
+                            </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TABLA DE COMPARATIVO (LADO DERECHO - 25%) -->
+        <aside class="reference-area-v2">
+            <div class="card-v2 full-height reference-card">
+                <div class="composition-header shadow">
+                    <span class="icon">📊</span> Comparativo de Orden
+                </div>
+                <div class="reference-grid-v2">
+                    <table class="neu-table-compact">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th width="50" class="text-center">SOL</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (p of ordenProductos(); track p.item) {
+                            <tr [className]="p.color === 'completado' ? 'row-completed' : ''"
+                                (click)="manualSelect(p.item)">
+                                <td class="cell-product-ref">
+                                    <span class="prod-title">{{ p.nombre }}</span>
+                                    <span class="prod-meta">{{ p.item }} | {{ p.unidad }}</span>
+                                </td>
+                                <td class="text-center"><span class="solicita-val">{{ p.solicita }}</span></td>
+                            </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="composition-footer-v2">
+                    <div class="stat-group">
+                        <span class="stat-lbl">Registros:</span>
+                        <span class="stat-val">{{ totalItems() }}</span>
+                    </div>
+                    <div class="stat-group ok">
+                        <span class="stat-lbl">OK:</span>
+                        <span class="stat-val">{{ totalCorrectos() }}</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+    </main>
+
+    <!-- 3. FOOTER DE CONTROL (Acciones Finales) -->
+    <footer class="app-footer-v2">
+        <div class="footer-status-v2">
+            <span class="pulse-indicator-v2"></span>
+            <span class="text-system">TRA#: 18369 | Terminal: 55336 | NEU360 Engine v2.0 Ready</span>
+        </div>
+
+        <!-- Leyenda de Colores de Estado -->
+        <div class="legend-v2">
+            <div class="legend-item">
+                <span class="marker negro"></span>
+                <span class="lbl">COMPLETO (CUADRA)</span>
+            </div>
+            <div class="legend-item">
+                <span class="marker azul"></span>
+                <span class="lbl">INCOMPLETO (PENDIENTE)</span>
+            </div>
+            <div class="legend-item">
+                <span class="marker verde"></span>
+                <span class="lbl">EXCEDIDO (+ CANTIDAD)</span>
+            </div>
+        </div>
+
+        <div class="footer-actions-v2">
+            <button class="btn-v2 btn-outline">Editar</button>
+            <button class="btn-v2 btn-danger">Eliminar</button>
+            <button class="btn-v2 btn-primary">Guardar e Imprimir</button>
+            <button class="btn-v2 btn-dark">Cerrar</button>
+        </div>
+    </footer>
+</div>
