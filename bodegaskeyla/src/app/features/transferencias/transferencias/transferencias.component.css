@@ -94,3 +94,8 @@
     gap: 8px;
     align-items: center;
 }
+
+.neu-table-v2 {
+    min-width: 850px;
+    /* Ancho estándar solicitado para habilitar scroll */
+}

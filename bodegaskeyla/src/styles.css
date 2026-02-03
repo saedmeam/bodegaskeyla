@@ -39,11 +39,23 @@ html {
     color: var(--text-v2);
 }
 
+.app-workspace-v2 {
+    flex: 1;
+    /* Ocupa el espacio restante del router-container */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+    /* Asegura contención flex */
+}
+
 .global-layout {
     height: 100vh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    min-height: 0;
+    /* Bloquea expansión de hijos */
 }
 
 .router-container {
@@ -51,6 +63,8 @@ html {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    min-height: 0;
+    /* Bloquea expansión de hijos */
 }
 
 /* --- COMPONENTES BASE --- */
@@ -70,10 +84,12 @@ html {
 }
 
 .btn-v2 {
-    padding: 10px 22px;
+    padding: 8px 18px;
+    /* Reducido para modo compacto */
     border-radius: 8px;
     font-weight: 700;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
+    /* Ligeramente menor para mejor visibilidad */
     cursor: pointer;
     transition: all 0.2s;
     border: 1.5px solid var(--border-v2);
@@ -132,6 +148,9 @@ html {
     color: var(--text-dim-v2);
     border-bottom: 2px solid var(--border-v2);
     text-align: left;
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 /* --- LAYOUT DEL SISTEMA (75% / 25%) --- */
@@ -139,34 +158,39 @@ html {
 .main-content-v2 {
     display: flex;
     flex: 1;
-    padding: 15px 20px;
-    gap: 20px;
+    padding: 4px 10px;
+    /* Reducción extrema */
+    gap: 8px;
+    /* Reducido */
     overflow: hidden;
-    height: 100%;
-    align-items: flex-start;
-    /* Evita que los hijos se estiren si no es necesario */
+    min-height: 0;
+    align-items: stretch;
 }
 
 .operational-area-v2 {
     flex: 3;
     display: flex;
     flex-direction: column;
-    gap: 15px;
-    height: 100%;
-    overflow-y: auto;
+    gap: 12px;
+    min-height: 0;
+    /* Crucial para scroll en flex hijos */
+    overflow: hidden;
+    /* El scroll lo manejarán las grillas internas */
     position: relative;
-    max-width: 75%;
+    transition: all 0.3s ease;
 }
 
 .app-footer-v2 {
     background: white;
-    padding: 12px 25px;
+    padding: 2px 20px;
     border-top: 1px solid var(--border-v2);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 20px;
-    min-height: 75px;
+    gap: 15px;
+    min-height: 44px;
+    flex-shrink: 0;
+    /* No negociable */
 }
 
 .footer-actions-v2 {
@@ -195,9 +219,17 @@ html {
     flex: 1;
     max-width: 25%;
     min-width: 300px;
-    height: 100%;
+    min-height: 0;
+    /* Crucial para scroll interno */
     display: flex;
     flex-direction: column;
+    transition: all 0.3s ease;
+}
+
+.reference-area-v2.collapsed-v2 {
+    flex: 0 0 40px;
+    min-width: 40px;
+    max-width: 40px;
 }
 
 .full-height {
@@ -208,8 +240,8 @@ html {
 .field-grid-v2 {
     display: flex;
     flex-wrap: wrap;
-    gap: 15px 25px;
-    padding: 20px;
+    gap: 6px 15px;
+    padding: 6px 15px;
 }
 
 .form-group-v2 {

@@ -7,8 +7,10 @@
 }
 
 .form-container-v2 {
-    width: 600px;
-    max-width: 90%;
+    width: 850px;
+    max-width: 95%;
+    margin-top: -50px;
+    /* Sutil ajuste hacia arriba para mejor equilibrio visual */
 }
 
 .p-6 {
@@ -29,7 +31,8 @@
 .vertical-stack {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 25px;
+    /* Más espacio entre grupos */
 }
 
 .input-composite {

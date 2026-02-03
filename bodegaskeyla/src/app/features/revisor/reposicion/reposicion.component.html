@@ -43,16 +43,16 @@
                 <div class="composition-body">
                     <div class="field-grid-v2">
                         <div class="form-group-v2">
-                            <label>Número de Orden</label>
+                            <label title="Identificador único de la orden de reposición">Número de Orden</label>
                             <input type="text" [(ngModel)]="numero" (keyup.enter)="consultarOrden()"
-                                (blur)="consultarOrden()" placeholder="Ingrese # de Orden..." class="input-v2">
+                                placeholder="Ingrese # de Orden..." class="input-v2">
                         </div>
                         <div class="form-group-v2">
-                            <label>Bodega</label>
+                            <label title="Código de la bodega asociada a la orden">Bodega</label>
                             <input type="text" [(ngModel)]="bodega" readonly class="input-v2 w-tiny readonly-field">
                         </div>
                         <div class="form-group-v2 flex-grow">
-                            <label>Movimiento</label>
+                            <label title="Tipo y descripción del movimiento operativo">Movimiento</label>
                             <div class="input-composite">
                                 <input type="text" [(ngModel)]="movimiento" readonly
                                     class="input-v2 w-tiny readonly-field">
@@ -61,7 +61,8 @@
                             </div>
                         </div>
                         <div class="form-group-v2 w-full">
-                            <label>Concepto / Observaciones</label>
+                            <label title="Notas y observaciones adicionales de la orden">Concepto /
+                                Observaciones</label>
                             <input type="text" [(ngModel)]="concepto" class="input-v2">
                         </div>
                     </div>
@@ -75,7 +76,7 @@
                         <span class="prompt-text">Escaneo de Códigos <span class="blink">|</span></span>
                     </div>
                     <div class="scanner-input-container">
-                        <input type="text" [(ngModel)]="barcodeInput" (keyup.enter)="simularEscaneo()"
+                        <input type="text" #scannerInput [(ngModel)]="barcodeInput" (keyup.enter)="simularEscaneo()"
                             [disabled]="ordenProductos().length === 0"
                             [placeholder]="ordenProductos().length === 0 ? 'Cargue una orden para activar...' : 'Pistolee el código de barras aquí...'"
                             class="scanner-input-v2">
@@ -86,11 +87,9 @@
             <!-- Agrupación de Listado de Resultados (Despacho) -->
             <div class="work-grid-v2 card-v2">
                 <div class="grid-header-v2">
-                    <div class="header-left">
-                        <span class="badge-v2">PROCESO</span>
-                        <h3>Productos Despachados (Pistoleados)</h3>
-                    </div>
-                    <div class="header-right">
+                    <div class="grid-title-v2">
+                        <span class="icon">📦</span>
+                        <h3>Productos Despachados</h3>
                         <span class="text-muted">Total: {{ escaneados().length }} ítems</span>
                     </div>
                 </div>
@@ -98,30 +97,68 @@
                     <table class="neu-table-v2">
                         <thead>
                             <tr>
-                                <th class="col-code">Cód. Item</th>
-                                <th>Descripción del Producto</th>
-                                <th class="col-u text-center">U</th>
-                                <th class="col-qty text-center">DESP</th>
-                                <th class="col-status">Estado</th>
+                                <th class="col-code" title="Código de referencia del producto">Cód. Item</th>
+                                <th class="col-bulto" title="Número de bulto o contenedor">Bulto</th>
+                                <th class="col-name" title="Nombre y descripción detallada del producto">Descripción del
+                                    Producto</th>
+                                <th class="col-u text-center" title="Unidad de medida (Ej: UN, KG)">U</th>
+                                <th class="col-stock text-center"
+                                    title="Inventario total disponible en la bodega actual">Stock</th>
+                                <th class="col-qty text-center" title="Cantidad total solicitada en la orden original">
+                                    Sol.</th>
+                                <th class="col-qty text-center"
+                                    title="Cantidad que ha sido escaneada o ingresada manualmente">Desp.</th>
+                                <th class="col-qty text-center" title="Diferencia restante por despachar">Pend.</th>
+                                <th class="col-status" title="Estado logístico del producto en esta operación">Estado
+                                </th>
+                                <th class="col-actions" title="Acciones de control"></th>
                             </tr>
                         </thead>
                         <tbody>
                             @for (p of escaneados(); track p.item) {
                             <tr [className]="'tr-status-' + p.color">
-                                <td class="cell-code">{{ p.item }}</td>
-                                <td class="cell-name">{{ p.nombre }}</td>
-                                <td class="text-center">{{ p.unidad }}</td>
+                                <td class="cell-code" title="{{p.item}}">{{ p.item }}</td>
                                 <td class="text-center">
-                                    <input type="number" [ngModel]="p.despachado"
+                                    <input type="number" [(ngModel)]="p.bulto" min="0"
+                                        (change)="revisorService.saveSession()" class="qty-input-v2 w-tiny">
+                                </td>
+                                <td class="cell-name" title="{{p.nombre}}">{{ p.nombre }}</td>
+                                <td class="text-center" title="{{ revisorService.getUnitDescription(p.unidad) }}">
+                                    {{ p.unidad }}
+                                </td>
+                                <td class="text-center">
+                                    <span class="qty-bubble-alt">{{ p.invBod }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="qty-bubble-sol">{{ p.solicita }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <input type="number" [ngModel]="p.despachado" min="0"
                                         (ngModelChange)="updateQty(p.item, $event)" class="qty-input-v2">
                                 </td>
-                                <td><span class="status-marker" [ngClass]="p.color">{{ p.color.toUpperCase() }}</span>
+                                <td class="text-center">
+                                    <span class="qty-bubble-pend"
+                                        [ngClass]="{'pend-ok': (p.solicita - p.despachado) <= 0}">
+                                        {{ p.solicita - p.despachado }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="status-marker" [ngClass]="p.color">
+                                        {{ p.color === 'negro' ? 'COMPLETO' : (p.color === 'azul' ? 'INCOMPLETO' :
+                                        'EXCEDIDO') }}
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <button class="btn-delete-v2" (click)="eliminarItem(p.item)"
+                                        title="Eliminar este ítem">
+                                        🗑️
+                                    </button>
                                 </td>
                             </tr>
                             }
                             @if (escaneados().length === 0) {
                             <tr>
-                                <td colspan="5" class="empty-state">No hay registros pistoleados aún</td>
+                                <td colspan="10" class="empty-state">No hay registros pistoleados aún</td>
                             </tr>
                             }
                         </tbody>
@@ -131,17 +168,21 @@
         </section>
 
         <!-- TABLA DE COMPARATIVO (LADO DERECHO - 25%) -->
-        <aside class="reference-area-v2">
+        <aside class="reference-area-v2" [class.collapsed-v2]="!showComparativo()">
             <div class="card-v2 full-height reference-card">
-                <div class="composition-header shadow">
-                    <span class="icon">📊</span> Comparativo de Orden
+                <div class="composition-header shadow clickable-header" (click)="toggleComparativo()">
+                    <span class="icon">{{ showComparativo() ? '📊' : '📁' }}</span>
+                    <span class="title-text">Comparativo de Orden</span>
+                    <span class="toggle-icon">{{ showComparativo() ? '▼' : '▶' }}</span>
                 </div>
+
+                @if (showComparativo()) {
                 <div class="reference-grid-v2">
                     <table class="neu-table-compact">
                         <thead>
                             <tr>
-                                <th>Producto</th>
-                                <th width="50" class="text-center">SOL</th>
+                                <th title="Descripción del producto referencial">Producto</th>
+                                <th width="50" class="text-center" title="Cantidad Total Solicitada">SOL</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -150,7 +191,8 @@
                                 (click)="manualSelect(p.item)">
                                 <td class="cell-product-ref">
                                     <span class="prod-title">{{ p.nombre }}</span>
-                                    <span class="prod-meta">{{ p.item }} | {{ p.unidad }}</span>
+                                    <span class="prod-meta">{{ p.item }} | {{ p.unidad }} | LOTE: {{ p.lote || 'N/A'
+                                        }}</span>
                                 </td>
                                 <td class="text-center"><span class="solicita-val">{{ p.solicita }}</span></td>
                             </tr>
@@ -158,9 +200,10 @@
                         </tbody>
                     </table>
                 </div>
+
                 <div class="composition-footer-v2">
                     <div class="stat-group">
-                        <span class="stat-lbl">Registros:</span>
+                        <span class="stat-lbl">Items:</span>
                         <span class="stat-val">{{ totalItems() }}</span>
                     </div>
                     <div class="stat-group ok">
@@ -168,6 +211,7 @@
                         <span class="stat-val">{{ totalCorrectos() }}</span>
                     </div>
                 </div>
+                }
             </div>
         </aside>
 
@@ -197,10 +241,39 @@
         </div>
 
         <div class="footer-actions-v2">
-            <button class="btn-v2 btn-outline">Editar</button>
-            <button class="btn-v2 btn-danger">Eliminar</button>
-            <button class="btn-v2 btn-primary">Guardar e Imprimir</button>
-            <button class="btn-v2 btn-dark">Cerrar</button>
+            <button class="btn-v2 btn-success" (click)="finalizar()"
+                title="Finalizar despacho y enviar">Agregar</button>
+            <button class="btn-v2 btn-outline" title="Editar ítem seleccionado">Editar</button>
+            <button class="btn-v2 btn-danger" (click)="resetearTodo()"
+                title="ELIMINAR TODO LO DESPACHADO">Eliminar</button>
+            <button class="btn-v2 btn-outline" (click)="simularEscenarioDiscrepancias()"
+                title="Cargar escenario de pruebas con discrepancias (Solo para validación)">🧪 Simular</button>
+            <button class="btn-v2 btn-primary" (click)="guardarBorrador()"
+                title="Guardar Borrador en disco local">Guardar</button>
+            <button class="btn-v2 btn-dark" (click)="cerrarPantalla()" title="Cerrar esta pantalla">Cerrar</button>
         </div>
     </footer>
+
+    <!-- 4. MODAL DE CONFIRMACIÓN CUSTOM (v35.0) -->
+    @if (modalVisible()) {
+    <div class="modal-overlay-v2">
+        <div class="modal-card-v2">
+            <header class="modal-header-v2">
+                <span class="icon">{{ modalIcon() }}</span>
+                <h3>{{ modalTitle() }}</h3>
+            </header>
+            <div class="modal-body-v2">
+                <p [innerHTML]="modalMessage()"></p>
+            </div>
+            <footer class="modal-footer-v2">
+                @if (modalType() === 'confirm') {
+                <button class="btn-v2 btn-outline" (click)="closeModal(false)">Cancelar</button>
+                <button class="btn-v2 btn-primary" (click)="closeModal(true)">Continuar</button>
+                } @else if (modalType() === 'alert') {
+                <button class="btn-v2 btn-primary" (click)="closeModal(true)">Entendido</button>
+                }
+            </footer>
+        </div>
+    </div>
+    }
 </div>

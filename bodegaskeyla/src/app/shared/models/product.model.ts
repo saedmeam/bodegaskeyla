@@ -10,4 +10,6 @@ export interface Product {
     despachado: number;
     color: string; // 'negro', 'verde', 'azul', 'rojo', 'naranja', 'amarillo'
     estado?: string;
+    lote?: string;
+    bulto?: number;
 }

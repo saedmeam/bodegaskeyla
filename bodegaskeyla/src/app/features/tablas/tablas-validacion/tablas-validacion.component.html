@@ -21,6 +21,17 @@
 
     <!-- 2. CONTENIDO PRINCIPAL -->
     <main class="main-content-v2 center-content">
+        <!-- Notificación de Carga -->
+        @if (notificationMessage()) {
+        <div class="app-toast-v2 toast-ok">
+            <span class="toast-icon">⏳</span>
+            <div class="toast-content">
+                <span class="toast-title">Consultando...</span>
+                <span class="toast-body">{{ notificationMessage() }}</span>
+            </div>
+        </div>
+        }
+
         <div class="form-container-v2 card-v2">
             <div class="composition-header">
                 <span class="icon">⚙️</span> Configuración de Líneas de Productos
@@ -33,14 +44,20 @@
                     <div class="form-group-v2">
                         <label>Código y Descripción del Laboratorio</label>
                         <div class="input-composite">
-                            <input type="text" value="0002" class="input-v2 w-tiny">
-                            <input type="text" value="ABBOTT" class="input-v2 flex-grow">
+                            <input type="text" [(ngModel)]="codigo" (keyup.enter)="buscarLaboratorio()"
+                                (blur)="buscarLaboratorio()" placeholder="Cód..." class="input-v2 w-tiny">
+
+                            <input type="text" [(ngModel)]="nombre" [readonly]="isLocked()"
+                                [class.readonly-field]="isLocked()" placeholder="Descripción del Laboratorio"
+                                class="input-v2 flex-grow">
                         </div>
                     </div>
 
                     <div class="form-group-v2">
                         <label>Vendedor Asignado</label>
-                        <input type="text" value="00449" class="input-v2 w-medium">
+                        <input type="text" [(ngModel)]="vendedor" [readonly]="isLocked()"
+                            [class.readonly-field]="isLocked()" placeholder="Ingrese Vendedor..."
+                            class="input-v2 w-medium">
                     </div>
 
                     <div class="sub-section-v2 card-inset">
@@ -48,15 +65,18 @@
                         <div class="grid-3-cols">
                             <div class="form-group-v2">
                                 <label>Porcentaje (%)</label>
-                                <input type="text" value="0.00" class="input-v2">
+                                <input type="number" [(ngModel)]="porcentaje" [readonly]="isLocked()"
+                                    [class.readonly-field]="isLocked()" class="input-v2">
                             </div>
                             <div class="form-group-v2">
                                 <label>Ingreso E / Egreso</label>
-                                <input type="text" placeholder="E" class="input-v2">
+                                <input type="text" [(ngModel)]="ingreso" [readonly]="isLocked()"
+                                    [class.readonly-field]="isLocked()" placeholder="E" class="input-v2">
                             </div>
                             <div class="form-group-v2">
                                 <label>Tipo Despacho</label>
-                                <input type="text" placeholder="D" class="input-v2">
+                                <input type="text" [(ngModel)]="despacho" [readonly]="isLocked()"
+                                    [class.readonly-field]="isLocked()" placeholder="D" class="input-v2">
                             </div>
                         </div>
                     </div>
@@ -73,10 +93,10 @@
         </div>
         <div class="footer-actions-v2">
             <button class="btn-v2 btn-primary">Agregar</button>
-            <button class="btn-v2 btn-outline">Editar</button>
-            <button class="btn-v2 btn-danger">Eliminar</button>
-            <button class="btn-v2 btn-outline">Buscar</button>
-            <button class="btn-v2 btn-dark">Imprimir</button>
+            <button class="btn-v2 btn-outline" [disabled]="isLocked()">Editar</button>
+            <button class="btn-v2 btn-danger" [disabled]="isLocked()">Eliminar</button>
+            <button class="btn-v2 btn-outline" (click)="buscarLaboratorio()">Buscar</button>
+            <button class="btn-v2 btn-dark" [disabled]="isLocked()">Imprimir</button>
             <button class="btn-v2 btn-dark" routerLink="/revisor">Cerrar</button>
         </div>
     </footer>

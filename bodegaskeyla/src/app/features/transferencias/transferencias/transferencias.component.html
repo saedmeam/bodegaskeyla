@@ -14,7 +14,7 @@
                 <span class="value highlight">ADMINISTRA</span>
             </div>
             <div class="info-item">
-                <span class="value">14/11/2025 10:45:28</span>
+                <span class="value">{{ fecha || '---' }}</span>
             </div>
         </div>
     </header>
@@ -22,6 +22,17 @@
     <!-- 2. CONTENIDO PRINCIPAL -->
     <main class="main-content-v2">
         <section class="operational-area-v2">
+
+            <!-- Notificación de Carga -->
+            @if (notificationMessage()) {
+            <div class="app-toast-v2 toast-ok">
+                <span class="toast-icon">⏳</span>
+                <div class="toast-content">
+                    <span class="toast-title">Consultando...</span>
+                    <span class="toast-body">{{ notificationMessage() }}</span>
+                </div>
+            </div>
+            }
 
             <!-- Datos Generales -->
             <div class="card-v2">
@@ -31,32 +42,32 @@
                 <div class="field-grid-v2">
                     <div class="form-group-v2">
                         <label>Número</label>
-                        <input type="text" value="537837" class="input-v2 w-tiny" readonly>
+                        <input type="text" [(ngModel)]="numero" (keyup.enter)="consultarTransferencia()"
+                            (blur)="consultarTransferencia()" placeholder="Ingrese #" class="input-v2 w-tiny">
                     </div>
                     <div class="form-group-v2">
                         <label>Fecha</label>
-                        <input type="text" value="14/11/2025 10:52:12" class="input-v2 w-medium" readonly>
+                        <input type="text" [(ngModel)]="fecha" class="input-v2 w-medium readonly-field" readonly>
                     </div>
                     <div class="form-group-v2">
                         <label>Bodega</label>
-                        <input type="text" value="001" class="input-v2 w-tiny" readonly>
+                        <input type="text" [(ngModel)]="bodega" class="input-v2 w-tiny readonly-field" readonly>
                     </div>
                     <div class="form-group-v2 flex-grow">
                         <label>Movimiento</label>
                         <div class="input-composite">
-                            <input type="text" value="096" class="input-v2 w-tiny" readonly>
-                            <input type="text" value="MONICADOS" class="input-v2 flex-grow" readonly>
+                            <input type="text" [(ngModel)]="movimiento" class="input-v2 w-tiny readonly-field" readonly>
+                            <input type="text" [(ngModel)]="movimientoNombre" class="input-v2 flex-grow readonly-field"
+                                readonly>
                         </div>
                     </div>
                     <div class="form-group-v2">
                         <label># Pedido</label>
-                        <input type="text" value="915402" class="input-v2 w-tiny">
+                        <input type="text" [(ngModel)]="pedido" class="input-v2 w-tiny">
                     </div>
                     <div class="form-group-v2 w-full">
                         <label>Concepto / Observaciones</label>
-                        <input type="text"
-                            value="DIGITADOR: ROSERO CASTRO JOHN IVAN - DESPACHADOR: CEDEÑO GAROFALO DANNY JAVIER"
-                            class="input-v2">
+                        <input type="text" [(ngModel)]="concepto" class="input-v2">
                     </div>
                 </div>
             </div>
@@ -67,6 +78,9 @@
                     <div class="header-left">
                         <span class="badge-v2">ACTIVO</span>
                         <h3>Detalle de Mercadería a Transferir</h3>
+                    </div>
+                    <div class="header-right">
+                        <span class="text-muted">Total: {{ totalItems() }} ítems</span>
                     </div>
                 </div>
                 <div class="grid-body-v2">
@@ -83,24 +97,22 @@
                             </tr>
                         </thead>
                         <tbody>
+                            @for (p of productos(); track p.item) {
                             <tr>
-                                <td class="cell-code">0018-00027</td>
-                                <td class="cell-name">MUSIC TAB 1.5MG X 10 *1</td>
-                                <td>LOTE: 231555A 03/2026</td>
-                                <td class="text-center">C</td>
-                                <td class="text-center"><b>1</b></td>
-                                <td class="text-center">4.200</td>
-                                <td><b>4.200</b></td>
+                                <td class="cell-code">{{ p.item }}</td>
+                                <td class="cell-name">{{ p.nombre }}</td>
+                                <td>LOTE: {{ p.lote }} VENCE: {{ p.vencimiento }}</td>
+                                <td class="text-center">{{ p.unidad }}</td>
+                                <td class="text-center"><b>{{ p.cantidad }}</b></td>
+                                <td class="text-center">{{ p.costo | number:'1.3-3' }}</td>
+                                <td><b>{{ p.subtotal | number:'1.3-3' }}</b></td>
                             </tr>
+                            }
+                            @if (productos().length === 0) {
                             <tr>
-                                <td class="cell-code">0011-00115</td>
-                                <td class="cell-name">ADVANZ 500MG X 10 *1</td>
-                                <td>LOTE: ADZ-44 VENCE: 12/2025</td>
-                                <td class="text-center">C</td>
-                                <td class="text-center"><b>5</b></td>
-                                <td class="text-center">8.500</td>
-                                <td><b>42.500</b></td>
+                                <td colspan="7" class="empty-state">No hay productos cargados en esta transferencia</td>
                             </tr>
+                            }
                         </tbody>
                     </table>
                 </div>
@@ -116,13 +128,13 @@
                 <div class="reference-content p-4">
                     <div class="total-big-box">
                         <label>TOTAL GENERAL</label>
-                        <div class="total-value">$ 46.70</div>
+                        <div class="total-value">$ {{ totalGeneral() | number:'1.2-2' }}</div>
                     </div>
 
                     <div class="stats-v2 mt-6">
                         <div class="stat-row">
                             <span>Subtotal:</span>
-                            <span>$ 46.70</span>
+                            <span>$ {{ totalGeneral() | number:'1.2-2' }}</span>
                         </div>
                         <div class="stat-row">
                             <span>Descuento:</span>
@@ -130,7 +142,7 @@
                         </div>
                         <div class="stat-row highlight">
                             <span>Items:</span>
-                            <span>2</span>
+                            <span>{{ totalItems() }}</span>
                         </div>
                     </div>
                 </div>
