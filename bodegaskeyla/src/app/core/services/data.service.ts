@@ -1,16 +1,63 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
-import { tap, catchError, delay } from 'rxjs/operators';
+import { tap, catchError, delay, switchMap, map } from 'rxjs/operators';
 import { StorageService } from './storage.service';
+import { REST_CONFIG } from '../config/rest.config';
 
 @Injectable({
     providedIn: 'root'
 })
 export class DataService {
     private storage = inject(StorageService);
+    private http = inject(HttpClient);
+    private readonly API_BASE = REST_CONFIG.API_BASE;
+    private token: string | null = null;
 
-    constructor() { }
+    constructor() {
+        // v52.0: Limpieza total de cache persistente en Chromium para forzar uso de API real
+        try {
+            localStorage.clear();
+            console.log('[DataService] LocalStorage purgado con éxito.');
+        } catch (e) { }
+    }
+
+    /**
+     * MÉTODO DE AUTENTICACIÓN (LOGIN)
+     * Obtiene el accesToken usando Basic Auth desde la configuración centralizada.
+     */
+    login(user: string = REST_CONFIG.AUTH.USER, pass: string = REST_CONFIG.AUTH.PASS): Observable<any> {
+        const authHeader = 'Basic ' + btoa(`${user}:${pass}`);
+        const headers = new HttpHeaders().set('Authorization', authHeader);
+
+        return this.http.post(`${this.API_BASE}/XPos/login`, {}, { headers }).pipe(
+            tap((res: any) => {
+                if (res?.accesToken) {
+                    this.token = res.accesToken;
+                    this.storage.saveLocal('ACCESS_TOKEN', res.accesToken); // v56.0: Persistencia
+                    console.log('[DataService] Token obtenido con éxito');
+                }
+            }),
+            catchError(err => {
+                console.error('[DataService] Error en el login', err);
+                return of(null);
+            })
+        );
+    }
+
+    private getHeaders(): HttpHeaders {
+        let headers = new HttpHeaders().set('Content-Type', 'application/json');
+
+        // v56.0: Recuperar token si se perdió el estado en memoria
+        if (!this.token) {
+            this.token = this.storage.loadLocal<string>('ACCESS_TOKEN');
+        }
+
+        if (this.token) {
+            headers = headers.set('Authorization', `Bearer ${this.token}`);
+        }
+        return headers;
+    }
 
     /**
      * MÉTODO PARAMETRIZABLE (GET)
@@ -18,18 +65,43 @@ export class DataService {
      * Implementa lógica Offline-First: Guarda en LocalStorage/Archivo tras consultar.
      */
     getOrdenComparativo(numeroOrden: string): Observable<any[]> {
-        console.log(`[DataService] Consultando Comparativo para Orden: ${numeroOrden}`);
+        console.log(`[DataService] Consultando Comparativo Real para Orden: ${numeroOrden}`);
 
-        // Mientras no hay servicio REST GET, usamos la data mock por defecto.
-        return this.getMockOrderProducts(numeroOrden).pipe(
-            delay(800), // Simulamos una pequeña latencia de red para realismo
+        return this.getOrdenDespacho(numeroOrden).pipe(
+            switchMap(response => {
+                const ordenes = response?.ordenesDespacho || [];
+                if (ordenes.length === 0) return of([]);
+
+                const cabecera = ordenes[0];
+                return this.getDetallesOrdenDespacho(cabecera.numeroSolicitud, cabecera.numeroOrdenDespacho);
+            }),
+            map(response => {
+                const detalles = response?.detalles || [];
+                // Mapeo al modelo de la UI (v51.0)
+                return detalles.map((d: any) => ({
+                    item: d.codigoExistencia?.toString() || '',
+                    nombre: d.nombreExistencia || 'SIN NOMBRE',
+                    unidad: 'UND',
+                    invBod: 0,
+                    vtas: 0,
+                    sLocal: 0,
+                    suger: 0,
+                    solicita: d.cantidad || 0,
+                    despachado: 0,
+                    color: 'naranja',
+                    bulto: d.unidadesXCaja || 1,
+                    lote: d.lote || '', // Si viene en la API
+                    caducidad: d.caducidad || '' // Si viene en la API
+                }));
+            }),
             tap(data => {
-                // Insertar en ambiente local para seguridad
-                this.storage.saveLocal(`ORDER_CACHE_${numeroOrden}`, data);
-                this.storage.saveLocal('LAST_ORDER_NUMBER', numeroOrden);
+                if (data.length > 0) {
+                    this.storage.saveLocal(`ORDER_CACHE_${numeroOrden}`, data);
+                    this.storage.saveLocal('LAST_ORDER_NUMBER', numeroOrden);
+                }
             }),
             catchError(err => {
-                console.warn('[DataService] Error de red. Intentando recuperar de ambiente local...');
+                console.warn('[DataService] Error consultando servicio real. Intentando cache...');
                 const cached = this.storage.loadLocal<any[]>(`ORDER_CACHE_${numeroOrden}`);
                 return of(cached || []);
             })
@@ -43,10 +115,16 @@ export class DataService {
         switch (action) {
             case 'GET_ORDER_PRODUCTS':
                 return this.getOrdenComparativo(params.orderNumber) as Observable<T>;
+            case 'GET_ORDEN_DESPACHO':
+                return this.getOrdenDespacho(params.numero) as Observable<T>;
+            case 'GET_DETALLES_ORDEN':
+                return this.getDetallesOrdenDespacho(params.solicitud, params.orden) as Observable<T>;
             case 'GET_TRANSFERENCIA_PRODUCTS':
                 return this.getTransferenciaProducts(params.numero) as Observable<T>;
             case 'GET_LABORATORIO':
                 return this.getMockLaboratorio(params.codigo) as Observable<T>;
+            case 'UPDATE_ORDEN_DETALLES':
+                return this.actualizarDetallesOrdenDespacho(params.payload) as Observable<T>;
             default:
                 return of(null as any);
         }
@@ -57,57 +135,77 @@ export class DataService {
      * Esta información se cargará por default mientras se integra el servicio REST.
      */
     private getMockOrderProducts(orderNumber: string): Observable<any[]> {
-        const products = [
-            { item: '0018-00027', nombre: 'MUSIC TAB 1.5MG X 10 *1', unidad: 'C', invBod: 517, vtas: 2, sLocal: 0, suger: 0, solicita: 2, despachado: 0, color: 'naranja', lote: 'LT-9152' },
-            { item: '0011-00115', nombre: 'ADVANZ 500MG X 10 *1', unidad: 'C', invBod: 120, vtas: 10, sLocal: 0, suger: 0, solicita: 5, despachado: 0, color: 'naranja', lote: 'ADZ-44' },
-            { item: '0005-00010', nombre: 'ASPIRINA 100MG TAB X 100', unidad: 'C', invBod: 1200, vtas: 50, sLocal: 0, suger: 0, solicita: 10, despachado: 0, color: 'amarillo', lote: 'ASP-100' },
-            { item: '0025-00441', nombre: 'IBUPROFENO 600MG CAP *20', unidad: 'C', invBod: 45, vtas: 5, sLocal: 2, suger: 0, solicita: 8, despachado: 0, color: 'naranja', lote: 'IBU-600' },
-            { item: '0032-00892', nombre: 'PARACETAMOL 500MG TB*100', unidad: 'C', invBod: 890, vtas: 100, sLocal: 10, suger: 0, solicita: 15, despachado: 0, color: 'naranja', lote: 'PAR-500' },
-            { item: '0099-00122', nombre: 'VITAMINA C 1GR NARANJA *10', unidad: 'P', invBod: 300, vtas: 20, sLocal: 5, suger: 0, solicita: 20, despachado: 0, color: 'amarillo', lote: 'VIT-C1' },
-            { item: '0014-00673', nombre: 'ALCOHOL ANTISÉPTICO 500ML', unidad: 'F', invBod: 80, vtas: 15, sLocal: 0, suger: 0, solicita: 12, despachado: 0, color: 'naranja', lote: 'ALC-80' },
-            { item: '0044-00212', nombre: 'DICLOFENACO 50MG TAB X 20', unidad: 'C', invBod: 150, vtas: 30, sLocal: 0, suger: 0, solicita: 5, despachado: 0, color: 'naranja', lote: 'DIC-050' },
-            { item: '0055-00333', nombre: 'AMOXICILINA 500MG CAP X 50', unidad: 'C', invBod: 400, vtas: 80, sLocal: 5, suger: 0, solicita: 25, despachado: 0, color: 'azul', lote: 'AMX-500' },
-            { item: '0066-00444', nombre: 'OMEPRAZOL 20MG CAP X 30', unidad: 'C', invBod: 250, vtas: 60, sLocal: 0, suger: 0, solicita: 30, despachado: 0, color: 'naranja', lote: 'OME-020' },
-            { item: '0077-00555', nombre: 'LORATADINA 10MG TAB X 10', unidad: 'C', invBod: 500, vtas: 100, sLocal: 20, suger: 0, solicita: 50, despachado: 0, color: 'azul', lote: 'LOR-010' },
-            { item: '0088-00666', nombre: 'ENALAPRIL 10MG TAB X 20', unidad: 'C', invBod: 300, vtas: 40, sLocal: 0, suger: 0, solicita: 10, despachado: 0, color: 'naranja', lote: 'ENA-010' },
-            { item: '0091-00777', nombre: 'METFORMINA 850MG TAB X 30', unidad: 'C', invBod: 600, vtas: 120, sLocal: 15, suger: 0, solicita: 40, despachado: 0, color: 'azul', lote: 'MET-850' },
-            { item: '0012-00888', nombre: 'LOSARTAN 50MG TAB X 30', unidad: 'C', invBod: 450, vtas: 90, sLocal: 10, suger: 0, solicita: 30, despachado: 0, color: 'naranja', lote: 'LOS-050' },
-            { item: '0023-00999', nombre: 'SIMVASTATINA 20MG TAB X 20', unidad: 'C', invBod: 200, vtas: 35, sLocal: 0, suger: 0, solicita: 12, despachado: 0, color: 'naranja', lote: 'SIM-020' },
-            { item: '0034-00123', nombre: 'AZITROMICINA 500MG TAB X 3', unidad: 'C', invBod: 150, vtas: 45, sLocal: 2, suger: 0, solicita: 15, despachado: 0, color: 'azul', lote: 'AZI-500' },
-            { item: '0045-00456', nombre: 'CETIRIZINA 10MG TAB X 10', unidad: 'C', invBod: 350, vtas: 75, sLocal: 8, suger: 0, solicita: 20, despachado: 0, color: 'naranja', lote: 'CET-010' }
-        ];
+        const products: any[] = [];
         return of(products);
     }
 
+    /**
+     * Consulta la cabecera de la orden de despacho (v45.0)
+     */
+    getOrdenDespacho(numero: string): Observable<any> {
+        const params = {
+            arg0: REST_CONFIG.EMPRESA_DEFAULT,
+            arg1: 'numeroSolicitud',
+            arg2: numero,
+            arg3: 0,
+            arg4: 10
+        };
+        const headers = this.getHeaders();
+        return this.http.get(`${this.API_BASE}/XPosConsultas/ordenesDespacho`, { params, headers }).pipe(
+            catchError(err => {
+                console.error('[DataService] Error consultando ordenesDespacho', err);
+                return of({ mensaje: 'ERROR', ordenesDespacho: [] });
+            })
+        );
+    }
+
+    /**
+     * Consulta el detalle de la orden de despacho (v45.0)
+     */
+    getDetallesOrdenDespacho(solicitud: number, orden: number): Observable<any> {
+        const params = {
+            arg0: REST_CONFIG.EMPRESA_DEFAULT,
+            arg1: solicitud,
+            arg2: orden
+        };
+        const headers = this.getHeaders();
+        return this.http.get(`${this.API_BASE}/XPosConsultas/detallesOrdenDespacho`, { params, headers }).pipe(
+            catchError(err => {
+                console.error('[DataService] Error consultando detallesOrdenDespacho', err);
+                return of({ mensaje: 'ERROR', detalles: [] });
+            })
+        );
+    }
+
     private getTransferenciaProducts(numero: string): Observable<any[]> {
-        const products = [
-            { item: '0018-00027', nombre: 'MUSIC TAB 1.5MG X 10 *1', lote: '231555A', vencimiento: '03/2026', unidad: 'C', cantidad: 1, costo: 4.20, subtotal: 4.20 },
-            { item: '0011-00115', nombre: 'ADVANZ 500MG X 10 *1', lote: 'ADZ-44', vencimiento: '12/2025', unidad: 'C', cantidad: 5, costo: 8.50, subtotal: 42.50 },
-            { item: '0022-00331', nombre: 'VITAMINA D3 2000UI CAP', lote: 'VIT-D', vencimiento: '10/2027', unidad: 'C', cantidad: 10, costo: 12.00, subtotal: 120.00 }
-        ];
+        const products: any[] = [];
         return of(products);
     }
 
     private getMockLaboratorio(codigo: string): Observable<any> {
-        const laboratorios: any = {
-            "001": { codigo: "001", nombre: "ABBOTT", vendedor: "00449", porcentaje: 5.50, ingreso: "E", despacho: "D" },
-            "0001": { codigo: "0001", nombre: "ABBOTT", vendedor: "00449", porcentaje: 5.50, ingreso: "E", despacho: "D" },
-            "002": { codigo: "002", nombre: "ABBOTT", vendedor: "00449", porcentaje: 5.50, ingreso: "E", despacho: "D" },
-            "0002": { codigo: "0002", nombre: "ABBOTT", vendedor: "00449", porcentaje: 5.50, ingreso: "E", despacho: "D" },
-            "0005": { codigo: "0005", nombre: "BAYER", vendedor: "00720", porcentaje: 10.00, ingreso: "E", despacho: "D" },
-            "0010": { codigo: "0010", nombre: "PFIZER", vendedor: "00112", porcentaje: 2.25, ingreso: "I", despacho: "P" }
-        };
-
-        // Si no existe, devolvemos un genérico para que el usuario vea que funciona con cualquier código
-        const result = laboratorios[codigo] || {
+        return of({
             codigo: codigo,
             nombre: "LABORATORIO " + codigo,
             vendedor: "09999",
             porcentaje: 0.00,
             ingreso: "E",
             despacho: "D"
-        };
+        }).pipe(delay(300));
+    }
 
-        return of(result).pipe(delay(300)); // Latencia mínima para feedback visual
+    /**
+     * MÉTODO POST: Actualiza detalles de la orden (v55.0)
+     */
+    actualizarDetallesOrdenDespacho(payload: any): Observable<any> {
+        const headers = this.getHeaders();
+        console.log('[DataService] POST Payload:', JSON.stringify(payload));
+        return this.http.post(`${this.API_BASE}/XPos/actualizarDetallesOrdenDespacho`, payload, { headers }).pipe(
+            catchError(err => {
+                console.error('[DataService] Error en actualizarDetallesOrdenDespacho', err);
+                // v56.0: Extraer mensaje de error más descriptivo
+                const errorMsg = err.error?.mensaje || err.message || 'Error desconocido en servidor';
+                return of({ mensaje: 'ERROR', error: errorMsg });
+            })
+        );
     }
 }

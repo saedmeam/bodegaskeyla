@@ -1,0 +1,136 @@
+<div class="app-layout-v2">
+    <!-- Header Premium -->
+    <header class="app-header-v2">
+        <div class="header-left">
+            <div class="brand-logo">
+                <div class="logo-accent"></div>
+                <span class="brand-name">NEU360</span>
+            </div>
+            <h2 class="view-title">Solicitud de Mercadería</h2>
+        </div>
+        <div class="header-actions">
+            <button class="btn-v2 btn-dark" (click)="cerrarPantalla()">Cerrar (ESC)</button>
+        </div>
+    </header>
+
+    <main class="order-workspace">
+        <!-- Panel Izquierdo: Búsqueda y Selección -->
+        <section class="selection-panel">
+            <div class="panel-card search-card">
+                <div class="card-header">
+                    <span class="material-icons">search</span>
+                    <h3>Buscador de Productos</h3>
+                </div>
+                <div class="card-body">
+                    <div class="search-box-v2">
+                        <input #searchInput type="text" [(ngModel)]="searchQuery" (input)="onSearch()"
+                            placeholder="Escriba el nombre o código del producto..." class="input-v2 full-width">
+                        <div class="search-results" *ngIf="searchResults().length > 0">
+                            <div class="result-item" *ngFor="let p of searchResults()">
+                                <div class="prod-info">
+                                    <span class="prod-code">{{p.item}}</span>
+                                    <span class="prod-name">{{p.nombre}}</span>
+                                </div>
+                                <div class="prod-action">
+                                    <input #qtyInput type="number" placeholder="Cant" class="input-v2 w-tiny">
+                                    <button class="btn-icon-v2" (click)="agregarProducto(p, qtyInput)">
+                                        <span class="material-icons">add_shopping_cart</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-card summary-card">
+                <div class="card-header">
+                    <span class="material-icons">info</span>
+                    <h3>Resumen del Pedido</h3>
+                </div>
+                <div class="card-body stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-lbl">Tipos de Ítems</span>
+                        <span class="stat-val">{{totalItems()}}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-lbl">Unidades Totales</span>
+                        <span class="stat-val highlight">{{puntosTotales()}}</span>
+                    </div>
+                </div>
+                <div class="card-footer-v2">
+                    <button class="btn-v2 btn-danger w-full" (click)="resetearPedido()">Vaciar Carrito</button>
+                    <button class="btn-v2 btn-primary w-full" (click)="enviarPedido()">Enviar a Bodega</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Panel Derecha: Carrito / Pedido Actual -->
+        <section class="cart-panel">
+            <div class="panel-card table-card">
+                <div class="card-header">
+                    <span class="material-icons">list_alt</span>
+                    <h3>Productos a Solicitar</h3>
+                </div>
+                <div class="card-body scroll-v">
+                    <table class="neu-table-v2">
+                        <thead>
+                            <tr>
+                                <th class="col-code">CÓDIGO</th>
+                                <th class="col-name">DESCRIPCIÓN</th>
+                                <th class="col-u">UN</th>
+                                <th class="col-qty">CANTIDAD</th>
+                                <th class="col-actions"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let p of carrito()" class="cart-row">
+                                <td><span class="cell-code">{{p.item}}</span></td>
+                                <td><span class="cell-name">{{p.nombre}}</span></td>
+                                <td><span class="badge-v2">{{p.unidad}}</span></td>
+                                <td>
+                                    <input type="number" [(ngModel)]="p.solicita" class="qty-input-v2">
+                                </td>
+                                <td>
+                                    <button class="btn-delete-v2" (click)="eliminarProducto(p.item)">
+                                        <span class="material-icons">delete_outline</span>
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr *ngIf="carrito().length === 0">
+                                <td colspan="5" class="empty-state">
+                                    <span class="material-icons">shopping_basket</span>
+                                    <p>Su pedido está vacío. Use el buscador para agregar productos.</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Toasts de Notificación -->
+    <div class="app-toast-v2" *ngIf="notificationMessage()" [class.toast-err]="isError()">
+        <span class="material-icons">{{isError() ? 'error_outline' : 'check_circle'}}</span>
+        <div class="toast-content">
+            <span class="toast-title">{{isError() ? 'Atención' : 'Confirmación'}}</span>
+            <span class="toast-body">{{notificationMessage()}}</span>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación Custom (v35.0/v39.1) -->
+    <div class="modal-overlay-v2" *ngIf="modalVisible()">
+        <div class="modal-card-v2">
+            <header class="modal-header-v2">
+                <span class="material-icons">{{modalIcon()}}</span>
+                <h3>{{modalTitle()}}</h3>
+            </header>
+            <div class="modal-body-v2" [innerHTML]="modalMessage()"></div>
+            <footer class="modal-footer-v2">
+                <button class="btn-v2 btn-outline" (click)="closeModal(false)">Cancelar</button>
+                <button class="btn-v2 btn-primary" (click)="closeModal(true)">Aceptar</button>
+            </footer>
+        </div>
+    </div>
+</div>

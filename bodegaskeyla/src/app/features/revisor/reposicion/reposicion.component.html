@@ -29,7 +29,7 @@
             <div class="app-toast-v2" [ngClass]="isError() ? 'toast-err' : 'toast-ok'">
                 <span class="toast-icon">{{ isError() ? '✖' : '✔' }}</span>
                 <div class="toast-content">
-                    <span class="toast-title">{{ isError() ? 'Error de Pistoleo' : 'Registro Exitoso' }}</span>
+                    <span class="toast-title">{{ notificationTitle() }}</span>
                     <span class="toast-body">{{ notificationMessage() }}</span>
                 </div>
             </div>
@@ -78,8 +78,14 @@
                     <div class="scanner-input-container">
                         <input type="text" #scannerInput [(ngModel)]="barcodeInput" (keyup.enter)="simularEscaneo()"
                             [disabled]="ordenProductos().length === 0"
-                            [placeholder]="ordenProductos().length === 0 ? 'Cargue una orden para activar...' : 'Pistolee el código de barras aquí...'"
-                            class="scanner-input-v2">
+                            [placeholder]="ordenProductos().length === 0 ? 'Cargue una orden para activar...' : 'Escanear ítem...'"
+                            class="scanner-input-v2 code-input">
+
+                        <input type="text" [(ngModel)]="loteInput" placeholder="Lote"
+                            [disabled]="ordenProductos().length === 0" class="scanner-input-v2 lote-input-v2">
+
+                        <input type="date" [(ngModel)]="caducidadInput" [disabled]="ordenProductos().length === 0"
+                            class="scanner-input-v2 date-input-v2">
                     </div>
                 </div>
             </div>
@@ -191,7 +197,8 @@
                                 (click)="manualSelect(p.item)">
                                 <td class="cell-product-ref">
                                     <span class="prod-title">{{ p.nombre }}</span>
-                                    <span class="prod-meta">{{ p.item }} | {{ p.unidad }} | LOTE: {{ p.lote || 'N/A'
+                                    <span class="prod-meta">{{ p.item }} | {{ p.unidad }}</span>
+                                    <span class="prod-meta">LOTE: {{ p.lote || 'N/A' }} | CAD: {{ p.caducidad || 'N/A'
                                         }}</span>
                                 </td>
                                 <td class="text-center"><span class="solicita-val">{{ p.solicita }}</span></td>
@@ -243,7 +250,8 @@
         <div class="footer-actions-v2">
             <button class="btn-v2 btn-success" (click)="finalizar()"
                 title="Finalizar despacho y enviar">Agregar</button>
-            <button class="btn-v2 btn-outline" title="Editar ítem seleccionado">Editar</button>
+            <button class="btn-v2 btn-outline" (click)="confirmarEdicion()"
+                title="Editar ítem seleccionado">Editar</button>
             <button class="btn-v2 btn-danger" (click)="resetearTodo()"
                 title="ELIMINAR TODO LO DESPACHADO">Eliminar</button>
             <button class="btn-v2 btn-outline" (click)="simularEscenarioDiscrepancias()"
@@ -268,7 +276,8 @@
             <footer class="modal-footer-v2">
                 @if (modalType() === 'confirm') {
                 <button class="btn-v2 btn-outline" (click)="closeModal(false)">Cancelar</button>
-                <button class="btn-v2 btn-primary" (click)="closeModal(true)">Continuar</button>
+                <button class="btn-v2 btn-primary" (click)="closeModal(true)"
+                    [disabled]="modalActionDisabled()">Continuar</button>
                 } @else if (modalType() === 'alert') {
                 <button class="btn-v2 btn-primary" (click)="closeModal(true)">Entendido</button>
                 }

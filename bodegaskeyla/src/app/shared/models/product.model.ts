@@ -11,5 +11,6 @@ export interface Product {
     color: string; // 'negro', 'verde', 'azul', 'rojo', 'naranja', 'amarillo'
     estado?: string;
     lote?: string;
+    caducidad?: string;
     bulto?: number;
 }

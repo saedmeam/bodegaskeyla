@@ -1,0 +1,145 @@
+<div class="app-layout-v2">
+    <!-- Header Premium Estilo Bodega Central -->
+    <header class="app-header-v2 bodega-theme">
+        <div class="header-left">
+            <div class="brand-logo">
+                <div class="logo-accent"></div>
+                <span class="brand-name">NEU360 - BODEGA CENTRAL</span>
+            </div>
+            <h2 class="view-title">Procesamiento de Pedidos Sucursal</h2>
+        </div>
+        <div class="header-actions">
+            <div class="session-info">
+                <span class="usr">USR: ADMINISTRA</span>
+                <span class="seq">SEQ: {{secuencia()}}</span>
+            </div>
+            <button class="btn-v2 btn-dark" (click)="cerrarPantalla()">Cerrar (ESC)</button>
+        </div>
+    </header>
+
+    <main class="bodega-workspace">
+        <!-- Barra de Control Superior -->
+        <section class="control-bar-v2">
+            <div class="form-group-inline">
+                <label>Número de Orden</label>
+                <input type="text" [(ngModel)]="numeroOrden" placeholder="---" disabled class="input-v2 w-order">
+            </div>
+            <div class="form-group-inline">
+                <label>Fecha</label>
+                <input type="text" [value]="fechaActual" disabled class="input-v2 w-date">
+            </div>
+            <div class="form-group-inline flex-grow">
+                <label>Sucursal (Franquicia)</label>
+                <div class="input-action-group">
+                    <select [(ngModel)]="sucursalSeleccionada" class="input-v2">
+                        <option value="">-- Seleccionar Sucursal --</option>
+                        <option value="SALITRE">SALITRE</option>
+                        <option value="DAULE">DAULE</option>
+                        <option value="MAPASINGUE">MAPASINGUE</option>
+                    </select>
+                    <button class="btn-v2 btn-accent" (click)="buscarPedido()" [disabled]="isCargando()">
+                        <span class="material-icons">{{isCargando() ? 'sync' : 'search'}}</span>
+                        {{isCargando() ? 'Cargando...' : 'Buscar Pedidos'}}
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Grilla de Auditoría v2 -->
+        <section class="grid-panel">
+            <div class="panel-card table-card">
+                <div class="grid-header">
+                    <div class="header-info">
+                        <span class="material-icons">assignment_turned_in</span>
+                        <h3>Información de Productos Solicitados</h3>
+                    </div>
+                    <div class="header-stats">
+                        <span class="stat-badge">Ítems: {{ordenProductos().length}}</span>
+                    </div>
+                </div>
+                <div class="card-body scroll-v">
+                    <table class="neu-table-v2">
+                        <thead>
+                            <tr>
+                                <th class="col-code">ITEM</th>
+                                <th class="col-name">NOMBRE</th>
+                                <th class="col-u">U</th>
+                                <th class="col-qty">INV.BOD</th>
+                                <th class="col-qty">VTAS</th>
+                                <th class="col-qty">S.LOCAL</th>
+                                <th class="col-qty">SUGERIDO</th>
+                                <th class="col-qty">SOLICITA</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let p of ordenProductos()" class="audit-row">
+                                <td><span class="cell-code">{{p.item}}</span></td>
+                                <td><span class="cell-name">{{p.nombre}}</span></td>
+                                <td><span class="badge-v2">{{p.unidad}}</span></td>
+                                <td class="center">{{p.invBod}}</td>
+                                <td class="center">{{p.vtas}}</td>
+                                <td class="center">{{p.local}}</td>
+                                <td class="center"><span class="badge-v2 sugg">{{p.sugerido}}</span></td>
+                                <td class="center">
+                                    <input type="number" [(ngModel)]="p.solicita" class="qty-input-v2">
+                                </td>
+                            </tr>
+                            <tr *ngIf="ordenProductos().length === 0">
+                                <td colspan="8" class="empty-state">
+                                    <span class="material-icons">query_stats</span>
+                                    <p>No hay información cargada. Por favor seleccione una sucursal y busque pedidos.
+                                    </p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Footer de Grilla - Botonera solicitada por el usuario -->
+                <div class="card-footer-v2">
+                    <button class="btn-v2 btn-ghost"><span class="material-icons">first_page</span> Primero</button>
+                    <button class="btn-v2 btn-ghost"><span class="material-icons">chevron_left</span> Anterior</button>
+                    <button class="btn-v2 btn-ghost" (click)="siguientePrioridad()">Siguiente <span
+                            class="material-icons">chevron_right</span></button>
+                    <button class="btn-v2 btn-ghost">Último <span class="material-icons">last_page</span></button>
+
+                    <div class="spacer"></div>
+
+                    <button class="btn-v2 btn-success" (click)="aceptarYGuardar()">
+                        <span class="material-icons">add_box</span> Agregar
+                    </button>
+                    <button class="btn-v2 btn-accent" disabled>
+                        <span class="material-icons">edit</span> Editar
+                    </button>
+                    <button class="btn-v2 btn-danger" (click)="bodegaService.limpiarOrden()">
+                        <span class="material-icons">delete</span> Eliminar
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Toasts de Notificación -->
+    <div class="app-toast-v2" *ngIf="notificationMessage()" [class.toast-err]="isError()">
+        <span class="material-icons">{{isError() ? 'error_outline' : 'check_circle'}}</span>
+        <div class="toast-content">
+            <span class="toast-title">{{isError() ? 'NEU360' : 'Sincronización'}}</span>
+            <span class="toast-body">{{notificationMessage()}}</span>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación Custom (v39.1/v41.0) -->
+    <div class="modal-overlay-v2" *ngIf="modalVisible()">
+        <div class="modal-card-v2">
+            <header class="modal-header-v2">
+                <span class="material-icons">{{modalIcon()}}</span>
+                <h3>{{modalTitle()}}</h3>
+            </header>
+            <div class="modal-body-v2" [innerHTML]="modalMessage()"></div>
+            <footer class="modal-footer-v2">
+                <button class="btn-v2 btn-outline" (click)="closeModal(false)"
+                    *ngIf="modalType() === 'confirm'">Cancelar</button>
+                <button class="btn-v2 btn-primary" (click)="closeModal(true)">Aceptar</button>
+            </footer>
+        </div>
+    </div>
+</div>

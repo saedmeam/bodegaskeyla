@@ -1,0 +1,47 @@
+[
+  {
+    "item": "7",
+    "nombre": "VINCHA DISNEY PRINCESS PACKX4",
+    "unidad": "UND",
+    "invBod": 0,
+    "vtas": 0,
+    "sLocal": 0,
+    "suger": 0,
+    "solicita": 5,
+    "despachado": 0,
+    "color": "naranja",
+    "bulto": 1,
+    "lote": "",
+    "caducidad": ""
+  },
+  {
+    "item": "8",
+    "nombre": "PINCHO FASHION-J SETX4 #13112",
+    "unidad": "UND",
+    "invBod": 0,
+    "vtas": 0,
+    "sLocal": 0,
+    "suger": 0,
+    "solicita": 4,
+    "despachado": 0,
+    "color": "naranja",
+    "bulto": 1,
+    "lote": "",
+    "caducidad": ""
+  },
+  {
+    "item": "4",
+    "nombre": "MOÑOS L-CLIP PINZA MIDI DEC PMID-02",
+    "unidad": "UND",
+    "invBod": 0,
+    "vtas": 0,
+    "sLocal": 0,
+    "suger": 0,
+    "solicita": 1,
+    "despachado": 0,
+    "color": "naranja",
+    "bulto": 1,
+    "lote": "",
+    "caducidad": ""
+  }
+]

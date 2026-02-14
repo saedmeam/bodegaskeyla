@@ -51,9 +51,23 @@ export class StorageService {
      */
     loadLocal<T>(key: string): T | null {
         try {
+            // 1. Intentar desde LocalStorage (Rápido)
             const data = localStorage.getItem(key);
             if (data) {
+                console.log(`[StorageService] Data recuperada de LocalStorage: ${key}`);
                 return JSON.parse(data) as T;
+            }
+
+            // 2. Si falla y es Electron, intentar desde archivo físico (Txt/Json backup)
+            if (this.isElectron && this.fs) {
+                const filePath = this.path.join((window as any).process.cwd(), `${key}.json`);
+                if (this.fs.existsSync(filePath)) {
+                    const fileData = this.fs.readFileSync(filePath, 'utf8');
+                    console.log(`[StorageService] Data recuperada de archivo FISICO: ${filePath}`);
+                    // Sincronizamos LocalStorage para la próxima
+                    localStorage.setItem(key, fileData);
+                    return JSON.parse(fileData) as T;
+                }
             }
         } catch (e) {
             console.error('[StorageService] Error cargando de ambiente local', e);

@@ -1,4 +1,4 @@
-import { Component, signal, computed, inject, OnInit, ViewChild, ElementRef } from '@angular/core';
+import { Component, signal, computed, inject, OnInit, ViewChild, ElementRef, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RevisorService } from '../services/revisor.service';
@@ -23,6 +23,8 @@ export class ReposicionComponent implements OnInit {
     bodega = "";
     concepto = "";
     barcodeInput = "";
+    loteInput = "";
+    caducidadInput = "";
     showComparativo = signal(true);
 
     // Estados de Modal Custom (v35.0)
@@ -31,6 +33,7 @@ export class ReposicionComponent implements OnInit {
     modalMessage = signal("");
     modalIcon = signal("⚠️");
     modalType = signal<'confirm' | 'alert'>('confirm');
+    modalActionDisabled = signal(false);
     private modalResolve?: (value: boolean) => void;
 
     // Proyecciones del servicio orquestador
@@ -41,33 +44,39 @@ export class ReposicionComponent implements OnInit {
     totalCorrectos = computed(() => this.escaneados().filter(p => p.color === 'negro').length);
     totalIncompletos = computed(() => this.escaneados().filter(p => p.color === 'azul').length);
 
+    constructor() {
+        // v45.0: Sincronización reactiva con la metadata de la orden cargada
+        effect(() => {
+            const metadata = this.revisorService.orderMetadata();
+            if (metadata) {
+                this.bodega = metadata.bodega;
+                this.movimiento = metadata.movimiento;
+                this.movimientoNombre = metadata.nombre;
+                this.concepto = metadata.concepto;
+            } else {
+                // Si no hay orden, limpiamos campos
+                this.bodega = "";
+                this.movimiento = "";
+                this.movimientoNombre = "";
+                this.concepto = "";
+            }
+        });
+    }
+
     ngOnInit() {
         // La pantalla inicia vacía. El usuario debe ingresar una orden.
     }
 
     consultarOrden() {
         if (!this.numero || this.numero.trim() === "") {
-            // Si el campo está vacío, limpiamos todo para mayor seguridad
-            this.bodega = "";
-            this.movimiento = "";
-            this.movimientoNombre = "";
-            this.concepto = "";
+            this.revisorService.orderMetadata.set(null);
             return;
         }
 
-        this.notificationMessage.set(`Consultando orden ${this.numero}...`);
+        this.showToast(`OK: Consultando orden #${this.numero}...`, false, "SINCRONIZACIÓN");
 
-        // Simulación: Al consultar, poblamos los campos bloqueados desde la "DB"
+        // Llamada al orquestador para iniciar proceso async (v45.0)
         this.revisorService.executeProcess('LOAD', { orderNumber: this.numero });
-
-        // Simulamos la respuesta de cabecera
-        setTimeout(() => {
-            this.bodega = "001";
-            this.movimiento = "057";
-            this.movimientoNombre = "REPOSICIÓN AUTOMÁTICA";
-            this.concepto = `Revisión de Orden #${this.numero}`;
-            this.showToast(`Orden ${this.numero} cargada con éxito.`, false);
-        }, 1000);
     }
 
     manualSelect(item: string) {
@@ -76,6 +85,7 @@ export class ReposicionComponent implements OnInit {
     }
 
     notificationMessage = signal("");
+    notificationTitle = signal("");
     isError = signal(false);
 
     simularEscaneo() {
@@ -88,28 +98,73 @@ export class ReposicionComponent implements OnInit {
             return;
         }
 
+        // 1. Prioridad: Coincidencia exacta por código de ítem (Restricción v57.0)
+        let matches = this.ordenProductos().filter(p => p.item === this.barcodeInput);
+
+        if (matches.length === 0) {
+            this.showToast(`ERROR: [${this.barcodeInput}] no existe en esta orden.`, true);
+            this.barcodeInput = "";
+            return;
+        }
+
+        // Si hay múltiples lotes para el mismo código de existencia (mismo item)
+        if (matches.length > 1) {
+            if (!this.loteInput) {
+                this.openModal("Selección de Lote", "Se detectaron <b>múltiples lotes</b> para este producto. Por favor, especifique el lote manualmente.", "inventory", "alert");
+                return;
+            }
+
+            // Si el lote está escrito, filtramos por ese lote
+            const matchConLote = matches.find(m => m.lote === this.loteInput);
+            if (!matchConLote) {
+                this.showToast(`ERROR: El lote [${this.loteInput}] no es válido para este producto.`, true);
+                return;
+            }
+            matches = [matchConLote];
+        } else {
+            // Un solo match, autocompletamos lote si no está
+            const match = matches[0];
+            if (match.lote && !this.loteInput) {
+                this.loteInput = match.lote;
+                if (match.caducidad) this.caducidadInput = match.caducidad;
+            }
+        }
+
         // Uso del método orquestador
-        const result = this.revisorService.executeProcess('SCAN', { barcode: this.barcodeInput });
+        const result = this.revisorService.executeProcess('SCAN', {
+            barcode: this.barcodeInput,
+            lote: this.loteInput,
+            caducidad: this.caducidadInput
+        }) as any;
 
         if (!result) {
-            this.showToast(`ERROR: [${this.barcodeInput}] No pertenece a esta orden.`, true);
+            this.showToast(`ERROR: [${this.barcodeInput}] No pertenece a esta orden o el lote no coincide.`, true);
         } else {
             if (result.isAccumulated) {
-                this.showToast(`ESTA EXISTENCIA YA EXISTE, SE SUMARÁ A LO DESPACHADO.`, false);
+                this.showToast(`OK: [${result.product.item}] Ya existe, se sumó a lo despachado.`, false, "REGISTRO EXISTENTE");
             } else {
-                this.showToast(`OK: [${result.product.item}] Registrado con éxito.`, false);
+                this.showToast(`OK: [${result.product.item}] Registrado con éxito.`, false, "REGISTRO EXITOSO");
             }
+            // Limpiamos lote y caducidad después de un registro exitoso si no queremos que persistan
+            this.loteInput = "";
+            this.caducidadInput = "";
         }
 
         this.barcodeInput = "";
     }
 
-    private showToast(message: string, isError: boolean = false) {
+    private showToast(message: string, isError: boolean = false, title?: string) {
         this.isError.set(isError);
         this.notificationMessage.set(message);
+
+        // v68.0: Títulos por defecto en MAYÚSCULAS para mayor consistencia visual
+        const defaultTitle = isError ? 'ERROR DE PISTOLEO' : 'REGISTRO EXITOSO';
+        this.notificationTitle.set(title || defaultTitle);
+
         setTimeout(() => {
             if (this.notificationMessage() === message) {
                 this.notificationMessage.set("");
+                this.notificationTitle.set("");
             }
         }, 4000);
         this.focusScanner();
@@ -147,11 +202,12 @@ export class ReposicionComponent implements OnInit {
     }
 
     async eliminarItem(item: string) {
-        const aceptado = await this.openModal("Eliminar Producto", `¿Está seguro que desea eliminar el producto <b>${item}</b> del despacho?`, "🗑️", "confirm");
+        const aceptado = await this.openModal("Eliminar Producto", `¿Está seguro que desea eliminar el producto <b>${item}</b> de su lista local?`, "🗑️", "confirm");
 
         if (aceptado) {
+            // v67.0: Eliminación local con estándares de UI (Prefijo OK y Modal)
             this.revisorService.eliminarItem(item);
-            this.showToast("Ítem eliminado correctamente.", false);
+            this.showToast(`OK: [${item}] Removido de la sesión local.`, false, "ELIMINACIÓN COMPLETADA");
         }
     }
 
@@ -167,8 +223,9 @@ export class ReposicionComponent implements OnInit {
      * Guarda un borrador de la sesión actual firmando la persistencia en disco.
      */
     guardarBorrador() {
+        this.revisorService.executeProcess('SORT_PRIORITY'); // v42.0
         this.revisorService.executeProcess('SAVE_SESSION', null);
-        this.showToast("BORRADOR GUARDADO: Sesión asegurada en disco local.", false);
+        this.showToast("OK: Sesión asegurada y ordenada.", false, "BORRADOR GUARDADO");
         this.focusScanner();
     }
 
@@ -180,6 +237,27 @@ export class ReposicionComponent implements OnInit {
         this.showToast("MODO LABORATORIO: Discrepancias cargadas para validación.", false);
         this.focusScanner();
     }
+    /**
+     * V55.0: Ejecuta el envío de actualización (ING / S) al presionar EDITAR.
+     */
+    async confirmarEdicion() {
+        if (this.escaneados().length === 0) {
+            this.showToast("No hay cambios que editar.", true);
+            return;
+        }
+
+        const confirm = await this.openModal("Actualizar Orden", "¿Desea enviar los cambios actuales al servidor con estado ING?", "sync", "confirm");
+        if (confirm) {
+            (this.revisorService.executeProcess('API_UPDATE', { tipo: 'EDITAR' }) as any)?.subscribe((res: any) => {
+                if (res?.mensaje !== 'ERROR') {
+                    this.showToast("¡REGISTRO COMPLETADO! La orden ha sido actualizada.", false, "ÉXITO");
+                } else {
+                    this.showToast(`ERROR: ${res.error || 'No se pudo completar el registro'}`, true, "ERROR DE REGISTRO");
+                }
+            });
+        }
+    }
+
     /**
      * Cierra la pantalla y regresa al menú anterior.
      */
@@ -208,12 +286,17 @@ export class ReposicionComponent implements OnInit {
      * Se vincula al botón "Agregar" (que actúa como Procesar/Enviar).
      */
     async finalizar() {
+        this.revisorService.executeProcess('SORT_PRIORITY'); // v42.0
         const errors = this.revisorService.getValidationErrors();
 
         if (errors.length === 0) {
             this.ejecutarEnvioFinal();
             return;
         }
+
+        // v50.1: Verificar si hay excedentes para bloquear el botón del modal
+        const hasSurplus = errors.some(e => e.type === 'SURPLUS');
+        this.modalActionDisabled.set(hasSurplus);
 
         // v39.1: Consolidación Pro de Discrepancias con Scroll
         let messageHtml = `<div style="text-align:left; font-family:inherit;">`;
@@ -259,17 +342,19 @@ export class ReposicionComponent implements OnInit {
     }
 
     /**
-     * Ejecuta el cierre definitivo y envío de datos.
+     * Ejecuta el cierre definitivo y envío de datos (AGREGAR).
      */
     private ejecutarEnvioFinal() {
-        this.revisorService.finalizeProcess();
-        this.isError.set(false);
-        this.notificationMessage.set("¡DESPACHO EXITOSO! La información ha sido enviada correctamente.");
+        this.showToast("Dando cierre al despacho en el servidor...", false, "PROCESANDO");
 
-        // Limpiamos y cerramos tras unos segundos para dar feedback visual
-        setTimeout(() => {
-            this.notificationMessage.set("");
-            this.cerrarPantalla();
-        }, 3000);
+        (this.revisorService.finalizeProcess() as any)?.subscribe((res: any) => {
+            if (res?.mensaje !== 'ERROR') {
+                this.showToast("OK: ¡REGISTRO EXITOSO! La orden ha sido creada correctamente.", false, "ÉXITO");
+                // Cerramos tras unos segundos para dar feedback visual
+                setTimeout(() => this.cerrarPantalla(), 3000);
+            } else {
+                this.showToast(`ERROR: ${res.error || 'Fallo al finalizar registro'}`, true, "ERROR DE REGISTRO");
+            }
+        });
     }
 }
