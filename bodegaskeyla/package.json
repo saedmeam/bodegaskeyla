@@ -1,6 +1,6 @@
 {
     "name": "bodegaskeyla",
-    "version": "0.0.0",
+    "version": "1.0.0",
     "main": "main.js",
     "scripts": {
         "ng": "ng",
@@ -10,7 +10,8 @@
         "test": "ng test",
         "serve:ssr:bodegaskeyla": "node dist/bodegaskeyla/server/server.mjs",
         "electron": "ng build --base-href ./ && electron .",
-        "electron:dev": "electron ."
+        "electron:dev": "electron .",
+        "electron:build": "ng build --base-href ./ && set USE_HARD_LINKS=false && electron-builder build --windows"
     },
     "prettier": {
         "printWidth": 100,
@@ -50,5 +51,34 @@
         "jsdom": "^27.1.0",
         "typescript": "~5.9.2",
         "vitest": "^4.0.8"
+    },
+    "build": {
+        "appId": "com.neu360.bodegaskeyla",
+        "productName": "BodegasKeyla",
+        "copyright": "Copyright © 2026 Neu360",
+        "directories": {
+            "output": "release"
+        },
+        "files": [
+            "dist/bodegaskeyla/**/*",
+            "main.js",
+            "package.json"
+        ],
+        "win": {
+            "target": [
+                "nsis"
+            ],
+            "icon": "public/app_icon.png"
+        },
+        "nsis": {
+            "oneClick": false,
+            "allowToChangeInstallationDirectory": true,
+            "installerIcon": "public/app_icon.png",
+            "uninstallerIcon": "public/app_icon.png",
+            "createDesktopShortcut": true,
+            "shortcutName": "Bodegas Keyla"
+        },
+        "asar": true,
+        "publish": null
     }
 }

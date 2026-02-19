@@ -6,9 +6,10 @@ function createWindow() {
     win = new BrowserWindow({
         width: 1200,
         height: 800,
+        icon: path.join(__dirname, 'public/app_icon.png'), // v72.0: Icono profesional para la ventana
         webPreferences: {
             nodeIntegration: true,
-            contextIsolation: false // Simplifica el acceso a Node para principiantes, pero nota de seguridad abajo
+            contextIsolation: false
         }
     });
     // Apunta al archivo index.html generado por Angular después de hacer 'ng build'

@@ -501,8 +501,8 @@ export class RevisorService {
                     cantidadUnidadMedidaStockB: 1,
                     cantidadBaseEquivalente: 1,
                     observacion: "ELIMINACION VIA REVISOR",
-                    codigoEstado: "ANU",
-                    esActivo: "N"
+                    codigoEstado: "ING", // v71.0: Siempre ING
+                    esActivo: "N"        // v71.0: Inactivar item
                 });
             }
         } else {
@@ -519,8 +519,8 @@ export class RevisorService {
                 cantidadUnidadMedidaStockB: 1,
                 cantidadBaseEquivalente: 1,
                 observacion: tipo === 'AGREGAR' ? "INGRESO VIA REVISOR" : "ACTUALIZACION VIA REVISOR",
-                codigoEstado: "ING",
-                esActivo: "S"
+                codigoEstado: "ING", // v71.0: Siempre ING
+                esActivo: "S"        // v71.0: Activar item
             }));
         }
 

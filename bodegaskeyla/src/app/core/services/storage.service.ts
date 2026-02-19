@@ -35,7 +35,15 @@ export class StorageService {
 
             // 2. Guardado en TXT/JSON Físico (Si es Electron)
             if (this.isElectron && this.fs) {
-                const filePath = this.path.join((window as any).process.cwd(), `${key}.json`);
+                // v72.0: Usar ruta de usuario persistente para evitar bloqueos en Program Files
+                const userDataPath = (window as any).process.env.APPDATA || (window as any).process.cwd();
+                const backupDir = this.path.join(userDataPath, 'BodegasKeyla_Backup');
+
+                if (!this.fs.existsSync(backupDir)) {
+                    this.fs.mkdirSync(backupDir, { recursive: true });
+                }
+
+                const filePath = this.path.join(backupDir, `${key}.json`);
                 this.fs.writeFileSync(filePath, jsonData, 'utf8');
                 console.log(`[StorageService] Backup físico (TXT) creado en: ${filePath}`);
             }
@@ -60,7 +68,10 @@ export class StorageService {
 
             // 2. Si falla y es Electron, intentar desde archivo físico (Txt/Json backup)
             if (this.isElectron && this.fs) {
-                const filePath = this.path.join((window as any).process.cwd(), `${key}.json`);
+                const userDataPath = (window as any).process.env.APPDATA || (window as any).process.cwd();
+                const backupDir = this.path.join(userDataPath, 'BodegasKeyla_Backup');
+                const filePath = this.path.join(backupDir, `${key}.json`);
+
                 if (this.fs.existsSync(filePath)) {
                     const fileData = this.fs.readFileSync(filePath, 'utf8');
                     console.log(`[StorageService] Data recuperada de archivo FISICO: ${filePath}`);
@@ -76,9 +87,22 @@ export class StorageService {
     }
 
     /**
-     * Elimina un registro local.
+     * v72.0: Elimina el registro local y su backup físico asociado.
      */
     clearLocal(key: string): void {
         localStorage.removeItem(key);
+        // Borrar también del disco para evitar recuperaciones accidentales
+        if (this.isElectron && this.fs) {
+            try {
+                const userDataPath = (window as any).process.env.APPDATA || (window as any).process.cwd();
+                const filePath = this.path.join(userDataPath, 'BodegasKeyla_Backup', `${key}.json`);
+                if (this.fs.existsSync(filePath)) {
+                    this.fs.unlinkSync(filePath);
+                    console.log(`[StorageService] Backup físico eliminado: ${filePath}`);
+                }
+            } catch (e) {
+                console.error('[StorageService] Error eliminando backup físico', e);
+            }
+        }
     }
 }

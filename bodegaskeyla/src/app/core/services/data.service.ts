@@ -15,11 +15,7 @@ export class DataService {
     private token: string | null = null;
 
     constructor() {
-        // v52.0: Limpieza total de cache persistente en Chromium para forzar uso de API real
-        try {
-            localStorage.clear();
-            console.log('[DataService] LocalStorage purgado con éxito.');
-        } catch (e) { }
+        // v72.0: Se remueve la purga automática para permitir que la persistencia Offline-First funcione entre sesiones.
     }
 
     /**
