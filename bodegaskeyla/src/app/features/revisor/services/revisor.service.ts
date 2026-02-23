@@ -183,16 +183,16 @@ export class RevisorService {
         // 1. Buscamos primero en lo que ya está en la grilla de "Despachados" para acumular
         // Ahora validamos que el lote coincida si se proporciona
         const scannedIndex = this.escaneados().findIndex(p =>
-            p.item === barcode &&
-            (!lote || p.lote === lote)
+            p.item === barcode
+            // && (!lote || p.lote === lote) // v75.0: Validación de lote desactivada
         );
 
         if (scannedIndex !== -1) {
             // Si ya existe, tomamos el actual y sumamos +1
             const product = { ...this.escaneados()[scannedIndex] };
             product.despachado++;
-            if (lote) product.lote = lote;
-            if (caducidad) product.caducidad = caducidad;
+            // if (lote) product.lote = lote; // v75.0: Desactivado
+            // if (caducidad) product.caducidad = caducidad; // v75.0: Desactivado
 
             // Buscamos su índice en la orden original para actualizar el estado global
             const originalIndex = this.ordenProductos().findIndex(p => p.item === product.item);
@@ -209,8 +209,8 @@ export class RevisorService {
             const product = { ...this.ordenProductos()[productIndex] };
             product.despachado = 1; // Primer pistoleo
             product.bulto = 1;      // Valor por defecto solicitado
-            if (lote) product.lote = lote;
-            if (caducidad) product.caducidad = caducidad;
+            // if (lote) product.lote = lote; // v75.0: Desactivado
+            // if (caducidad) product.caducidad = caducidad; // v75.0: Desactivado
 
             this.updateColorLogic(product);
             this.updateState(product, productIndex);
@@ -506,22 +506,57 @@ export class RevisorService {
                 });
             }
         } else {
-            // Caso AGREGAR o EDITAR: Enviamos todos los escaneados
-            payload.detalles = this.escaneados().map((prod, index) => ({
-                lineaDetalle: index + 1,
-                codigoExistencia: parseInt(prod.item) || 0,
-                cantidad: prod.despachado,
-                unidadesXCaja: prod.bulto || 1,
-                cantidadCajas: Math.floor(prod.despachado / (prod.bulto || 1)),
-                cantidadUnidades: prod.despachado,
-                grupoUnidadMedidaStockBase: 1,
-                unidadMedidaStockBase: 1,
-                cantidadUnidadMedidaStockB: 1,
-                cantidadBaseEquivalente: 1,
-                observacion: tipo === 'AGREGAR' ? "INGRESO VIA REVISOR" : "ACTUALIZACION VIA REVISOR",
-                codigoEstado: "ING", // v71.0: Siempre ING
-                esActivo: "S"        // v71.0: Activar item
-            }));
+            // Caso AGREGAR o EDITAR (v76.0): Sincronización Total (Match vs Solicitados)
+            const detallesFinales: any[] = [];
+            const idsEscaneados = new Set(this.escaneados().map(p => p.item));
+
+            // 1. Mapear todos los productos que están en la orden original
+            this.ordenProductos().forEach((orig, index) => {
+                const esc = this.escaneados().find(e => e.item === orig.item);
+                const fuePistoleado = !!esc;
+
+                detallesFinales.push({
+                    lineaDetalle: index + 1,
+                    codigoExistencia: parseInt(orig.item) || 0,
+                    cantidad: fuePistoleado ? esc.despachado : 0,
+                    unidadesXCaja: orig.bulto || 1,
+                    cantidadCajas: fuePistoleado ? Math.floor(esc.despachado / (orig.bulto || 1)) : 0,
+                    cantidadUnidades: fuePistoleado ? esc.despachado : 0,
+                    grupoUnidadMedidaStockBase: 1,
+                    unidadMedidaStockBase: 1,
+                    cantidadUnidadMedidaStockB: 1,
+                    cantidadBaseEquivalente: 1,
+                    observacion: fuePistoleado
+                        ? (tipo === 'AGREGAR' ? "INGRESO VIA REVISOR" : "ACTUALIZACION VIA REVISOR")
+                        : "DETALLE NO PISTOLEADO - INACTIVACIÓN AUTOMÁTICA",
+                    codigoEstado: "ING",
+                    esActivo: fuePistoleado ? "S" : "N" // v76.0: Inactivar si no se pistoleó
+                });
+            });
+
+            // 2. Agregar productos "Extra" que no estaban en la orden (v76.0)
+            this.escaneados().forEach(esc => {
+                const estaEnOrden = this.ordenProductos().some(o => o.item === esc.item);
+                if (!estaEnOrden) {
+                    detallesFinales.push({
+                        lineaDetalle: detallesFinales.length + 1,
+                        codigoExistencia: parseInt(esc.item) || 0,
+                        cantidad: esc.despachado,
+                        unidadesXCaja: esc.bulto || 1,
+                        cantidadCajas: Math.floor(esc.despachado / (esc.bulto || 1)),
+                        cantidadUnidades: esc.despachado,
+                        grupoUnidadMedidaStockBase: 1,
+                        unidadMedidaStockBase: 1,
+                        cantidadUnidadMedidaStockB: 1,
+                        cantidadBaseEquivalente: 1,
+                        observacion: "PRODUCTO EXTRA - INGRESO VIA REVISOR",
+                        codigoEstado: "ING",
+                        esActivo: "S"
+                    });
+                }
+            });
+
+            payload.detalles = detallesFinales;
         }
 
         console.log(`[RevisorService] Ejecutando POST Real [${tipo}]`, payload);
