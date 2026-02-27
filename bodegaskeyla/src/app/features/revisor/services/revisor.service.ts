@@ -114,6 +114,7 @@ export class RevisorService {
                     const cab_orden = cabecera.numeroOrdenDespacho || 1; // v64.0: Forzar 1 según instrucción usuario
 
                     this.orderMetadata.set({
+                        codigoEmpresa: cabecera.codigoEmpresa || 20, // v78.0: Capturar empresa real
                         bodega: cabecera.codigoBodega?.toString() || '001',
                         movimiento: '057',
                         nombre: 'REPOSICIÓN AUTOMÁTICA',
@@ -130,13 +131,15 @@ export class RevisorService {
                             return detalles.map((d: any) => ({
                                 item: d.codigoExistencia?.toString() || '',
                                 nombre: d.nombreExistencia || 'SIN NOMBRE',
-                                unidad: 'UND',
+                                unidad: 'U/C',
                                 solicita: d.cantidad || 0,
                                 despachado: 0,
                                 color: 'naranja',
                                 bulto: d.unidadesXCaja || 1,
                                 lote: d.lote || '',
-                                caducidad: d.caducidad || ''
+                                caducidad: d.caducidad || '',
+                                lineaDetalle: d.lineaDetalle, // v78.0: Preservar línea original
+                                estado: d.codigoEstado       // v78.0: Restaurar estado
                             })) as Product[];
                         })
                     );
@@ -184,15 +187,13 @@ export class RevisorService {
         // Ahora validamos que el lote coincida si se proporciona
         const scannedIndex = this.escaneados().findIndex(p =>
             p.item === barcode
-            // && (!lote || p.lote === lote) // v75.0: Validación de lote desactivada
         );
 
         if (scannedIndex !== -1) {
             // Si ya existe, tomamos el actual y sumamos +1
             const product = { ...this.escaneados()[scannedIndex] };
             product.despachado++;
-            // if (lote) product.lote = lote; // v75.0: Desactivado
-            // if (caducidad) product.caducidad = caducidad; // v75.0: Desactivado
+            // v77.0: Lote y Caducidad omitidos permanentemente por solicitud de usuario
 
             // Buscamos su índice en la orden original para actualizar el estado global
             const originalIndex = this.ordenProductos().findIndex(p => p.item === product.item);
@@ -209,8 +210,7 @@ export class RevisorService {
             const product = { ...this.ordenProductos()[productIndex] };
             product.despachado = 1; // Primer pistoleo
             product.bulto = 1;      // Valor por defecto solicitado
-            // if (lote) product.lote = lote; // v75.0: Desactivado
-            // if (caducidad) product.caducidad = caducidad; // v75.0: Desactivado
+            // v77.0: Lote y Caducidad omitidos permanentemente por solicitud de usuario
 
             this.updateColorLogic(product);
             this.updateState(product, productIndex);
@@ -490,7 +490,7 @@ export class RevisorService {
             const prod = this.ordenProductos().find(p => p.item === itemCode);
             if (prod) {
                 payload.detalles.push({
-                    lineaDetalle: 1, // Backend suele recalcular o requiere valor base
+                    lineaDetalle: prod.lineaDetalle || 1, // v78.0: Usar línea real persistida
                     codigoExistencia: parseInt(prod.item) || 0,
                     cantidad: prod.despachado || 0,
                     unidadesXCaja: prod.bulto || 1,
@@ -516,7 +516,7 @@ export class RevisorService {
                 const fuePistoleado = !!esc;
 
                 detallesFinales.push({
-                    lineaDetalle: index + 1,
+                    lineaDetalle: orig.lineaDetalle || (index + 1), // v78.0: Usar línea real si existe
                     codigoExistencia: parseInt(orig.item) || 0,
                     cantidad: fuePistoleado ? esc.despachado : 0,
                     unidadesXCaja: orig.bulto || 1,
@@ -565,8 +565,8 @@ export class RevisorService {
             tap(res => {
                 if (res?.mensaje !== 'ERROR') {
                     if (tipo === 'AGREGAR') {
-                        // Limpieza tras éxito final
-                        this.storage.clearLocal(`REVISION_SESSION_${this.currentOrderNumber}`);
+                        // v79.0: Por solicitud de usuario, NO se limpia la sesión local para permitir re-consultas.
+                        // this.storage.clearLocal(`REVISION_SESSION_${this.currentOrderNumber}`);
                     }
                 }
             })

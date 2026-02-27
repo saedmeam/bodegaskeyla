@@ -357,4 +357,11 @@ export class ReposicionComponent implements OnInit {
             }
         });
     }
+
+    /**
+     * Retorna el producto escaneado correspondiente a un item de la orden.
+     */
+    getScannedProduct(item: string) {
+        return this.escaneados().find(e => e.item === item);
+    }
 }

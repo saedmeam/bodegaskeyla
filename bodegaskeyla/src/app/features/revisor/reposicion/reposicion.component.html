@@ -93,11 +93,11 @@
             <!-- Agrupación de Listado de Resultados (Despacho) -->
             <div class="work-grid-v2 card-v2">
                 <div class="grid-header-v2">
-                    <div class="grid-title-v2">
+                    <div class="header-main-title">
                         <span class="icon">📦</span>
                         <h3>Productos Despachados</h3>
-                        <span class="text-muted">Total: {{ escaneados().length }} ítems</span>
                     </div>
+                    <span class="text-muted">Total: {{ escaneados().length }} ítems</span>
                 </div>
                 <div class="grid-body-v2">
                     <table class="neu-table-v2">
@@ -107,7 +107,7 @@
                                 <th class="col-bulto" title="Número de bulto o contenedor">Bulto</th>
                                 <th class="col-name" title="Nombre y descripción detallada del producto">Descripción del
                                     Producto</th>
-                                <th class="col-u text-center" title="Unidad de medida (Ej: UN, KG)">U</th>
+                                <th class="col-u text-center" title="Unidad de medida (Ej: UN, KG)">U/C</th>
                                 <th class="col-stock text-center"
                                     title="Inventario total disponible en la bodega actual">Stock</th>
                                 <th class="col-qty text-center" title="Cantidad total solicitada en la orden original">
@@ -193,7 +193,7 @@
                         </thead>
                         <tbody>
                             @for (p of ordenProductos(); track p.item) {
-                            <tr [className]="p.color === 'completado' ? 'row-completed' : ''"
+                            <tr [className]="getScannedProduct(p.item) ? (getScannedProduct(p.item)!.color === 'negro' ? 'row-completed' : (getScannedProduct(p.item)!.color === 'verde' ? 'row-exceeded' : '')) : ''"
                                 (click)="manualSelect(p.item)">
                                 <td class="cell-product-ref">
                                     <span class="prod-title">{{ p.nombre }}</span>

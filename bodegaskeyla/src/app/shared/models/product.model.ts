@@ -9,6 +9,7 @@ export interface Product {
     solicita: number;
     despachado: number;
     color: string; // 'negro', 'verde', 'azul', 'rojo', 'naranja', 'amarillo'
+    lineaDetalle?: number;
     estado?: string;
     lote?: string;
     caducidad?: string;

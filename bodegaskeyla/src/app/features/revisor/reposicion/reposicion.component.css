@@ -201,11 +201,18 @@
 }
 
 .grid-header-v2 {
-    padding: 4px 15px;
+    padding: 6px 15px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid var(--border-v2)
+    border-bottom: 1px solid var(--border-v2);
+    min-height: 45px
+}
+
+.header-main-title {
+    display: flex;
+    align-items: center;
+    gap: 8px
 }
 
 .header-left h3 {
@@ -261,7 +268,7 @@
 }
 
 .col-code {
-    width: 110px
+    width: 90px
 }
 
 .col-bulto {
@@ -277,11 +284,11 @@
 }
 
 .col-qty {
-    width: 75px
+    width: 100px
 }
 
 .col-status {
-    width: 100px
+    width: 90px
 }
 
 .cell-code,
@@ -305,12 +312,12 @@
 .qty-bubble-alt,
 .qty-bubble-sol,
 .qty-bubble-pend {
-    padding: 2px 10px;
+    padding: 2px 6px;
     border-radius: 12px;
     font-weight: 800;
-    font-size: .8rem;
+    font-size: .7rem;
     display: inline-block;
-    min-width: 35px
+    min-width: 60px
 }
 
 .qty-bubble-alt {
@@ -419,14 +426,14 @@
 }
 
 .prod-title {
-    font-size: .75rem;
-    font-weight: 600;
+    font-size: .68rem;
+    font-weight: 700;
     color: var(--primary-color);
     line-height: 1.2
 }
 
 .prod-meta {
-    font-size: .65rem;
+    font-size: .6rem;
     color: var(--text-dim-v2)
 }
 
@@ -439,8 +446,13 @@
 }
 
 .row-completed {
-    background: #f1f8e9;
-    opacity: .6
+    background: #e9fbf0 !important;
+    border-left: 4px solid #27ae60
+}
+
+.row-exceeded {
+    background: #ffebee !important;
+    border-left: 4px solid #f44
 }
 
 .composition-footer-v2 {
@@ -488,15 +500,15 @@
 }
 
 .qty-input-v2 {
-    width: 55px;
+    width: 80px;
     border: 1.5px solid var(--border-v2);
     border-radius: 6px;
-    padding: 4px 8px;
+    padding: 4px 4px;
     text-align: center;
     font-weight: 800;
     color: var(--info-color);
     background: #f8f9fa;
-    font-size: .9rem
+    font-size: .75rem
 }
 
 .qty-input-v2:focus {

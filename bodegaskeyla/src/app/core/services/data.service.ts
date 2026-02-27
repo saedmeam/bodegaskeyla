@@ -141,7 +141,7 @@ export class DataService {
     getOrdenDespacho(numero: string): Observable<any> {
         const params = {
             arg0: REST_CONFIG.EMPRESA_DEFAULT,
-            arg1: 'numeroSolicitud',
+            arg1: 'numeroSolicitud-numeroOrdenDespacho', // v77.0: Búsqueda por código concatenado
             arg2: numero,
             arg3: 0,
             arg4: 10
