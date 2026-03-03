@@ -14,6 +14,10 @@ export class RevisorService {
     public escaneados = signal<Product[]>([]);
     public orderMetadata = signal<any>(null);
 
+    public getOrdenesDespachoList(empresa: number, filtro: string, valor: string, pagina: number = 0) {
+        return this.dataService.executeAction<any>('GET_ORDENES_DESPACHO_LIST', { empresa, filtro, valor, pagina });
+    }
+
     private currentOrderNumber: string | null = null;
     private isLoading = false; // v62.0: Prevenir autoguardado durante la carga inicial
 
@@ -120,7 +124,8 @@ export class RevisorService {
                         nombre: 'REPOSICIÓN AUTOMÁTICA',
                         numeroSolicitud: cab_solicitud,
                         numeroOrdenDespacho: cab_orden,
-                        concepto: `Orden #${orderNumber} | Solicitud: ${cab_solicitud}`
+                        concepto: `Orden #${orderNumber} | Solicitud: ${cab_solicitud}`,
+                        estado: cabecera.codigoEstado
                     });
 
                     // Invocamos el servicio unificado pasando explícitamente los datos obtenidos
@@ -133,6 +138,7 @@ export class RevisorService {
                                 nombre: d.nombreExistencia || 'SIN NOMBRE',
                                 unidad: 'U/C',
                                 solicita: d.cantidad || 0,
+                                invBod: d.stock || d.existencia || d.invBod || 0, // v140.0: Mapeo de Stock
                                 despachado: 0,
                                 color: 'naranja',
                                 bulto: d.unidadesXCaja || 1,
@@ -149,8 +155,12 @@ export class RevisorService {
                 next: (products) => {
                     const cleanProducts = products || [];
                     this.ordenProductos.set(cleanProducts);
-                    this.escaneados.set([]);
-                    this.isLoading = false; // Fin de carga, reactivamos persistencia
+
+                    // v160.0: Solo cargar en "Escaneados" aquellos que ya tienen cantidad despachada física (DB)
+                    const actuallyDispatched = cleanProducts.filter(p => (p.despachado || 0) > 0);
+                    this.escaneados.set(actuallyDispatched);
+
+                    this.isLoading = false;
                 },
                 error: (err) => {
                     console.error('[RevisorService] Error cargando orden', err);
@@ -316,19 +326,27 @@ export class RevisorService {
      * Útil cuando se procesó de manera incorrecta y se requiere reiniciar.
      */
     public resetearDespacho() {
+        const orderId = this.currentOrderNumber;
+        if (orderId) {
+            console.log(`[RevisorService] Limpiando sesión local para orden: ${orderId}`);
+            this.storage.clearLocal(`REVISION_SESSION_${orderId}`);
+            // También limpiamos cualquier caché de metadata si existe
+            this.storage.clearLocal(`ORDER_CACHE_${orderId}`);
+        }
+
         // 1. Limpiar lista de escaneados
         this.escaneados.set([]);
 
         // 2. Restaurar estados en la orden original
         this.ordenProductos.update(list => {
-            return list.map(p => {
-                p.despachado = 0;
-                p.color = 'naranja';
-                return p;
-            });
+            return list.map(p => ({
+                ...p,
+                despachado: 0,
+                color: 'naranja'
+            }));
         });
 
-        // 3. Persistir la limpieza total en el disco
+        // 3. Persistir la limpieza (crea una sesión vacía limpia)
         this.persistCurrentState();
     }
 

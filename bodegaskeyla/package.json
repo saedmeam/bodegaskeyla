@@ -11,7 +11,7 @@
         "serve:ssr:bodegaskeyla": "node dist/bodegaskeyla/server/server.mjs",
         "electron": "ng build --base-href ./ && electron .",
         "electron:dev": "electron .",
-        "electron:build": "ng build --base-href ./ && set ELECTRON_BUILDER_CACHE=release/cache && set USE_HARD_LINKS=false && electron-builder build --windows"
+        "electron:build": "ng build --base-href ./ && electron-builder build --windows"
     },
     "prettier": {
         "printWidth": 100,

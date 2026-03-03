@@ -2,6 +2,9 @@ import { Component, signal, computed, inject, OnInit, ViewChild, ElementRef, eff
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RevisorService } from '../services/revisor.service';
+import { ActivatedRoute } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
+import { LoadingService } from '../../../core/services/loading.service';
 
 @Component({
     selector: 'app-reposicion',
@@ -12,6 +15,8 @@ import { RevisorService } from '../services/revisor.service';
 })
 export class ReposicionComponent implements OnInit {
     public revisorService = inject(RevisorService);
+    private route = inject(ActivatedRoute);
+    private loadingService = inject(LoadingService);
 
     @ViewChild('scannerInput') scannerInput!: ElementRef<HTMLInputElement>;
 
@@ -25,6 +30,16 @@ export class ReposicionComponent implements OnInit {
     barcodeInput = "";
     loteInput = "";
     caducidadInput = "";
+    public get orderNumber() {
+        // v130.0: Blindaje total para asegurar concatenación (Solicitud-Orden)
+        const meta = this.revisorService.orderMetadata();
+        if (meta) {
+            const sol = meta.numeroSolicitud || this.numero || '---';
+            const ord = meta.numeroOrdenDespacho || 1;
+            return `${sol}-${ord}`;
+        }
+        return this.numero || '---';
+    }
     showComparativo = signal(true);
 
     // Estados de Modal Custom (v35.0)
@@ -64,19 +79,34 @@ export class ReposicionComponent implements OnInit {
     }
 
     ngOnInit() {
-        // La pantalla inicia vacía. El usuario debe ingresar una orden.
+        // La pantalla inicia vacía or con una orden vía query param (v1.0 Nueva Pantalla)
+        this.route.queryParams.subscribe(params => {
+            if (params['order']) {
+                this.numero = params['order'];
+                this.consultarOrden();
+            }
+        });
     }
 
-    consultarOrden() {
+    async consultarOrden() {
         if (!this.numero || this.numero.trim() === "") {
             this.revisorService.orderMetadata.set(null);
             return;
         }
 
-        this.showToast(`OK: Consultando orden #${this.numero}...`, false, "SINCRONIZACIÓN");
+        this.loadingService.show();
+        try {
+            // RevisorService.executeProcess should ideally be async or return an observable
+            // But we know it triggers a LOAD action.
+            this.revisorService.executeProcess('LOAD', { orderNumber: this.numero });
 
-        // Llamada al orquestador para iniciar proceso async (v45.0)
-        this.revisorService.executeProcess('LOAD', { orderNumber: this.numero });
+            // Wait for metadata to be set (simple polling or just rely on the effect)
+            // For now, we assume the service manages its own internal loading if needed,
+            // but we wrap the call with our global loader for UI consistency.
+            setTimeout(() => this.loadingService.hide(), 1500);
+        } catch (e) {
+            this.loadingService.hide();
+        }
     }
 
     manualSelect(item: string) {
@@ -151,6 +181,20 @@ export class ReposicionComponent implements OnInit {
         }
 
         this.barcodeInput = "";
+    }
+
+    onProductDblClick(prod: any) {
+        if (!prod) return;
+
+        // V160.0: Manual Scan via double click
+        this.barcodeInput = prod.item;
+
+        // If the product has a specific lot/expiry in the order, we use it
+        if (prod.lote) this.loteInput = prod.lote;
+        if (prod.caducidad) this.caducidadInput = prod.caducidad;
+
+        this.simularEscaneo();
+        this.showToast(`CARGA MANUAL: [${prod.item}] cargado vía comparativo.`, false, "REGISTRO MANUAL");
     }
 
     private showToast(message: string, isError: boolean = false, title?: string) {
@@ -248,11 +292,19 @@ export class ReposicionComponent implements OnInit {
 
         const confirm = await this.openModal("Actualizar Orden", "¿Desea enviar los cambios actuales al servidor con estado ING?", "sync", "confirm");
         if (confirm) {
-            (this.revisorService.executeProcess('API_UPDATE', { tipo: 'EDITAR' }) as any)?.subscribe((res: any) => {
-                if (res?.mensaje !== 'ERROR') {
-                    this.showToast("¡REGISTRO COMPLETADO! La orden ha sido actualizada.", false, "ÉXITO");
-                } else {
-                    this.showToast(`ERROR: ${res.error || 'No se pudo completar el registro'}`, true, "ERROR DE REGISTRO");
+            this.loadingService.show();
+            (this.revisorService.executeProcess('API_UPDATE', { tipo: 'EDITAR' }) as any)?.subscribe({
+                next: (res: any) => {
+                    this.loadingService.hide();
+                    if (res?.mensaje !== 'ERROR') {
+                        this.showToast("¡REGISTRO COMPLETADO! La orden ha sido actualizada.", false, "ÉXITO");
+                    } else {
+                        this.showToast(`ERROR: ${res.error || 'No se pudo completar el registro'}`, true, "ERROR DE REGISTRO");
+                    }
+                },
+                error: () => {
+                    this.loadingService.hide();
+                    this.showToast("Error de conexión con el servidor", true);
                 }
             });
         }
@@ -345,15 +397,20 @@ export class ReposicionComponent implements OnInit {
      * Ejecuta el cierre definitivo y envío de datos (AGREGAR).
      */
     private ejecutarEnvioFinal() {
-        this.showToast("Dando cierre al despacho en el servidor...", false, "PROCESANDO");
-
-        (this.revisorService.finalizeProcess() as any)?.subscribe((res: any) => {
-            if (res?.mensaje !== 'ERROR') {
-                this.showToast("OK: ¡REGISTRO EXITOSO! La orden ha sido creada correctamente.", false, "ÉXITO");
-                // Cerramos tras unos segundos para dar feedback visual
-                setTimeout(() => this.cerrarPantalla(), 3000);
-            } else {
-                this.showToast(`ERROR: ${res.error || 'Fallo al finalizar registro'}`, true, "ERROR DE REGISTRO");
+        this.loadingService.show();
+        (this.revisorService.finalizeProcess() as any)?.subscribe({
+            next: (res: any) => {
+                this.loadingService.hide();
+                if (res?.mensaje !== 'ERROR') {
+                    this.showToast("OK: ¡REGISTRO EXITOSO! La orden ha sido creada correctamente.", false, "ÉXITO");
+                    setTimeout(() => this.cerrarPantalla(), 2000);
+                } else {
+                    this.showToast(`ERROR: ${res.error || 'Fallo al finalizar registro'}`, true, "ERROR DE REGISTRO");
+                }
+            },
+            error: () => {
+                this.loadingService.hide();
+                this.showToast("Error de conexión fatal", true);
             }
         });
     }
@@ -361,7 +418,29 @@ export class ReposicionComponent implements OnInit {
     /**
      * Retorna el producto escaneado correspondiente a un item de la orden.
      */
-    getScannedProduct(item: string) {
-        return this.escaneados().find(e => e.item === item);
+    getScannedProduct(itemCode: string): any {
+        return this.escaneados().find(p => p.item === itemCode);
+    }
+
+    /**
+     * V160.0: Busca el producto original solicitado para comparar discrepancias.
+     */
+    getOriginalRequested(itemCode: string) {
+        return this.ordenProductos().find(p => p.item === itemCode);
+    }
+
+    /**
+     * Determina el texto del estado visual (v42.0).
+     */
+    getStatusDisplay(status: any): string {
+        if (!status) return 'INCOMPLETO';
+
+        switch (status.color) {
+            case 'negro': return 'COMPLETO';
+            case 'verde': return 'EXCEDIDO';
+            case 'azul': return 'EN PROCESO';
+            case 'naranja': return 'INCOMPLETO';
+            default: return 'INCOMPLETO';
+        }
     }
 }

@@ -1,288 +1,221 @@
-<div class="app-workspace-v2">
-    <!-- 1. BARRA DE NAVEGACIÓN SUPERIOR (Brand & Session) -->
-    <header class="app-header-v2">
-        <div class="header-main-info">
-            <div class="brand-logo">
-                <span class="logo-accent"></span>
-                <span class="brand-name">NEU360 - Pantalla de Revisor v2.0</span>
+<!-- Header v2.0 (Dark Sub-header) -->
+<div class="header-revisor-v2">
+    <div class="h-indicator"></div>
+    <span class="h-title">NEU360 - Pantalla de Revisor v2.0</span>
+    <span class="h-subtitle">Reposicion de Mercaderia</span>
+</div>
+
+<div class="reposicion-container-v2">
+
+    <div class="reposicion-flex-wrapper">
+        <!-- Left Area: Main Workspace (75%) -->
+        <div class="left-operational-column">
+            <!-- Section: Datos Generales -->
+            <div class="section-datos-generales card-v2">
+                <div class="card-header-v2">
+                    <span class="icon">📋</span> DATOS GENERALES DE LA ORDEN
+                </div>
+                <div class="data-grid-v2">
+                    <div class="form-group-v2">
+                        <label>NÚMERO DE ORDEN</label>
+                        <input type="text" [value]="orderNumber" readonly class="input-v2 readonly-field">
+                    </div>
+                    <div class="form-group-v2">
+                        <label>BODEGA</label>
+                        <input type="text" [value]="bodega" readonly class="input-v2 readonly-field w-tiny">
+                    </div>
+                    <div class="form-group-v2">
+                        <label>MOVIMIENTO</label>
+                        <div class="input-composite">
+                            <input type="text" [value]="movimiento" readonly class="input-v2 readonly-field w-tiny">
+                            <input type="text" [value]="movimientoNombre" readonly
+                                class="input-v2 readonly-field flex-grow">
+                        </div>
+                    </div>
+                    <div class="form-group-v2 w-full">
+                        <label>CONCEPTO / OBSERVACIONES</label>
+                        <input type="text" [value]="concepto" readonly class="input-v2 readonly-field">
+                    </div>
+                </div>
             </div>
-            <div class="view-title">Reposición de Mercadería</div>
+
+            <!-- Section: Barra de Escaneo (Teal) -->
+            <div class="section-escaneo">
+                <div class="scanner-prompt">Escaneo de Códigos |</div>
+                <div class="scanner-input-container">
+                    <input #scannerInput type="text" [(ngModel)]="barcodeInput" (keyup.enter)="simularEscaneo()"
+                        class="scanner-input-v2 code-input" placeholder="Escanear ítem..." autocomplete="off">
+                    <input type="text" [(ngModel)]="loteInput" class="scanner-input-v2 lote-input-v2"
+                        placeholder="Lote">
+                    <input type="text" [value]="fecha" readonly class="scanner-input-v2 date-input-v2">
+                </div>
+            </div>
+
+            <!-- Section: Grid Principal -->
+            <div class="operational-area-v2">
+                <div class="card-v2 full-height">
+                    <div class="grid-header-v2">
+                        <div class="header-left">
+                            <span class="icon">📦</span>
+                            <h3>Productos Despachados</h3>
+                        </div>
+                        <div class="header-right">
+                            <span class="badge-v2">Total: {{ ordenProductos().length }} ítems</span>
+                        </div>
+                    </div>
+                    <div class="grid-body-v2">
+                        <table class="neu-table-v2">
+                            <thead>
+                                <tr>
+                                    <th class="col-code">Cód. Item</th>
+                                    <th class="col-bulto">Bulto</th>
+                                    <th class="col-name">Descripción del Producto</th>
+                                    <th class="col-u">U/C</th>
+                                    <th class="col-stock">Stock</th>
+                                    <th class="col-qty">Sol.</th>
+                                    <th class="col-qty">Desp.</th>
+                                    <th class="col-qty">Pend.</th>
+                                    <th class="col-status">Estado</th>
+                                    <th class="col-actions"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (item of escaneados(); track item.item) {
+                                @let orig = getOriginalRequested(item.item);
+                                <tr [class]="'tr-status-' + (item?.color || 'naranja')">
+                                    <td class="cell-code">{{ item.item }}</td>
+                                    <td><input type="text" [value]="item.bulto || 1"
+                                            class="input-v2 w-tiny text-center"></td>
+                                    <td class="cell-name" [title]="item.nombre">{{ item.nombre }}</td>
+                                    <td>U/C</td>
+                                    <td>{{ item.invBod }}</td>
+                                    <td><span class="qty-bubble-sol">{{ orig?.solicita || 0 }}</span></td>
+                                    <td>
+                                        <div class="input-composite">
+                                            <input type="number" [ngModel]="item?.despachado || 0"
+                                                (ngModelChange)="updateQty(item.item, $event)" class="input-v2 w-tiny">
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="qty-bubble-pend"
+                                            [class.pend-ok]="(item?.despachado || 0) >= (orig?.solicita || 0)">
+                                            {{ (orig?.solicita || 0) - (item?.despachado || 0) }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="status-marker" [class]="item?.color || 'naranja'">
+                                            {{ getStatusDisplay(item) }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button class="btn-delete-v2" (click)="eliminarItem(item.item)">×</button>
+                                    </td>
+                                </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
         </div>
-        <div class="header-session-info">
-            <div class="info-item">
-                <span class="label">Usuario:</span>
-                <span class="value highlight">ADMINISTRA</span>
-            </div>
-            <div class="info-item">
-                <span class="value">{{ fecha }}</span>
-            </div>
-        </div>
-    </header>
 
-    <!-- 2. CONTENEDOR PRINCIPAL DIVIDIDO -->
-    <main class="main-content-v2">
-
-        <!-- ÁREA OPERATIVA (LADO IZQUIERDO - 75%) -->
-        <section class="operational-area-v2">
-            <!-- Notificación Flotante -->
-            @if (notificationMessage()) {
-            <div class="app-toast-v2" [ngClass]="isError() ? 'toast-err' : 'toast-ok'">
-                <span class="toast-icon">{{ isError() ? '✖' : '✔' }}</span>
-                <div class="toast-content">
-                    <span class="toast-title">{{ notificationTitle() }}</span>
-                    <span class="toast-body">{{ notificationMessage() }}</span>
-                </div>
-            </div>
-            }
-
-            <!-- Agrupación de Datos de Cabecera -->
-            <div class="data-composition-v2 card-v2">
-                <div class="composition-header">
-                    <span class="icon">📋</span> Datos Generales de la Orden
-                </div>
-                <div class="composition-body">
-                    <div class="field-grid-v2">
-                        <div class="form-group-v2">
-                            <label title="Identificador único de la orden de reposición">Número de Orden</label>
-                            <input type="text" [(ngModel)]="numero" (keyup.enter)="consultarOrden()"
-                                placeholder="Ingrese # de Orden..." class="input-v2">
-                        </div>
-                        <div class="form-group-v2">
-                            <label title="Código de la bodega asociada a la orden">Bodega</label>
-                            <input type="text" [(ngModel)]="bodega" readonly class="input-v2 w-tiny readonly-field">
-                        </div>
-                        <div class="form-group-v2 flex-grow">
-                            <label title="Tipo y descripción del movimiento operativo">Movimiento</label>
-                            <div class="input-composite">
-                                <input type="text" [(ngModel)]="movimiento" readonly
-                                    class="input-v2 w-tiny readonly-field">
-                                <input type="text" [(ngModel)]="movimientoNombre" readonly
-                                    class="input-v2 flex-grow readonly-field">
-                            </div>
-                        </div>
-                        <div class="form-group-v2 w-full">
-                            <label title="Notas y observaciones adicionales de la orden">Concepto /
-                                Observaciones</label>
-                            <input type="text" [(ngModel)]="concepto" class="input-v2">
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Agrupación de Pistoleo (Input activo) -->
-            <div class="action-scanner-v2 card-v2 accent">
-                <div class="scanner-interface">
-                    <div class="scanner-prompt">
-                        <span class="prompt-text">Escaneo de Códigos <span class="blink">|</span></span>
-                    </div>
-                    <div class="scanner-input-container">
-                        <input type="text" #scannerInput [(ngModel)]="barcodeInput" (keyup.enter)="simularEscaneo()"
-                            [disabled]="ordenProductos().length === 0"
-                            [placeholder]="ordenProductos().length === 0 ? 'Cargue una orden para activar...' : 'Escanear ítem...'"
-                            class="scanner-input-v2 code-input">
-
-                        <input type="text" [(ngModel)]="loteInput" placeholder="Lote"
-                            [disabled]="ordenProductos().length === 0" class="scanner-input-v2 lote-input-v2">
-
-                        <input type="date" [(ngModel)]="caducidadInput" [disabled]="ordenProductos().length === 0"
-                            class="scanner-input-v2 date-input-v2">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Agrupación de Listado de Resultados (Despacho) -->
-            <div class="work-grid-v2 card-v2">
-                <div class="grid-header-v2">
-                    <div class="header-main-title">
-                        <span class="icon">📦</span>
-                        <h3>Productos Despachados</h3>
-                    </div>
-                    <span class="text-muted">Total: {{ escaneados().length }} ítems</span>
-                </div>
-                <div class="grid-body-v2">
-                    <table class="neu-table-v2">
-                        <thead>
-                            <tr>
-                                <th class="col-code" title="Código de referencia del producto">Cód. Item</th>
-                                <th class="col-bulto" title="Número de bulto o contenedor">Bulto</th>
-                                <th class="col-name" title="Nombre y descripción detallada del producto">Descripción del
-                                    Producto</th>
-                                <th class="col-u text-center" title="Unidad de medida (Ej: UN, KG)">U/C</th>
-                                <th class="col-stock text-center"
-                                    title="Inventario total disponible en la bodega actual">Stock</th>
-                                <th class="col-qty text-center" title="Cantidad total solicitada en la orden original">
-                                    Sol.</th>
-                                <th class="col-qty text-center"
-                                    title="Cantidad que ha sido escaneada o ingresada manualmente">Desp.</th>
-                                <th class="col-qty text-center" title="Diferencia restante por despachar">Pend.</th>
-                                <th class="col-status" title="Estado logístico del producto en esta operación">Estado
-                                </th>
-                                <th class="col-actions" title="Acciones de control"></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @for (p of escaneados(); track p.item) {
-                            <tr [className]="'tr-status-' + p.color">
-                                <td class="cell-code" title="{{p.item}}">{{ p.item }}</td>
-                                <td class="text-center">
-                                    <input type="number" [(ngModel)]="p.bulto" min="0"
-                                        (change)="revisorService.saveSession()" class="qty-input-v2 w-tiny">
-                                </td>
-                                <td class="cell-name" title="{{p.nombre}}">{{ p.nombre }}</td>
-                                <td class="text-center" title="{{ revisorService.getUnitDescription(p.unidad) }}">
-                                    {{ p.unidad }}
-                                </td>
-                                <td class="text-center">
-                                    <span class="qty-bubble-alt">{{ p.invBod }}</span>
-                                </td>
-                                <td class="text-center">
-                                    <span class="qty-bubble-sol">{{ p.solicita }}</span>
-                                </td>
-                                <td class="text-center">
-                                    <input type="number" [ngModel]="p.despachado" min="0"
-                                        (ngModelChange)="updateQty(p.item, $event)" class="qty-input-v2">
-                                </td>
-                                <td class="text-center">
-                                    <span class="qty-bubble-pend"
-                                        [ngClass]="{'pend-ok': (p.solicita - p.despachado) <= 0}">
-                                        {{ p.solicita - p.despachado }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <span class="status-marker" [ngClass]="p.color">
-                                        {{ p.color === 'negro' ? 'COMPLETO' : (p.color === 'azul' ? 'INCOMPLETO' :
-                                        'EXCEDIDO') }}
-                                    </span>
-                                </td>
-                                <td class="text-center">
-                                    <button class="btn-delete-v2" (click)="eliminarItem(p.item)"
-                                        title="Eliminar este ítem">
-                                        🗑️
-                                    </button>
-                                </td>
-                            </tr>
-                            }
-                            @if (escaneados().length === 0) {
-                            <tr>
-                                <td colspan="10" class="empty-state">No hay registros pistoleados aún</td>
-                            </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <!-- TABLA DE COMPARATIVO (LADO DERECHO - 25%) -->
-        <aside class="reference-area-v2" [class.collapsed-v2]="!showComparativo()">
-            <div class="card-v2 full-height reference-card">
-                <div class="composition-header shadow clickable-header" (click)="toggleComparativo()">
-                    <span class="icon">{{ showComparativo() ? '📊' : '📁' }}</span>
+        <!-- Right Area: Sidebar Comparativo (35%) -->
+        <aside class="right-reference-column" [class.collapsed-v2]="!showComparativo()">
+            <div class="reference-card card-v2 full-height">
+                <div class="composition-header" (click)="toggleComparativo()">
+                    <span class="icon">📊</span>
+                    @if (showComparativo()) {
                     <span class="title-text">Comparativo de Orden</span>
+                    }
                     <span class="toggle-icon">{{ showComparativo() ? '▼' : '▶' }}</span>
                 </div>
-
                 @if (showComparativo()) {
-                <div class="reference-grid-v2">
-                    <table class="neu-table-compact">
-                        <thead>
-                            <tr>
-                                <th title="Descripción del producto referencial">Producto</th>
-                                <th width="50" class="text-center" title="Cantidad Total Solicitada">SOL</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @for (p of ordenProductos(); track p.item) {
-                            <tr [className]="getScannedProduct(p.item) ? (getScannedProduct(p.item)!.color === 'negro' ? 'row-completed' : (getScannedProduct(p.item)!.color === 'verde' ? 'row-exceeded' : '')) : ''"
-                                (click)="manualSelect(p.item)">
-                                <td class="cell-product-ref">
-                                    <span class="prod-title">{{ p.nombre }}</span>
-                                    <span class="prod-meta">{{ p.item }} | {{ p.unidad }}</span>
-                                    <span class="prod-meta">LOTE: {{ p.lote || 'N/A' }} | CAD: {{ p.caducidad || 'N/A'
-                                        }}</span>
-                                </td>
-                                <td class="text-center"><span class="solicita-val">{{ p.solicita }}</span></td>
-                            </tr>
-                            }
-                        </tbody>
-                    </table>
+                <div class="reference-grid-header">
+                    <span>Producto</span>
+                    <span>SOL</span>
                 </div>
-
-                <div class="composition-footer-v2">
-                    <div class="stat-group">
-                        <span class="stat-lbl">Items:</span>
-                        <span class="stat-val">{{ totalItems() }}</span>
+                <div class="reference-grid-v2">
+                    @for (prod of ordenProductos(); track prod.item) {
+                    @let status = getScannedProduct(prod.item);
+                    <div class="comparativo-item clickable" (dblclick)="onProductDblClick(prod)"
+                        [class.bg-completo]="(status?.despachado || 0) === prod.solicita && (status?.despachado || 0) > 0"
+                        [class.bg-excedido]="(status?.despachado || 0) > prod.solicita"
+                        [class.status-neutral]="!status || (status?.despachado || 0) === 0">
+                        <div class="c-indicator" [class]="status ? (status?.color || 'naranja') : 'neutral'"></div>
+                        <div class="c-info">
+                            <strong class="c-title">{{ prod.nombre }}</strong>
+                            <span class="c-meta">CÓD: {{ prod.item }} | UNIDADES BOX: {{ prod.bulto || 1 }}</span>
+                            <span class="c-lote">LOTE: {{ prod.lote || 'N/A' }} | CAD: {{ prod.caducidad || 'N/A'
+                                }}</span>
+                        </div>
+                        <div class="c-qty-circle">
+                            {{ prod.solicita }}
+                        </div>
                     </div>
-                    <div class="stat-group ok">
-                        <span class="stat-lbl">OK:</span>
-                        <span class="stat-val">{{ totalCorrectos() }}</span>
-                    </div>
+                    }
+                </div>
+                <div class="reference-footer-v2">
+                    <div class="stat">Items: <strong>{{ totalItems() }}</strong></div>
+                    <div class="stat">OK: <strong class="text-success">{{ totalCorrectos() }}</strong></div>
                 </div>
                 }
             </div>
         </aside>
+    </div>
 
-    </main>
-
-    <!-- 3. FOOTER DE CONTROL (Acciones Finales) -->
-    <footer class="app-footer-v2">
-        <div class="footer-status-v2">
-            <span class="pulse-indicator-v2"></span>
-            <span class="text-system">TRA#: 18369 | Terminal: 55336 | NEU360 Engine v2.0 Ready</span>
-        </div>
-
-        <!-- Leyenda de Colores de Estado -->
-        <div class="legend-v2">
-            <div class="legend-item">
-                <span class="marker negro"></span>
-                <span class="lbl">COMPLETO (CUADRA)</span>
+    <!-- Footer Section (Now outside the flex-wrapper for full width) -->
+    <div class="app-footer-v2">
+        <div class="footer-meta-v2">
+            <div class="legend-v2">
+                <div class="legend-item"><span class="marker negro"></span> <span class="lbl">COMPLETO
+                        (CUADRA)</span>
+                </div>
+                <div class="legend-item"><span class="marker naranja"></span> <span class="lbl">INCOMPLETO
+                        (PENDIENTE)</span></div>
+                <div class="legend-item"><span class="marker azul"></span> <span class="lbl">INCOMPLETO (EN
+                        PROCESO)</span></div>
+                <div class="legend-item"><span class="marker verde"></span> <span class="lbl">EXCEDIDO (+
+                        CANTIDAD)</span></div>
             </div>
-            <div class="legend-item">
-                <span class="marker azul"></span>
-                <span class="lbl">INCOMPLETO (PENDIENTE)</span>
-            </div>
-            <div class="legend-item">
-                <span class="marker verde"></span>
-                <span class="lbl">EXCEDIDO (+ CANTIDAD)</span>
+            <div class="system-stats">
+                TRA#: 18369 | Terminal: 55336 | NEU360 Engine v2.0 Ready
             </div>
         </div>
-
         <div class="footer-actions-v2">
-            <button class="btn-v2 btn-success" (click)="finalizar()"
-                title="Finalizar despacho y enviar">Agregar</button>
-            <button class="btn-v2 btn-outline" (click)="confirmarEdicion()"
-                title="Editar ítem seleccionado">Editar</button>
-            <button class="btn-v2 btn-danger" (click)="resetearTodo()"
-                title="ELIMINAR TODO LO DESPACHADO">Eliminar</button>
-            <!-- <button class="btn-v2 btn-outline" (click)="simularEscenarioDiscrepancias()"
-                title="Cargar escenario de pruebas con discrepancias (Solo para validación)">🧪 Simular</button> -->
-            <button class="btn-v2 btn-primary" (click)="guardarBorrador()"
-                title="Guardar Borrador en disco local">Guardar</button>
-            <button class="btn-v2 btn-dark" (click)="cerrarPantalla()" title="Cerrar esta pantalla">Cerrar</button>
-        </div>
-    </footer>
-
-    <!-- 4. MODAL DE CONFIRMACIÓN CUSTOM (v35.0) -->
-    @if (modalVisible()) {
-    <div class="modal-overlay-v2">
-        <div class="modal-card-v2">
-            <header class="modal-header-v2">
-                <span class="icon">{{ modalIcon() }}</span>
-                <h3>{{ modalTitle() }}</h3>
-            </header>
-            <div class="modal-body-v2">
-                <p [innerHTML]="modalMessage()"></p>
-            </div>
-            <footer class="modal-footer-v2">
-                @if (modalType() === 'confirm') {
-                <button class="btn-v2 btn-outline" (click)="closeModal(false)">Cancelar</button>
-                <button class="btn-v2 btn-primary" (click)="closeModal(true)"
-                    [disabled]="modalActionDisabled()">Continuar</button>
-                } @else if (modalType() === 'alert') {
-                <button class="btn-v2 btn-primary" (click)="closeModal(true)">Entendido</button>
-                }
-            </footer>
+            <button class="btn-v2 btn-primary" (click)="finalizar()">Agregar</button>
+            <button class="btn-v2" (click)="confirmarEdicion()">Editar</button>
+            <button class="btn-v2 btn-danger" (click)="eliminarItem('TODO')">Eliminar</button>
+            <button class="btn-v2 btn-dark" (click)="guardarBorrador()">Guardar</button>
+            <button class="btn-v2 btn-dark" (click)="cerrarPantalla()">Cerrar</button>
         </div>
     </div>
-    }
 </div>
+
+<!-- Custom Glass Modal -->
+@if (modalVisible()) {
+<div class="glass-modal-overlay">
+    <div class="glass-modal scale-in" [class.alert]="modalType() === 'alert'">
+        <div class="modal-header">
+            <h3>{{ modalTitle() }}</h3>
+        </div>
+        <div class="modal-body" [innerHTML]="modalMessage()"></div>
+        <div class="modal-footer">
+            <button class="btn-modal-cancel" (click)="closeModal(false)">Cancelar</button>
+            <button class="btn-modal-action" [disabled]="modalActionDisabled()" (click)="closeModal(true)">
+                {{ modalType() === 'confirm' ? 'Confirmar' : 'Aceptar' }}
+            </button>
+        </div>
+    </div>
+</div>
+}
+
+<!-- Toast Notifications -->
+@if (notificationMessage()) {
+<div class="toast-notification slide-up" [class.error]="isError()">
+    <div class="toast-content">
+        <span class="toast-title">{{ notificationTitle() }}</span>
+        <span class="toast-text">{{ notificationMessage() }}</span>
+    </div>
+</div>
+}

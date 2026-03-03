@@ -1,0 +1,19 @@
+{
+    "apiUrl": "http://test.neu360.com/X-uitWSRestMagkaz2",
+    "CARGA_AUTOMATICO_EMPRESA_SUCURSAL": 0,
+    "EMPRESA_POR_DEFECTO": 20,
+    "SUCURSAL_POR_DEFECTO": 1,
+    "DEV_TOOLS": 1,
+    "endpoints": {
+        "LOGIN": "/XPos/login",
+        "USUARIOS_SISTEMA": "/XPosConsultas/usuariosSistema",
+        "PERSONAL_X_EMPRESA": "/XPosConsultas/personalXEmpresa",
+        "EMPRESAS": "/XPosConsultas/empresas",
+        "SUCURSALES": "/XPosConsultas/sucursales",
+        "SUCURSALES_X_USUARIO": "/XPosConsultas/sucursalesXUsuario",
+        "CAJAS": "/XPosConsultas/cajas",
+        "CAJEROS_X_CAJA": "/XPosConsultas/cajerosXCaja",
+        "CAJAS_DISPONIBLES_USUARIO": "/XPosConsultas/cajasDisponiblesUsuario",
+        "INICIO_SESION": "/XPos/inicioSesion"
+    }
+}

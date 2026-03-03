@@ -1,0 +1,390 @@
+:host {
+    display: block;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+.login-container {
+    height: 100%;
+    width: 100%;
+    background-color: #f4f7f6;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.login-content {
+    width: 100%;
+    max-width: 520px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 30px;
+    padding: 20px;
+}
+
+/* Logo Section */
+.logo-section {
+    margin-bottom: 0px;
+}
+
+.main-logo {
+    height: 75px;
+    object-fit: contain;
+}
+
+/* Stepper */
+.auth-stepper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    gap: 0px;
+}
+
+.step-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+    z-index: 2;
+    min-width: 60px;
+}
+
+.step-circle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: white;
+    color: #00C1C5;
+    border: 2px solid #00C1C5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.step-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: capitalize;
+    text-align: center;
+    position: absolute;
+    top: 40px;
+    white-space: nowrap;
+}
+
+.step-item.active .step-circle {
+    background: #00C1C5;
+    color: white;
+}
+
+.step-item.active .step-label {
+    color: #00C1C5;
+    font-weight: 700;
+}
+
+.step-item.completed .step-circle {
+    background: #005153;
+    border-color: #005153;
+    color: white;
+}
+
+.step-line {
+    width: 40px;
+    height: 2px;
+    background: #00C1C5;
+    margin-top: -24px;
+    z-index: 1;
+}
+
+.step-line.completed {
+    background: #005153;
+}
+
+/* Card */
+.auth-card {
+    width: 100%;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    margin-top: 15px;
+}
+
+.card-body {
+    padding: 30px 40px 40px;
+    min-height: 280px;
+}
+
+.view-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #005153;
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+/* Inputs */
+.modern-input {
+    margin-bottom: 16px;
+}
+
+.modern-input input {
+    width: 100%;
+    height: 48px;
+    padding: 0 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 15px;
+    transition: all 0.3s;
+    outline: none;
+    color: #334155;
+}
+
+.modern-input input:focus {
+    border-color: #00C1C5;
+    box-shadow: 0 0 0 4px rgba(0, 193, 197, 0.1);
+}
+
+.modern-input input::placeholder {
+    color: #94a3b8;
+}
+
+/* Buttons */
+.btn-auth {
+    width: 100%;
+    height: 52px;
+    background: #00C1C5;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+.btn-auth:hover:not(:disabled) {
+    background: #00acaf;
+}
+
+.btn-auth:disabled {
+    background: #b8cccd;
+    cursor: not-allowed;
+}
+
+.btn-auth.secondary {
+    background: #94a3b8;
+}
+
+.btn-auth.secondary:not(:disabled) {
+    background: #00C1C5;
+}
+
+.btn-link {
+    width: 100%;
+    background: none;
+    border: 1px solid #e2e8f0;
+    color: #64748b;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    margin-top: 15px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-link:hover {
+    background: #f8fafc;
+    color: #005153;
+    border-color: #00C1C5;
+}
+
+.icon-next,
+.check-icon {
+    margin-left: 8px;
+    font-size: 18px;
+}
+
+.check-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border: 2px solid currentColor;
+    border-radius: 50%;
+    font-size: 12px;
+}
+
+/* Auth Actions Container */
+.auth-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 25px;
+}
+
+.auth-actions .btn-auth,
+.auth-actions .btn-link {
+    margin-top: 0;
+}
+
+.auth-actions .btn-link.no-next {
+    margin-top: 10px;
+}
+
+/* Searchable Select */
+
+
+/* Options Grid (Step 4) */
+.options-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.grid-item {
+    padding: 15px;
+    border-radius: 12px;
+    border: 1.5px solid #f1f5f9;
+    background: #f8fafc;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.grid-item:hover {
+    border-color: #00C1C5;
+    background: white;
+}
+
+.item-status {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    font-size: 9px;
+    font-weight: 800;
+    color: #ef4444;
+    text-transform: uppercase;
+}
+
+.grid-item.open {
+    border-left: 5px solid #10b981;
+}
+
+.grid-item.open .item-status {
+    color: #10b981;
+}
+
+.item-main {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.item-icon {
+    font-size: 20px;
+}
+
+.item-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+/* Errors & Feedback */
+.auth-error {
+    margin-top: 16px;
+    padding: 12px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 10px;
+    color: #991b1b;
+    font-size: 13px;
+    text-align: center;
+}
+
+/* Footer & Copyright */
+.auth-footer {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #94a3b8;
+    text-align: center;
+}
+
+/* Animations */
+.scale-in {
+    animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-shake {
+    animation: shake 0.5s cubic-bezier(.36, .07, .19, .97) both;
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes shake {
+
+    10%,
+    90% {
+        transform: translate3d(-1px, 0, 0);
+    }
+
+    20%,
+    80% {
+        transform: translate3d(2px, 0, 0);
+    }
+
+    30%,
+    50%,
+    70% {
+        transform: translate3d(-4px, 0, 0);
+    }
+
+    40%,
+    60% {
+        transform: translate3d(4px, 0, 0);
+    }
+}

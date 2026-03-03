@@ -1,7 +1,12 @@
 <div class="global-layout">
+    @if (navService.showNav()) {
     <app-header></app-header>
     <app-menu-principal></app-menu-principal>
-    <main class="router-container">
+    }
+    <main class="router-container" [class.no-nav]="!navService.showNav()">
         <router-outlet></router-outlet>
     </main>
 </div>
+
+<!-- Global Loading Screen -->
+<app-loading-screen></app-loading-screen>

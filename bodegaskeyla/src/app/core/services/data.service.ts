@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { tap, catchError, delay, switchMap, map } from 'rxjs/operators';
 import { StorageService } from './storage.service';
@@ -15,13 +15,8 @@ export class DataService {
     private token: string | null = null;
 
     constructor() {
-        // v72.0: Se remueve la purga automática para permitir que la persistencia Offline-First funcione entre sesiones.
     }
 
-    /**
-     * MÉTODO DE AUTENTICACIÓN (LOGIN)
-     * Obtiene el accesToken usando Basic Auth desde la configuración centralizada.
-     */
     login(user: string = REST_CONFIG.AUTH.USER, pass: string = REST_CONFIG.AUTH.PASS): Observable<any> {
         const authHeader = 'Basic ' + btoa(`${user}:${pass}`);
         const headers = new HttpHeaders().set('Authorization', authHeader);
@@ -30,7 +25,7 @@ export class DataService {
             tap((res: any) => {
                 if (res?.accesToken) {
                     this.token = res.accesToken;
-                    this.storage.saveLocal('ACCESS_TOKEN', res.accesToken); // v56.0: Persistencia
+                    this.storage.saveLocal('ACCESS_TOKEN', res.accesToken);
                     console.log('[DataService] Token obtenido con éxito');
                 }
             }),
@@ -44,36 +39,30 @@ export class DataService {
     private getHeaders(): HttpHeaders {
         let headers = new HttpHeaders().set('Content-Type', 'application/json');
 
-        // v56.0: Recuperar token si se perdió el estado en memoria
+        // v68.0: Synchronize with AuthService key ('authToken')
         if (!this.token) {
-            this.token = this.storage.loadLocal<string>('ACCESS_TOKEN');
+            this.token = this.storage.loadLocal<string>('authToken') ||
+                this.storage.loadLocal<string>('ACCESS_TOKEN');
         }
 
         if (this.token) {
             headers = headers.set('Authorization', `Bearer ${this.token}`);
+        } else {
+            console.warn('[DataService] No se encontró token en memoria ni en storage');
         }
         return headers;
     }
 
-    /**
-     * MÉTODO PARAMETRIZABLE (GET)
-     * Consulta la data para el comparativo de orden.
-     * Implementa lógica Offline-First: Guarda en LocalStorage/Archivo tras consultar.
-     */
     getOrdenComparativo(numeroOrden: string): Observable<any[]> {
-        console.log(`[DataService] Consultando Comparativo Real para Orden: ${numeroOrden}`);
-
         return this.getOrdenDespacho(numeroOrden).pipe(
             switchMap(response => {
                 const ordenes = response?.ordenesDespacho || [];
                 if (ordenes.length === 0) return of([]);
-
                 const cabecera = ordenes[0];
                 return this.getDetallesOrdenDespacho(cabecera.numeroSolicitud, cabecera.numeroOrdenDespacho);
             }),
             map(response => {
                 const detalles = response?.detalles || [];
-                // Mapeo al modelo de la UI (v51.0)
                 return detalles.map((d: any) => ({
                     item: d.codigoExistencia?.toString() || '',
                     nombre: d.nombreExistencia || 'SIN NOMBRE',
@@ -86,8 +75,8 @@ export class DataService {
                     despachado: 0,
                     color: 'naranja',
                     bulto: d.unidadesXCaja || 1,
-                    lote: d.lote || '', // Si viene en la API
-                    caducidad: d.caducidad || '' // Si viene en la API
+                    lote: d.lote || '',
+                    caducidad: d.caducidad || ''
                 }));
             }),
             tap(data => {
@@ -97,16 +86,12 @@ export class DataService {
                 }
             }),
             catchError(err => {
-                console.warn('[DataService] Error consultando servicio real. Intentando cache...');
                 const cached = this.storage.loadLocal<any[]>(`ORDER_CACHE_${numeroOrden}`);
                 return of(cached || []);
             })
         );
     }
 
-    /**
-     * Punto de entrada único para ejecutar acciones de datos.
-     */
     executeAction<T>(action: string, params: any = {}): Observable<T> {
         switch (action) {
             case 'GET_ORDER_PRODUCTS':
@@ -121,30 +106,20 @@ export class DataService {
                 return this.getMockLaboratorio(params.codigo) as Observable<T>;
             case 'UPDATE_ORDEN_DETALLES':
                 return this.actualizarDetallesOrdenDespacho(params.payload) as Observable<T>;
+            case 'GET_ORDENES_DESPACHO_LIST':
+                return this.getOrdenesDespachoList(params.empresa, params.filtro, params.valor, params.pagina) as Observable<T>;
             default:
                 return of(null as any);
         }
     }
 
-    /**
-     * CATÁLOGO DE PRUEBA (MOCK)
-     * Esta información se cargará por default mientras se integra el servicio REST.
-     */
-    private getMockOrderProducts(orderNumber: string): Observable<any[]> {
-        const products: any[] = [];
-        return of(products);
-    }
-
-    /**
-     * Consulta la cabecera de la orden de despacho (v45.0)
-     */
     getOrdenDespacho(numero: string): Observable<any> {
         const params = {
             arg0: REST_CONFIG.EMPRESA_DEFAULT,
-            arg1: 'numeroSolicitud-numeroOrdenDespacho', // v77.0: Búsqueda por código concatenado
+            arg1: 'numeroSolicitud-numeroOrdenDespacho',
             arg2: numero,
             arg3: 0,
-            arg4: 10
+            arg4: 20
         };
         const headers = this.getHeaders();
         return this.http.get(`${this.API_BASE}/XPosConsultas/ordenesDespacho`, { params, headers }).pipe(
@@ -155,9 +130,33 @@ export class DataService {
         );
     }
 
-    /**
-     * Consulta el detalle de la orden de despacho (v45.0)
-     */
+    getOrdenesDespachoList(empresa: number, filtro: string, valor: string, pagina: number = 0): Observable<any> {
+        let params = new HttpParams()
+            .set('arg0', (empresa || 20).toString())
+            .set('arg1', '') // v102.0: Vacío por defecto para traer todo
+            .set('arg2', '') // v102.0: Vacío por defecto
+            .set('arg3', pagina.toString())
+            .set('arg4', '20');
+
+        if (filtro && filtro.trim() !== '') {
+            // v100.0: Estandarizar arg1 a la clave compuesta según instrucción del usuario
+            params = params.set('arg1', 'numeroSolicitud-numeroOrdenDespacho');
+            params = params.set('arg2', valor || '');
+        }
+
+        const headers = this.getHeaders();
+        return this.http.get(`${this.API_BASE}/XPosConsultas/ordenesDespacho`, { params, headers }).pipe(
+            catchError(err => {
+                console.error('[DataService] Error consultando lista ordenesDespacho', err);
+                return of({
+                    mensaje: 'ERROR',
+                    error: `Status: ${err.status} - ${err.message}`,
+                    ordenesDespacho: []
+                });
+            })
+        );
+    }
+
     getDetallesOrdenDespacho(solicitud: number, orden: number): Observable<any> {
         const params = {
             arg0: REST_CONFIG.EMPRESA_DEFAULT,
@@ -174,8 +173,7 @@ export class DataService {
     }
 
     private getTransferenciaProducts(numero: string): Observable<any[]> {
-        const products: any[] = [];
-        return of(products);
+        return of([]);
     }
 
     private getMockLaboratorio(codigo: string): Observable<any> {
@@ -189,16 +187,11 @@ export class DataService {
         }).pipe(delay(300));
     }
 
-    /**
-     * MÉTODO POST: Actualiza detalles de la orden (v55.0)
-     */
     actualizarDetallesOrdenDespacho(payload: any): Observable<any> {
         const headers = this.getHeaders();
-        console.log('[DataService] POST Payload:', JSON.stringify(payload));
         return this.http.post(`${this.API_BASE}/XPos/actualizarDetallesOrdenDespacho`, payload, { headers }).pipe(
             catchError(err => {
                 console.error('[DataService] Error en actualizarDetallesOrdenDespacho', err);
-                // v56.0: Extraer mensaje de error más descriptivo
                 const errorMsg = err.error?.mensaje || err.message || 'Error desconocido en servidor';
                 return of({ mensaje: 'ERROR', error: errorMsg });
             })

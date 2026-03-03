@@ -1,0 +1,161 @@
+<div class="dispatch-container">
+    <div class="page-header">
+        <h1 class="page-title">Mantenimiento de Órdenes</h1>
+        <button class="btn-secondary" (click)="cerrarPantalla()">
+            <span class="icon">⬅️</span> Regresar
+        </button>
+    </div>
+
+    <!-- Filtros en 2 Filas (Estilo Original Modernizado) -->
+    <div class="search-panel-enterprise shadow-premium">
+        <!-- Fila 1: Fechas, Estado y Pedido -->
+        <div class="filter-row">
+            <div class="filter-group-inline">
+                <label>Desde:</label>
+                <input type="date" [(ngModel)]="fechaDesde" (change)="buscar()">
+            </div>
+            <div class="filter-group-inline">
+                <label>Hasta:</label>
+                <input type="date" [(ngModel)]="fechaHasta" (change)="buscar()">
+            </div>
+            <div class="filter-group-inline">
+                <label>Estado:</label>
+                <select [(ngModel)]="estado" (change)="buscar()">
+                    <option value="ING">Pendiente</option>
+                    <option value="PRO">Procesado</option>
+                    <option value="CAN">Cancelado</option>
+                </select>
+            </div>
+            <div class="filter-group-inline flex-grow">
+                <input type="text" [(ngModel)]="numeroPedido" placeholder="Número de Pedido" (keyup.enter)="buscar()">
+            </div>
+        </div>
+
+        <!-- Fila 2: Sucursal, Bodega y Botón Buscar -->
+        <div class="filter-row mt-15">
+            <div class="filter-group-inline">
+                <label>Sucursal:</label>
+                <div class="searchable-select-enterprise" [class.is-open]="showSucursalDropdown">
+                    <div class="select-trigger-enterprise" (click)="toggleSucursalDropdown()">
+                        <input type="text" [value]="selectedSucursal ? selectedSucursal.nombreSucursal : 'Portete'"
+                            readonly>
+                        <span class="arrow">▼</span>
+                    </div>
+                    @if (showSucursalDropdown) {
+                    <div class="select-dropdown shadow-premium">
+                        <div class="search-box">
+                            <input type="text" [(ngModel)]="searchTermSucursal" (input)="filterSucursales()"
+                                placeholder="Buscar sucursal..." (click)="$event.stopPropagation()">
+                        </div>
+                        <div class="options-list">
+                            <div class="option-item"
+                                (click)="selectSucursal({codigoSucursal: 0, nombreSucursal: 'Todas', codigoEmpresa: 0, esActivo: 'S'}); $event.stopPropagation()">
+                                <span class="item-name">Todas</span>
+                            </div>
+                            @for (suc of sucursalesFiltradas; track suc.codigoSucursal) {
+                            <div class="option-item" (click)="selectSucursal(suc); $event.stopPropagation()">
+                                <span class="item-id">{{ suc.codigoSucursal }}</span>
+                                <span class="item-name">{{ suc.nombreSucursal }}</span>
+                            </div>
+                            }
+                        </div>
+                    </div>
+                    }
+                </div>
+            </div>
+            <div class="filter-group-inline">
+                <label>Bodega:</label>
+                <select class="select-enterprise" disabled>
+                    <option>Portete 1</option>
+                </select>
+            </div>
+            <div class="spacer"></div>
+            <button class="btn-search-enterprise" (click)="buscar()" [disabled]="loading()">
+                <span class="icon">🔍</span> BUSCAR
+            </button>
+        </div>
+    </div>
+
+    <!-- Tabla (Cabecera Roja Modernizada) -->
+    <div class="content-card-enterprise">
+        <div class="scroll-wrapper">
+            <div class="table-container">
+                <table class="enterprise-table">
+                    <thead>
+                        <tr>
+                            <th class="col-id">Número Orden de Pedido</th>
+                            <th class="col-id">Número Orden de Despacho</th>
+                            <th class="col-date">Fecha de Pedido</th>
+                            <th class="col-suc">Sucursal</th>
+                            <th class="col-loc">Ubicación</th>
+                            <th class="col-status">Estado</th>
+                            <th class="col-user">Despachador</th>
+                            <th class="col-actions">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (orden of ordenes(); track orden.numeroOrdenDespacho) {
+                        <tr>
+                            <td class="font-bold">{{ orden.numeroSolicitud || '---' }}</td>
+                            <td>{{ orden.numeroOrdenDespacho }}</td>
+                            <td>{{ orden.fechaEmision | date:'dd/MM/yyyy' }}</td>
+                            <td>{{ orden.nombreSucursal || 'Portete' }}</td>
+                            <td><span class="enterprise-loc-badge">A1-B2</span></td>
+                            <td>
+                                <span class="enterprise-status-pill" [class]="getStatusClass(orden.codigoEstado)">
+                                    {{ getStatusLabel(orden.codigoEstado) }}
+                                </span>
+                            </td>
+                            <td>Gabriel Rodriguez</td>
+                            <td class="actions-cell">
+                                <button class="btn-action-legacy" (click)="procesar(orden)" title="Consultar">
+                                    <span class="icon-search">🔍</span>
+                                </button>
+                                <button class="btn-action-legacy" (click)="procesar(orden)" title="Procesar">
+                                    <span class="icon-box">✅</span>
+                                </button>
+                                <button class="btn-action-legacy" title="Imprimir">
+                                    <span class="icon-print">🖨️</span>
+                                </button>
+                            </td>
+                        </tr>
+                        } @empty {
+                        @if (!loading()) {
+                        <tr>
+                            <td colspan="8" class="empty-state">
+                                No se encontraron órdenes con los filtros seleccionados.
+                            </td>
+                        </tr>
+                        }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Paginación -->
+        @if (ordenes().length > 0 || currentPage() > 0) {
+        <div class="pagination-enterprise">
+            <div class="page-selector">
+                <span class="page-label">Página:</span>
+                <input type="number" [(ngModel)]="pageInput" (keyup.enter)="irAPagina()" class="input-page-jump">
+                <button class="btn-go" (click)="irAPagina()">Ir</button>
+            </div>
+            <div class="pagination-actions">
+                <button class="btn-page" (click)="prevPage()" [disabled]="currentPage() === 0">
+                    <span class="icon">⬅️</span> Anterior
+                </button>
+                <button class="btn-page" (click)="nextPage()" [disabled]="ordenes().length < 20">
+                    Siguiente <span class="icon">➡️</span>
+                </button>
+            </div>
+        </div>
+        }
+    </div>
+</div>
+
+@if (error()) {
+<div class="error-toast animate-shake">
+    ⚠️ {{ error() }}
+</div>
+}

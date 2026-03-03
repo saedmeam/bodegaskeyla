@@ -15,3 +15,19 @@ export interface Product {
     caducidad?: string;
     bulto?: number;
 }
+
+export interface DispatchOrder {
+    codigoEmpresa: number;
+    numeroSolicitud: number;
+    numeroOrdenDespacho: number;
+    codigoSucursal: number;
+    codigoBodega: number;
+    codigoUbicacion?: number;
+    fechaEmision: string;
+    codigoEstado: string;
+    // UI Extended fields
+    nombreSucursal?: string;
+    nombreBodega?: string;
+    ubicacion?: string;
+    despachador?: string;
+}

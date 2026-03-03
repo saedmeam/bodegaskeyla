@@ -1,0 +1,158 @@
+<div class="login-container">
+    <!-- Top Status Bar (Only if needed, reference shows it can be hidden or styled differently) -->
+
+    <div class="login-content">
+        <!-- Logo Header -->
+        <div class="logo-section">
+            <img src="assets/logo-keyla.png" alt="Farmacias KEYLA" class="main-logo">
+        </div>
+
+        <!-- Progress Steps -->
+        <div class="auth-stepper">
+            <div class="step-item" [class.active]="step === 1" [class.completed]="step > 1">
+                <div class="step-circle">01</div>
+                <span class="step-label">Ingresar</span>
+            </div>
+            <div class="step-line" [class.completed]="step > 1"></div>
+            <div class="step-item" [class.active]="step === 2" [class.completed]="step > 2">
+                <div class="step-circle">02</div>
+                <span class="step-label">Empresa</span>
+            </div>
+            <div class="step-line" [class.completed]="step > 2"></div>
+            <div class="step-item" [class.active]="step === 3" [class.completed]="step > 3">
+                <div class="step-circle">03</div>
+                <span class="step-label">Sucursal</span>
+            </div>
+        </div>
+
+        <!-- Auth Card -->
+        <div class="auth-card">
+            <div class="card-body">
+
+                <!-- STEP 1: LOGIN -->
+                @if (step === 1) {
+                <div class="auth-view scale-in">
+                    <h3 class="view-title">Iniciar sesión</h3>
+                    <form (ngSubmit)="handleStep1()">
+                        <div class="modern-input">
+                            <input type="text" name="username" [(ngModel)]="username"
+                                (ngModelChange)="onUsernameChange()" placeholder="Usuario" required>
+                        </div>
+                        <div class="modern-input">
+                            <input type="password" name="password" [(ngModel)]="password" placeholder="Contraseña"
+                                required>
+                        </div>
+                        <div class="auth-actions">
+                            <button type="submit" class="btn-auth" [disabled]="loading">
+                                Continuar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                }
+
+                <!-- STEP 2: EMPRESA -->
+                @if (step === 2) {
+                <div class="auth-view scale-in" (keyup.enter)="selectedEmpresa ? goToStep3() : null">
+                    <h3 class="view-title">Seleccione su Empresa</h3>
+                    <div class="searchable-select" [class.has-selection]="selectedEmpresa"
+                        [class.is-open]="showEmpresaDropdown">
+                        <div class="select-trigger" (click)="toggleEmpresaDropdown()">
+                            <input type="text"
+                                [value]="selectedEmpresa ? selectedEmpresa.nombreEmpresa : 'Seleccione una empresa'"
+                                readonly>
+                            <span class="arrow">▼</span>
+                        </div>
+                        @if (showEmpresaDropdown) {
+                        <div class="select-dropdown">
+                            <div class="search-box">
+                                <input type="text" #searchEmp [(ngModel)]="searchTermEmpresa" (input)="filterEmpresas()"
+                                    placeholder="Buscar..." (click)="$event.stopPropagation()">
+                            </div>
+                            <div class="options-list">
+                                @for (emp of empresasFiltradas; track emp.codigoEmpresa) {
+                                <div class="option-item" (click)="selectEmpresa(emp); $event.stopPropagation()">
+                                    <span class="item-id">{{ emp.codigoEmpresa }}</span>
+                                    <span class="item-name">{{ emp.nombreEmpresa }}</span>
+                                </div>
+                                }
+                            </div>
+                            <div class="dropdown-footer">
+                                {{ empresasFiltradas.length }} opciones (de {{ empresas.length }})
+                            </div>
+                        </div>
+                        }
+                    </div>
+                    <div class="auth-actions">
+                        <button class="btn-auth" [disabled]="!selectedEmpresa" (click)="goToStep3()">
+                            Continuar <span class="icon-next">›</span>
+                        </button>
+                        <button class="btn-link" (click)="goBack()">
+                            <span class="icon-back">←</span> Anterior
+                        </button>
+                    </div>
+                </div>
+                }
+
+                <!-- STEP 3: SUCURSAL -->
+                @if (step === 3) {
+                <div class="auth-view scale-in" (keyup.enter)="selectedSucursal ? finishLoginWithoutCaja() : null">
+                    <h3 class="view-title">Seleccione su Sucursal</h3>
+                    <div class="searchable-select" [class.has-selection]="selectedSucursal"
+                        [class.is-open]="showSucursalDropdown">
+                        <div class="select-trigger" (click)="toggleSucursalDropdown()">
+                            <input type="text"
+                                [value]="selectedSucursal ? selectedSucursal.nombreSucursal : 'Seleccione una sucursal'"
+                                readonly>
+                            <span class="arrow">▼</span>
+                        </div>
+                        @if (showSucursalDropdown) {
+                        <div class="select-dropdown">
+                            <div class="search-box">
+                                <input type="text" #searchSuc [(ngModel)]="searchTermSucursal"
+                                    (input)="filterSucursales()" placeholder="Buscar..."
+                                    (click)="$event.stopPropagation()">
+                            </div>
+                            <div class="options-list">
+                                @for (suc of sucursalesFiltradas; track suc.codigoSucursal) {
+                                <div class="option-item" (click)="selectSucursal(suc); $event.stopPropagation()">
+                                    <span class="item-name">{{ suc.nombreSucursal }}</span>
+                                </div>
+                                }
+                            </div>
+                            <div class="dropdown-footer">
+                                {{ sucursalesFiltradas.length }} opciones (de {{ sucursales.length }})
+                            </div>
+                        </div>
+                        }
+                    </div>
+                    <div class="auth-actions">
+                        <button class="btn-auth" [disabled]="!selectedSucursal" (click)="finishLoginWithoutCaja()">
+                            Finalizar e Ingresar <span class="check-icon">✓</span>
+                        </button>
+                        <button class="btn-link" (click)="goBack()">
+                            <span class="icon-back">←</span> Anterior
+                        </button>
+                    </div>
+                </div>
+                }
+
+
+                <!-- Error Toast -->
+                @if (error) {
+                <div class="auth-error animate-shake">
+                    {{ error }}
+                </div>
+                }
+            </div>
+        </div>
+
+        <div class="auth-footer">
+            Sistema POS v2.0 • Farmacias KEYLA © 2026
+        </div>
+    </div>
+
+    <div class="auth-copyright">
+        © 2026 Keyla - Neu360 Solutions
+    </div>
+</div>

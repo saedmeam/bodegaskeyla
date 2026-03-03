@@ -1,15 +1,71 @@
 const electron = require('electron');
 const { app, BrowserWindow } = electron;
 const path = require('path');
-let win;
+const { ipcMain } = electron;
+let encryptionService;
+
+function getEncryptionService() {
+    if (!encryptionService) {
+        try {
+            encryptionService = require(path.join(__dirname, 'encryptionService.js'));
+        } catch (error) {
+            console.error('⚠️ Error al cargar servicio de encriptación:', error.message);
+        }
+    }
+    return encryptionService;
+}
+
+function setupIpcHandlers() {
+    ipcMain.handle('encrypt-text', async (event, text) => {
+        const svc = getEncryptionService();
+        if (!svc) return { success: false, error: 'Servicio de encriptación no disponible' };
+        try {
+            const encrypted = await svc.encrypt(text);
+            return { success: true, data: encrypted };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('check-java', async () => {
+        const svc = getEncryptionService();
+        if (!svc) return { success: true, data: false };
+        try {
+            const isInstalled = await svc.checkJavaInstalled();
+            return { success: true, data: isInstalled };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.on('close-app', () => {
+        app.quit();
+    });
+
+    ipcMain.handle('get-app-config', async () => {
+        const fs = require('fs');
+        const configPath = path.join(__dirname, 'config.json');
+        if (fs.existsSync(configPath)) {
+            try {
+                const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+                return { success: true, data: config };
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        }
+        return { success: false, error: 'Config file not found' };
+    });
+}
+
 function createWindow() {
     win = new BrowserWindow({
         width: 1200,
         height: 800,
-        icon: path.join(__dirname, 'public/app_icon.png'), // v72.0: Icono profesional para la ventana
+        icon: path.join(__dirname, 'public/app_icon.png'),
         webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false
+            nodeIntegration: false,
+            contextIsolation: true,
+            preload: path.join(__dirname, 'preload.js')
         }
     });
     // Apunta al archivo index.html generado por Angular después de hacer 'ng build'
@@ -19,7 +75,10 @@ function createWindow() {
         win = null;
     });
 }
-app.on('ready', createWindow);
+app.on('ready', () => {
+    setupIpcHandlers();
+    createWindow();
+});
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
         app.quit();

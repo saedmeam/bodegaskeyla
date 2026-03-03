@@ -16,6 +16,7 @@ export class MenuPrincipalComponent {
         { label: 'Archivo', options: [{ text: 'Abrir', route: '' }, { text: 'Cerrar', route: '' }, { text: 'Salir', route: '' }] },
         {
             label: 'Despacho', options: [
+                { text: 'Listado Órdenes Despacho', route: '/despacho-lista' },
                 { text: 'Reposición Mercadería', route: '/revisor' },
                 { text: 'Reposición Cód. Barra', route: '/revisor' },
                 { text: 'Transferencia Sucursales', route: '/transferencias' },
