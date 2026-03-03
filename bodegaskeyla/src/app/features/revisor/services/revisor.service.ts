@@ -2,8 +2,10 @@ import { Injectable, signal, computed, effect, inject } from '@angular/core';
 import { Product } from '../../../shared/models/product.model';
 import { DataService } from '../../../core/services/data.service';
 import { StorageService } from '../../../core/services/storage.service';
-import { switchMap, map, tap } from 'rxjs/operators';
-import { of } from 'rxjs';
+import { switchMap, map, tap, catchError } from 'rxjs/operators';
+import { of, throwError } from 'rxjs';
+import { AuthService } from '../../../core/services/auth.service';
+import { LoadingService } from '../../../core/services/loading.service';
 
 @Injectable({
     providedIn: 'root'
@@ -34,7 +36,9 @@ export class RevisorService {
 
     constructor(
         private dataService: DataService,
-        private storage: StorageService
+        private storage: StorageService,
+        private authService: AuthService,
+        private loadingService: LoadingService
     ) {
         // v62.0: Autoguardado REACTIVO. Cualquier cambio en los Signals activa la persistencia.
         effect(() => {
@@ -95,22 +99,28 @@ export class RevisorService {
             return;
         }
 
+        this.loadingService.show();
         // 2. Si no hay sesión local, realizamos login y luego consultamos la API Real (v51.0)
         this.dataService.login()
             .pipe(
                 switchMap(loginRes => {
                     if (!loginRes) {
                         console.error('[RevisorService] No se pudo autenticar');
+                        this.loadingService.hide();
                         return of(null);
                     }
                     // Obtenemos cabecera para metadata corporativa
                     return this.dataService.executeAction<any>('GET_ORDEN_DESPACHO', { numero: orderNumber });
                 }),
                 switchMap(headerRes => {
-                    if (!headerRes) return of(null);
+                    if (!headerRes) {
+                        this.loadingService.hide();
+                        return of(null);
+                    }
                     const ordenes = headerRes?.ordenesDespacho || [];
                     if (ordenes.length === 0) {
                         this.orderMetadata.set(null);
+                        this.loadingService.hide();
                         return of(null);
                     }
                     const cabecera = ordenes[0];
@@ -147,6 +157,11 @@ export class RevisorService {
                                 lineaDetalle: d.lineaDetalle, // v78.0: Preservar línea original
                                 estado: d.codigoEstado       // v78.0: Restaurar estado
                             })) as Product[];
+                        }),
+                        tap(() => this.loadingService.hide()),
+                        catchError(err => {
+                            this.loadingService.hide();
+                            return throwError(() => err);
                         })
                     );
                 })
@@ -161,10 +176,12 @@ export class RevisorService {
                     this.escaneados.set(actuallyDispatched);
 
                     this.isLoading = false;
+                    this.loadingService.hide();
                 },
                 error: (err) => {
                     console.error('[RevisorService] Error cargando orden', err);
                     this.isLoading = false;
+                    this.loadingService.hide();
                 }
             });
     }
@@ -491,11 +508,13 @@ export class RevisorService {
         const metadata = this.orderMetadata();
         if (!metadata) return of(null);
 
+        const currentUser = this.authService.getStoredUser()?.username || 'DESCONOCIDO';
+
         // v65.0: Usar metadatos persistidos directamente (numeroSolicitud y numeroOrdenDespacho)
         const payload: any = {
             codigoEmpresa: metadata.codigoEmpresa || 20,
             numeroSolicitud: metadata.numeroSolicitud || 1,
-            codigoUsuario: "DFAJARDO",
+            codigoUsuario: currentUser,
             detalles: []
         };
 

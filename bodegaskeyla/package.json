@@ -62,7 +62,13 @@
         "files": [
             "dist/bodegaskeyla/**/*",
             "main.js",
-            "package.json"
+            "package.json",
+            "preload.js",
+            "encryptionService.js"
+        ],
+        "extraResources": [
+            "encrypter-xuit.jar",
+            "config.json"
         ],
         "win": {
             "target": [

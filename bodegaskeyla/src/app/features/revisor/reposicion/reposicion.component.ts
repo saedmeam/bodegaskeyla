@@ -94,18 +94,10 @@ export class ReposicionComponent implements OnInit {
             return;
         }
 
-        this.loadingService.show();
         try {
-            // RevisorService.executeProcess should ideally be async or return an observable
-            // But we know it triggers a LOAD action.
             this.revisorService.executeProcess('LOAD', { orderNumber: this.numero });
-
-            // Wait for metadata to be set (simple polling or just rely on the effect)
-            // For now, we assume the service manages its own internal loading if needed,
-            // but we wrap the call with our global loader for UI consistency.
-            setTimeout(() => this.loadingService.hide(), 1500);
         } catch (e) {
-            this.loadingService.hide();
+            this.showToast("Error al iniciar la carga de la orden", true);
         }
     }
 

@@ -43,4 +43,8 @@ export class ConfigService {
     getEndpoint(key: string): string {
         return this.getConfig()?.endpoints?.[key] || '';
     }
+
+    getAuth(): { user: string, pass: string } {
+        return this.getConfig()?.auth || { user: 'wsxpos', pass: 'n3UE60@s3Rv1c10@Xp0s' };
+    }
 }

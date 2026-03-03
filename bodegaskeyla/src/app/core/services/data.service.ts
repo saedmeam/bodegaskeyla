@@ -3,7 +3,7 @@ import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { tap, catchError, delay, switchMap, map } from 'rxjs/operators';
 import { StorageService } from './storage.service';
-import { REST_CONFIG } from '../config/rest.config';
+import { ConfigService } from './config.service';
 
 @Injectable({
     providedIn: 'root'
@@ -11,14 +11,18 @@ import { REST_CONFIG } from '../config/rest.config';
 export class DataService {
     private storage = inject(StorageService);
     private http = inject(HttpClient);
-    private readonly API_BASE = REST_CONFIG.API_BASE;
+    private config = inject(ConfigService);
+    private readonly API_BASE = this.config.getApiUrl();
     private token: string | null = null;
 
     constructor() {
     }
 
-    login(user: string = REST_CONFIG.AUTH.USER, pass: string = REST_CONFIG.AUTH.PASS): Observable<any> {
-        const authHeader = 'Basic ' + btoa(`${user}:${pass}`);
+    login(user?: string, pass?: string): Observable<any> {
+        const auth = this.config.getAuth();
+        const username = user || auth.user;
+        const password = pass || auth.pass;
+        const authHeader = 'Basic ' + btoa(`${username}:${password}`);
         const headers = new HttpHeaders().set('Authorization', authHeader);
 
         return this.http.post(`${this.API_BASE}/XPos/login`, {}, { headers }).pipe(
@@ -115,7 +119,7 @@ export class DataService {
 
     getOrdenDespacho(numero: string): Observable<any> {
         const params = {
-            arg0: REST_CONFIG.EMPRESA_DEFAULT,
+            arg0: 20, // Default empresa
             arg1: 'numeroSolicitud-numeroOrdenDespacho',
             arg2: numero,
             arg3: 0,
@@ -159,7 +163,7 @@ export class DataService {
 
     getDetallesOrdenDespacho(solicitud: number, orden: number): Observable<any> {
         const params = {
-            arg0: REST_CONFIG.EMPRESA_DEFAULT,
+            arg0: 20, // Default empresa
             arg1: solicitud,
             arg2: orden
         };

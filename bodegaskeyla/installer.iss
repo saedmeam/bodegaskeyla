@@ -4,7 +4,7 @@
 [Setup]
 AppId={{com.neu360.bodegaskeyla}}
 AppName=BodegasKeyla
-AppVersion=1.0.0
+AppVersion=1.1.0
 AppPublisher=Neu360
 DefaultDirName={autopf}\BodegasKeyla
 DefaultGroupName=BodegasKeyla
@@ -15,7 +15,7 @@ Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
 OutputDir=Output
-OutputBaseFilename=BodegasKeyla_Setup
+OutputBaseFilename=BodegasKeyla_v1.1.0_Setup
 
 [Languages]
 Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"

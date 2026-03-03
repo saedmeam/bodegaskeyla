@@ -16,9 +16,6 @@ export class AuthService {
     private readonly XPOS_TOKEN_KEY = 'authToken';
     private readonly USER_DATA_KEY = 'userData';
 
-    // Basic Auth Credentials for XPOS Login
-    private readonly XPOS_CREDS = btoa('wsxpos:n3UE60@s3Rv1c10@Xp0s');
-
     constructor() { }
 
     private getBaseUrl(): string {
@@ -30,8 +27,9 @@ export class AuthService {
      */
     getXPosToken(): Observable<string> {
         const url = `${this.getBaseUrl()}${this.config.getEndpoint('LOGIN') || '/XPos/login'}`;
+        const auth = this.config.getAuth();
         const headers = new HttpHeaders({
-            'Authorization': `Basic ${this.XPOS_CREDS}`,
+            'Authorization': `Basic ${btoa(`${auth.user}:${auth.pass}`)}`,
             'Content-Type': 'application/json'
         });
 
