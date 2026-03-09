@@ -8,5 +8,20 @@
     </main>
 </div>
 
+<!-- Premium Notification Pill (v104.5 Global) -->
+@if (notificationService.message()) {
+<div class="premium-toast-container">
+    <div class="premium-pill" [class.error]="notificationService.isError()">
+        <div class="pill-icon-circle">
+            <span class="icon">{{ notificationService.isError() ? '❌' : '✅' }}</span>
+        </div>
+        <div class="pill-content">
+            <div class="pill-title">{{ notificationService.title() }}</div>
+            <div class="pill-msg" [innerHTML]="notificationService.message()"></div>
+        </div>
+    </div>
+</div>
+}
+
 <!-- Global Loading Screen -->
 <app-loading-screen></app-loading-screen>

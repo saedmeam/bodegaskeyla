@@ -71,8 +71,10 @@ export class LoginComponent implements OnInit {
      * STEP 1: Process Login
      */
     async handleStep1() {
+        console.log('[LoginComponent] 🚀 Iniciando Paso 1: Validación de credenciales');
         if (!this.username || !this.password) {
             this.error = 'Por favor complete todos los campos';
+            console.warn('[LoginComponent] ⚠️ Campos incompletos');
             return;
         }
 
@@ -91,20 +93,24 @@ export class LoginComponent implements OnInit {
             const loginRes = await firstValueFrom(this.authService.login(this.username, encrypted, this.xposToken));
 
             if (loginRes.mensaje === 'OK' || loginRes.codigo === '000') {
+                console.log('[LoginComponent] ✅ Login exitoso. Obteniendo empresas...');
                 const rawEmpresas = await firstValueFrom(this.cajaService.getEmpresas(this.xposToken));
                 this.ngZone.run(() => {
                     this.empresas = rawEmpresas.map((e: any) => ({
                         codigoEmpresa: e.codigoEmpresa,
                         nombreEmpresa: e.nombreEmpresa,
+                        nombreComercial: e.nombreComercial || e.nombreEmpresa,
                         ruc: e.ruc,
                         esActivo: e.esActivo
                     }));
                     this.empresasFiltradas = [...this.empresas];
+                    console.log('[LoginComponent] ➡️ Avanzando a Paso 2: Selección de Empresa');
                     this.step = 2;
                     this.error = '';
                     this.cdr.detectChanges();
                 });
             } else {
+                console.warn('[LoginComponent] ❌ Falló inicio de sesión:', loginRes.mensaje);
                 this.ngZone.run(() => {
                     this.error = loginRes.mensaje || 'Credenciales inválidas';
                     this.cdr.detectChanges();
@@ -130,6 +136,7 @@ export class LoginComponent implements OnInit {
             this.empresasFiltradas = [...this.empresas];
         } else {
             this.empresasFiltradas = this.empresas.filter(e =>
+                e.nombreComercial?.toLowerCase().includes(term) ||
                 e.nombreEmpresa.toLowerCase().includes(term) ||
                 e.codigoEmpresa.toString().includes(term)
             );
@@ -138,16 +145,25 @@ export class LoginComponent implements OnInit {
 
     async goToStep3() {
         if (!this.selectedEmpresa) return;
+        const normalizedUser = this.username.toUpperCase();
+        console.log(`[LoginComponent] 🚀 Iniciando Paso 3: Carga de sucursales autorizadas para ${this.selectedEmpresa.nombreComercial || this.selectedEmpresa.nombreEmpresa}`);
 
         this.loadingService.show();
         this.error = '';
 
         try {
-            // Get user basic data and branches in parallel
-            const [userData, authorizedRaw] = await Promise.all([
+            // Documentación técnica: se cruzan los servicios de sucursales (catálogo) y permisos (sucursalesXUsuario)
+            const [userData, masterBranches, authorizedRaw] = await Promise.all([
                 firstValueFrom(this.cajaService.getUsuarioSistema(this.xposToken)),
+                firstValueFrom(this.cajaService.getSucursales(this.selectedEmpresa.codigoEmpresa, this.xposToken)),
                 firstValueFrom(this.cajaService.getSucursalesAutorizadas(this.selectedEmpresa.codigoEmpresa, this.xposToken))
             ]);
+
+            console.log('[LoginComponent] 📊 Datos obtenidos para cruce:', {
+                masterCount: masterBranches.length,
+                permCount: authorizedRaw.length,
+                user: normalizedUser
+            });
 
             this.secuenciaPersonal = userData?.secuenciaPersonal;
 
@@ -157,24 +173,38 @@ export class LoginComponent implements OnInit {
                 this.codigoCentroCosto = entry?.codigoCentroCosto;
             }
 
-            const myBranches = authorizedRaw.filter((a: any) => a.codigoUsuario.toUpperCase() === this.username.toUpperCase() && a.esActivo === 'S');
+            // Lógica de Filtrado:
+            // 1. Filtrar permisos por usuario logueado y activos
+            const myPermissions = authorizedRaw.filter((p: any) =>
+                p.codigoUsuario.toUpperCase() === normalizedUser &&
+                p.esActivo === 'S'
+            );
+            const authorizedIds = myPermissions.map((p: any) => Number(p.codigoSucursal));
+
+            // 2. Filtrar catálogo maestro por IDs autorizados y sucursales activas
+            const myBranches = masterBranches.filter((b: any) =>
+                authorizedIds.includes(Number(b.codigoSucursal)) &&
+                b.esActivo === 'S'
+            );
 
             this.ngZone.run(() => {
                 this.sucursales = myBranches.map((b: any) => ({
                     codigoSucursal: b.codigoSucursal,
-                    nombreSucursal: b.identificacionSucursal || `Sucursal ${b.codigoSucursal}`,
+                    nombreSucursal: b.nombreSucursal || b.descripcionSucursal || `Sucursal ${b.codigoSucursal}`,
                     codigoEmpresa: b.codigoEmpresa,
                     esActivo: 'S'
                 }));
                 this.sucursalesFiltradas = [...this.sucursales];
+                console.log(`[LoginComponent] ➡️ Avanzando a Paso 3: Selección de Sucursal (${this.sucursales.length} autorizadas)`);
                 this.step = 3;
                 this.selectedSucursal = null;
                 this.searchTermSucursal = '';
                 this.cdr.detectChanges();
             });
         } catch (e: any) {
+            console.error('[LoginComponent] ❌ Error al cargar datos de sucursales:', e);
             this.ngZone.run(() => {
-                this.error = 'Error al cargar datos de la empresa';
+                this.error = 'Error al cargar datos de la sucursal y permisos';
                 this.cdr.detectChanges();
             });
         } finally {
@@ -213,6 +243,7 @@ export class LoginComponent implements OnInit {
             };
 
             this.ngZone.run(() => {
+                console.log('[LoginComponent] ✅ Finalizando login. Redirigiendo a despacho-lista (Sin Caja)');
                 this.authService.saveSession(finalData);
                 this.router.navigate(['/despacho-lista']);
                 this.cdr.detectChanges();
@@ -231,7 +262,7 @@ export class LoginComponent implements OnInit {
 
     selectEmpresa(empresa: Empresa) {
         this.selectedEmpresa = empresa;
-        this.searchTermEmpresa = empresa.nombreEmpresa;
+        this.searchTermEmpresa = empresa.nombreComercial || empresa.nombreEmpresa;
         this.showEmpresaDropdown = false;
     }
 
@@ -281,6 +312,7 @@ export class LoginComponent implements OnInit {
         };
 
         this.ngZone.run(() => {
+            console.log(`[LoginComponent] ✅ Finalizando login con Caja: ${caja.nombreCaja}. Redirigiendo a revisor.`);
             this.authService.saveSession(finalData);
             this.router.navigate(['/revisor']);
         });

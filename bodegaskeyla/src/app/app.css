@@ -229,3 +229,83 @@
     padding: 5px 15px;
     font-weight: bold;
 }
+
+/* --- PREMIUM NOTIFICATION PILL (v104.5 GLOBAL) --- */
+.premium-toast-container {
+    position: fixed;
+    top: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10000;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.premium-pill {
+    background: #2ecc71;
+    /* Green success */
+    color: white;
+    padding: 12px 25px 12px 15px;
+    border-radius: 50px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    animation: pillPopIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    min-width: 380px;
+    max-width: 500px;
+    pointer-events: auto;
+}
+
+.premium-pill.error {
+    background: #e74c3c;
+    /* Red error */
+    box-shadow: 0 10px 25px rgba(231, 76, 60, 0.3);
+}
+
+.pill-icon-circle {
+    width: 45px;
+    height: 45px;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    flex-shrink: 0;
+}
+
+.pill-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.pill-title {
+    font-size: 0.95rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    line-height: 1.2;
+}
+
+.pill-msg {
+    font-size: 0.85rem;
+    font-weight: 500;
+    opacity: 0.95;
+}
+
+@keyframes pillPopIn {
+    from {
+        opacity: 0;
+        transform: translateY(-40px) scale(0.9);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}

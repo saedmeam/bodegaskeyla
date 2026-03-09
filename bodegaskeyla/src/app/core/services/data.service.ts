@@ -4,6 +4,7 @@ import { Observable, of } from 'rxjs';
 import { tap, catchError, delay, switchMap, map } from 'rxjs/operators';
 import { StorageService } from './storage.service';
 import { ConfigService } from './config.service';
+import { AuthService } from './auth.service';
 
 @Injectable({
     providedIn: 'root'
@@ -12,6 +13,10 @@ export class DataService {
     private storage = inject(StorageService);
     private http = inject(HttpClient);
     private config = inject(ConfigService);
+
+    // v104.5: Use AuthService for dynamic company/branch context
+    private authService = inject(AuthService, { optional: true });
+
     private readonly API_BASE = this.config.getApiUrl();
     private token: string | null = null;
 
@@ -35,7 +40,8 @@ export class DataService {
             }),
             catchError(err => {
                 console.error('[DataService] Error en el login', err);
-                return of(null);
+                const errorMsg = err.error?.mensaje || err.error?.causa || err.message || 'Error de conexión';
+                return of({ mensaje: errorMsg, isError: true });
             })
         );
     }
@@ -43,18 +49,22 @@ export class DataService {
     private getHeaders(): HttpHeaders {
         let headers = new HttpHeaders().set('Content-Type', 'application/json');
 
-        // v68.0: Synchronize with AuthService key ('authToken')
         if (!this.token) {
-            this.token = this.storage.loadLocal<string>('authToken') ||
+            // Priority: direct token > Storage Key 'authToken' > deprecated 'ACCESS_TOKEN'
+            this.token = this.authService?.getStoredToken() ||
+                this.storage.loadLocal<string>('authToken') ||
                 this.storage.loadLocal<string>('ACCESS_TOKEN');
         }
 
         if (this.token) {
             headers = headers.set('Authorization', `Bearer ${this.token}`);
-        } else {
-            console.warn('[DataService] No se encontró token en memoria ni en storage');
         }
         return headers;
+    }
+
+    private getCurrentCompany(): number {
+        const user = this.authService?.getStoredUser();
+        return user?.empresa?.codigoEmpresa || 20; // Fallback to 20 if not logged in
     }
 
     getOrdenComparativo(numeroOrden: string): Observable<any[]> {
@@ -109,7 +119,9 @@ export class DataService {
             case 'GET_LABORATORIO':
                 return this.getMockLaboratorio(params.codigo) as Observable<T>;
             case 'UPDATE_ORDEN_DETALLES':
-                return this.actualizarDetallesOrdenDespacho(params.payload) as Observable<T>;
+                // v104.5: El servicio anterior se comenta pero se mantiene por si se requiere
+                // return this.actualizarDetallesOrdenDespacho(params.payload) as Observable<T>;
+                return this.finalizarOrdenDespacho(params.params) as Observable<T>;
             case 'GET_ORDENES_DESPACHO_LIST':
                 return this.getOrdenesDespachoList(params.empresa, params.filtro, params.valor, params.pagina) as Observable<T>;
             default:
@@ -119,7 +131,7 @@ export class DataService {
 
     getOrdenDespacho(numero: string): Observable<any> {
         const params = {
-            arg0: 20, // Default empresa
+            arg0: this.getCurrentCompany(),
             arg1: 'numeroSolicitud-numeroOrdenDespacho',
             arg2: numero,
             arg3: 0,
@@ -129,16 +141,17 @@ export class DataService {
         return this.http.get(`${this.API_BASE}/XPosConsultas/ordenesDespacho`, { params, headers }).pipe(
             catchError(err => {
                 console.error('[DataService] Error consultando ordenesDespacho', err);
-                return of({ mensaje: 'ERROR', ordenesDespacho: [] });
+                const errorMsg = err.error?.mensaje || err.error?.causa || err.message || 'Error consultando orden';
+                return of({ mensaje: errorMsg, isError: true, ordenesDespacho: [] });
             })
         );
     }
 
     getOrdenesDespachoList(empresa: number, filtro: string, valor: string, pagina: number = 0): Observable<any> {
         let params = new HttpParams()
-            .set('arg0', (empresa || 20).toString())
-            .set('arg1', '') // v102.0: Vacío por defecto para traer todo
-            .set('arg2', '') // v102.0: Vacío por defecto
+            .set('arg0', (empresa || this.getCurrentCompany()).toString())
+            .set('arg1', '')
+            .set('arg2', '')
             .set('arg3', pagina.toString())
             .set('arg4', '20');
 
@@ -152,9 +165,10 @@ export class DataService {
         return this.http.get(`${this.API_BASE}/XPosConsultas/ordenesDespacho`, { params, headers }).pipe(
             catchError(err => {
                 console.error('[DataService] Error consultando lista ordenesDespacho', err);
+                const errorMsg = err.error?.mensaje || err.error?.causa || err.message || 'Error consultando listado';
                 return of({
-                    mensaje: 'ERROR',
-                    error: `Status: ${err.status} - ${err.message}`,
+                    mensaje: errorMsg,
+                    isError: true,
                     ordenesDespacho: []
                 });
             })
@@ -163,7 +177,7 @@ export class DataService {
 
     getDetallesOrdenDespacho(solicitud: number, orden: number): Observable<any> {
         const params = {
-            arg0: 20, // Default empresa
+            arg0: this.getCurrentCompany(),
             arg1: solicitud,
             arg2: orden
         };
@@ -171,7 +185,8 @@ export class DataService {
         return this.http.get(`${this.API_BASE}/XPosConsultas/detallesOrdenDespacho`, { params, headers }).pipe(
             catchError(err => {
                 console.error('[DataService] Error consultando detallesOrdenDespacho', err);
-                return of({ mensaje: 'ERROR', detalles: [] });
+                const errorMsg = err.error?.mensaje || err.error?.causa || err.message || 'Error consultando detalles';
+                return of({ mensaje: errorMsg, isError: true, detalles: [] });
             })
         );
     }
@@ -196,8 +211,35 @@ export class DataService {
         return this.http.post(`${this.API_BASE}/XPos/actualizarDetallesOrdenDespacho`, payload, { headers }).pipe(
             catchError(err => {
                 console.error('[DataService] Error en actualizarDetallesOrdenDespacho', err);
-                const errorMsg = err.error?.mensaje || err.message || 'Error desconocido en servidor';
-                return of({ mensaje: 'ERROR', error: errorMsg });
+                const errorMsg = err.error?.mensaje || err.error?.causa || err.message || 'Error actualizando detalles';
+                return of({ mensaje: errorMsg, isError: true });
+            })
+        );
+    }
+
+    /**
+     * v104.5: Nuevo servicio de finalización de orden de despacho
+     * URL: http://test.neu360.com/X-uitWSRestMagkaz2/XPos/finalizarOrdenDespacho
+     */
+    finalizarOrdenDespacho(params: { solicitud: number, orden: number }): Observable<any> {
+        const user = this.authService?.getStoredUser();
+        const queryParams = {
+            arg0: this.getCurrentCompany(),
+            arg1: params.solicitud,
+            arg2: params.orden,
+            arg3: user?.username || 'DESCONOCIDO'
+        };
+
+        const headers = this.getHeaders();
+        // Nota: El usuario especificó una URL que parece estar fuera del API_BASE estándar,
+        // pero seguiremos el patrón de inyectar los parámetros solicitados.
+        return this.http.get(`${this.API_BASE}/XPos/finalizarOrdenDespacho`, { params: queryParams, headers }).pipe(
+            catchError(err => {
+                console.error('[DataService] Error en finalizarOrdenDespacho', err);
+                // v104.5: Extraer mensaje o causa según especificación de captura Word
+                const errorBody = err.error;
+                const errorMsg = errorBody?.mensaje || errorBody?.causa || err.message || 'Error de conexión';
+                return of({ mensaje: errorMsg, isError: true });
             })
         );
     }

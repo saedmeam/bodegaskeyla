@@ -17,6 +17,7 @@ function getEncryptionService() {
 
 function setupIpcHandlers() {
     ipcMain.handle('encrypt-text', async (event, text) => {
+        console.log('[Electron:Main] 📨 IPC Receive: encrypt-text');
         const svc = getEncryptionService();
         if (!svc) return { success: false, error: 'Servicio de encriptación no disponible' };
         try {
@@ -28,6 +29,7 @@ function setupIpcHandlers() {
     });
 
     ipcMain.handle('check-java', async () => {
+        console.log('[Electron:Main] 📨 IPC Receive: check-java');
         const svc = getEncryptionService();
         if (!svc) return { success: true, data: false };
         try {
@@ -39,12 +41,19 @@ function setupIpcHandlers() {
     });
 
     ipcMain.on('close-app', () => {
+        console.log('[Electron:Main] 📨 IPC Receive: close-app');
         app.quit();
     });
 
     ipcMain.handle('get-app-config', async () => {
+        console.log('[Electron:Main] 📨 IPC Receive: get-app-config');
         const fs = require('fs');
-        const configPath = path.join(__dirname, 'config.json');
+
+        // v104.5: Usar process.resourcesPath en producción para config.json
+        const isPackaged = app.isPackaged;
+        const resourcesPath = isPackaged ? process.resourcesPath : __dirname;
+        const configPath = path.join(resourcesPath, 'config.json');
+
         if (fs.existsSync(configPath)) {
             try {
                 const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
@@ -70,6 +79,10 @@ function createWindow() {
     });
     // Apunta al archivo index.html generado por Angular después de hacer 'ng build'
     win.loadFile(path.join(__dirname, 'dist/bodegaskeyla/browser/index.html'));
+
+    // Abrir las herramientas de desarrollo automáticamente
+    win.webContents.openDevTools();
+
     win.setMenu(null);
     win.on('closed', () => {
         win = null;

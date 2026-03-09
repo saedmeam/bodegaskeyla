@@ -45,6 +45,11 @@ export class OrdenesDespachoListComponent implements OnInit {
     public pageInput: number = 1;
 
     ngOnInit() {
+        const user = this.authService.getStoredUser();
+        if (user && user.sucursal) {
+            this.selectedSucursal = user.sucursal;
+            this.searchTermSucursal = user.sucursal.nombreSucursal;
+        }
         this.cargarSucursales();
         this.buscar(0);
     }
@@ -54,7 +59,9 @@ export class OrdenesDespachoListComponent implements OnInit {
             const user = this.authService.getStoredUser();
             if (!user) return;
 
-            const empresa = user.empresa?.codigoEmpresa || 20;
+            const empresa = user.empresa?.codigoEmpresa;
+            if (!empresa) return;
+
             const token = user.token || this.authService.getStoredToken() || '';
 
             const authorizedRaw = await firstValueFrom(this.cajaService.getSucursalesAutorizadas(empresa, token));
@@ -80,8 +87,14 @@ export class OrdenesDespachoListComponent implements OnInit {
         this.currentPage.set(page);
 
         try {
-            // v98.0: Forzar empresa 20 y parámetros estándar
-            const empresa = 20;
+            const user = this.authService.getStoredUser();
+            const empresa = user?.empresa?.codigoEmpresa;
+
+            if (!empresa) {
+                this.error.set('Contexto de empresa no encontrado');
+                this.loadingService.hide();
+                return;
+            }
 
             let filtro = '';
             let valor = '';
@@ -111,7 +124,17 @@ export class OrdenesDespachoListComponent implements OnInit {
                 }
 
                 console.log(`[Revisor] Registros tras filtrado local: ${list.length}`);
-                this.ordenes.set(list);
+
+                // v100.0: Mapeo robusto de campos técnicos para visualización
+                const mappedOrders = list.map((o: any) => ({
+                    ...o,
+                    nombreSucursal: o.nombreSucursal || 'Portete',
+                    nombreSucursalSolicita: o.nombreSucursalSolicita || '---',
+                    descripcionUbicacion: o.descripcionUbicacion || o.ubicacion || 'N/A',
+                    nombreUsuarioDespachador: o.nombreUsuarioDespachador || o.despachador || 'Sistema'
+                }));
+
+                this.ordenes.set(mappedOrders);
                 this.pageInput = page + 1;
             } else {
                 const msg = res?.mensaje || res?.error || 'No se encontraron registros o error en el servicio';

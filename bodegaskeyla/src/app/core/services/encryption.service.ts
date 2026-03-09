@@ -19,16 +19,24 @@ export class EncryptionService {
     constructor() { }
 
     async encrypt(text: string): Promise<string> {
+        console.log('[EncryptionService] 🔐 Solicitando encriptación de texto...');
         if (!window.electronAPI) {
-            console.warn('Electron API not available, returning plain text (MOCK)');
+            console.warn('[EncryptionService] ⚠️ Electron API no disponible, usando MOCK');
             return text;
         }
 
-        const result = await window.electronAPI.encryptText(text);
-        if (!result.success) {
-            throw new Error(result.error || 'Encryption failed');
+        try {
+            const result = await window.electronAPI.encryptText(text);
+            if (!result.success) {
+                console.error('[EncryptionService] ❌ Falló la encriptación:', result.error);
+                throw new Error(result.error || 'Encryption failed');
+            }
+            console.log('[EncryptionService] ✅ Texto encriptado correctamente');
+            return result.data || '';
+        } catch (err) {
+            console.error('[EncryptionService] ❌ Error inesperado en encriptación:', err);
+            throw err;
         }
-        return result.data || '';
     }
 
     async checkJava(): Promise<boolean> {

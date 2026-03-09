@@ -83,46 +83,45 @@
                 <table class="enterprise-table">
                     <thead>
                         <tr>
-                            <th class="col-id">Número Orden de Pedido</th>
-                            <th class="col-id">Número Orden de Despacho</th>
-                            <th class="col-date">Fecha de Pedido</th>
-                            <th class="col-suc">Sucursal</th>
+                            <th class="col-id">Sol. #</th>
+                            <th class="col-id">Orden #</th>
+                            <th class="col-branch">Origen</th>
+                            <th class="col-branch">Destino</th>
+                            <th class="col-box">Bodega</th>
                             <th class="col-loc">Ubicación</th>
-                            <th class="col-status">Estado</th>
                             <th class="col-user">Despachador</th>
-                            <th class="col-actions">Acciones</th>
+                            <th class="col-date">Fecha</th>
+                            <th class="col-status">Estado</th>
+                            <th class="col-actions">Acción</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @for (orden of ordenes(); track orden.numeroOrdenDespacho) {
-                        <tr>
-                            <td class="font-bold">{{ orden.numeroSolicitud || '---' }}</td>
-                            <td>{{ orden.numeroOrdenDespacho }}</td>
-                            <td>{{ orden.fechaEmision | date:'dd/MM/yyyy' }}</td>
-                            <td>{{ orden.nombreSucursal || 'Portete' }}</td>
-                            <td><span class="enterprise-loc-badge">A1-B2</span></td>
+                        @for (order of ordenes(); track order.numeroOrdenDespacho) {
+                        <tr class="order-row-v2">
+                            <td class="bold">#{{ order.numeroSolicitud }}</td>
+                            <td>#{{ order.numeroOrdenDespacho }}</td>
+                            <td class="branch-cell" [title]="order.nombreSucursalSolicita">{{
+                                order.nombreSucursalSolicita }}</td>
+                            <td class="branch-cell" [title]="order.nombreSucursal">{{ order.nombreSucursal }}</td>
+                            <td>{{ order.nombreBodega || order.codigoBodega }}</td>
+                            <td class="loc-cell" [title]="order.descripcionUbicacion">{{ order.descripcionUbicacion }}
+                            </td>
+                            <td class="user-cell" [title]="order.nombreUsuarioDespachador">{{
+                                order.nombreUsuarioDespachador }}</td>
+                            <td class="date-cell">{{ order.fechaEmision | date:'dd/MM/yyyy' }}</td>
                             <td>
-                                <span class="enterprise-status-pill" [class]="getStatusClass(orden.codigoEstado)">
-                                    {{ getStatusLabel(orden.codigoEstado) }}
+                                <span class="status-badge" [class]="getStatusClass(order.codigoEstado)">
+                                    {{ order.codigoEstado }}
                                 </span>
                             </td>
-                            <td>Gabriel Rodriguez</td>
-                            <td class="actions-cell">
-                                <button class="btn-action-legacy" (click)="procesar(orden)" title="Consultar">
-                                    <span class="icon-search">🔍</span>
-                                </button>
-                                <button class="btn-action-legacy" (click)="procesar(orden)" title="Procesar">
-                                    <span class="icon-box">✅</span>
-                                </button>
-                                <button class="btn-action-legacy" title="Imprimir">
-                                    <span class="icon-print">🖨️</span>
-                                </button>
+                            <td>
+                                <button class="btn-process" (click)="procesar(order)">PROCESAR</button>
                             </td>
                         </tr>
                         } @empty {
                         @if (!loading()) {
                         <tr>
-                            <td colspan="8" class="empty-state">
+                            <td colspan="10" class="empty-state">
                                 No se encontraron órdenes con los filtros seleccionados.
                             </td>
                         </tr>
@@ -133,24 +132,28 @@
             </div>
         </div>
 
-        <!-- Paginación -->
-        @if (ordenes().length > 0 || currentPage() > 0) {
-        <div class="pagination-enterprise">
-            <div class="page-selector">
-                <span class="page-label">Página:</span>
-                <input type="number" [(ngModel)]="pageInput" (keyup.enter)="irAPagina()" class="input-page-jump">
-                <button class="btn-go" (click)="irAPagina()">Ir</button>
+        <!-- Paginación Estacionaria (Siempre Visible) -->
+        <div class="pagination-modern-v2">
+            <div class="pagination-info">
+                Exhibiendo {{ ordenes().length }} órdenes
             </div>
-            <div class="pagination-actions">
-                <button class="btn-page" (click)="prevPage()" [disabled]="currentPage() === 0">
-                    <span class="icon">⬅️</span> Anterior
+
+            <div class="pagination-controls-v2">
+                <button class="btn-page-v2" (click)="prevPage()" [disabled]="currentPage() === 0">
+                    <span class="icon">◀</span> Anterior
                 </button>
-                <button class="btn-page" (click)="nextPage()" [disabled]="ordenes().length < 20">
-                    Siguiente <span class="icon">➡️</span>
+
+                <div class="page-selector-v2">
+                    <span class="lbl-v2">Pág.</span>
+                    <input type="number" [(ngModel)]="pageInput" (keyup.enter)="irAPagina()" class="input-jump-v2">
+                    <button class="btn-go-v2" (click)="irAPagina()">Ir</button>
+                </div>
+
+                <button class="btn-page-v2" (click)="nextPage()" [disabled]="ordenes().length < 20">
+                    Siguiente <span class="icon">▶</span>
                 </button>
             </div>
         </div>
-        }
     </div>
 </div>
 

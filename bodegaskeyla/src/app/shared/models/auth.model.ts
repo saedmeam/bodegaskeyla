@@ -1,6 +1,7 @@
 export interface Empresa {
     codigoEmpresa: number;
     nombreEmpresa: string;
+    nombreComercial?: string;
     ruc?: string;
     esActivo?: string;
 }

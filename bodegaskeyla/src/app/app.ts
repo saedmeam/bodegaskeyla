@@ -5,6 +5,7 @@ import { HeaderComponent } from './core/components/header/header.component';
 import { NavigationService } from './core/services/navigation.service';
 import { LoadingScreenComponent } from './shared/components/loading-screen/loading-screen.component';
 import { LoadingService } from './core/services/loading.service';
+import { NotificationService } from './core/services/notification.service';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { filter } from 'rxjs';
@@ -21,6 +22,7 @@ export class App {
     protected readonly title = signal('bodegaskeyla');
     public navService = inject(NavigationService);
     public loadingService = inject(LoadingService);
+    public notificationService = inject(NotificationService);
     private router = inject(Router);
 
     constructor() {

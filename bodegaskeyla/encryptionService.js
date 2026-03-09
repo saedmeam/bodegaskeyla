@@ -19,17 +19,14 @@ class EncryptionService {
      * Obtener la ruta correcta del JAR según el entorno
      */
     getJarPath() {
-        // Verificar si la app está empaquetada
-        const isPackaged = require('electron').app ? require('electron').app.isPackaged : false;
+        // v104.5: Standarized path resolution for Enterprise Production
+        const { app } = require('electron');
+        const isPackaged = app ? app.isPackaged : false;
 
-        if (isPackaged || process.env.NODE_ENV === 'production') {
-            // En producción (app empaquetada)
-            const resourcesPath = process.resourcesPath || path.join(__dirname, '../../');
-            return path.join(resourcesPath, 'encrypter-xuit.jar');
-        } else {
-            // En desarrollo - el JAR está en la raíz junto a main.js
-            return path.join(__dirname, 'encrypter-xuit.jar');
-        }
+        // In production, resources are in process.resourcesPath (resources/ folder)
+        // In development, they are in __dirname (project root)
+        const resourcesPath = isPackaged ? process.resourcesPath : __dirname;
+        return path.join(resourcesPath, 'encrypter-xuit.jar');
     }
 
     /**
@@ -38,10 +35,10 @@ class EncryptionService {
     async checkJavaInstalled() {
         try {
             const { stdout } = await execPromise('java -version');
-            console.log('✅ Java instalado:', stdout);
+            console.log('[Electron:Encryption] ✅ Java detectado:', stdout.split('\n')[0]);
             return true;
         } catch (error) {
-            console.error('❌ Java no está instalado o no está en PATH');
+            console.error('[Electron:Encryption] ❌ Java no está instalado o no está en PATH');
             return false;
         }
     }
@@ -60,15 +57,15 @@ class EncryptionService {
                 throw new Error('Java no está instalado. Por favor instale Java para continuar.');
             }
 
-            console.log('🔐 [MN] Encriptando texto...');
-            console.log('📂 [MN] JAR Path:', this.jarPath);
+            console.log('[Electron:Encryption] 🔐 Iniciando proceso de encriptación...');
+            console.log('[Electron:Encryption] 📂 Usando JAR en:', this.jarPath);
 
             // Escapar el texto para evitar problemas con caracteres especiales
             const escapedText = text.replace(/"/g, '\\"');
 
             const command = `java -jar "${this.jarPath}" encrypt "${escapedText}"`;
 
-            console.log('⚙️ [MN] Ejecutando comando:', command);
+            console.log('[Electron:Encryption] ⚙️ Ejecutando comando JAR...');
 
             const { stdout, stderr } = await execPromise(command, {
                 timeout: 10000, // 10 segundos de timeout
@@ -76,7 +73,7 @@ class EncryptionService {
             });
 
             if (stderr && stderr.trim() !== '') {
-                console.warn('⚠️ [MN] Advertencia del JAR (stderr):', stderr);
+                console.warn('[Electron:Encryption] ⚠️ JAR stderr:', stderr);
             }
 
             const encryptedText = stdout.trim();
@@ -86,7 +83,7 @@ class EncryptionService {
                 throw new Error('El JAR no retornó ningún resultado');
             }
 
-            console.log('✅ [MN] Encriptación exitosa');
+            console.log('[Electron:Encryption] ✅ Encriptación finalizada con éxito');
             return encryptedText;
 
         } catch (error) {

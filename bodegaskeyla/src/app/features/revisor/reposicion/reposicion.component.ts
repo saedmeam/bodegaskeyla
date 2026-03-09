@@ -5,6 +5,7 @@ import { RevisorService } from '../services/revisor.service';
 import { ActivatedRoute } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { LoadingService } from '../../../core/services/loading.service';
+import { NotificationService } from '../../../core/services/notification.service';
 
 @Component({
     selector: 'app-reposicion',
@@ -17,6 +18,7 @@ export class ReposicionComponent implements OnInit {
     public revisorService = inject(RevisorService);
     private route = inject(ActivatedRoute);
     private loadingService = inject(LoadingService);
+    private notificationService = inject(NotificationService);
 
     @ViewChild('scannerInput') scannerInput!: ElementRef<HTMLInputElement>;
 
@@ -55,9 +57,12 @@ export class ReposicionComponent implements OnInit {
     ordenProductos = this.revisorService.ordenProductos;
     escaneados = this.revisorService.escaneados;
 
-    totalItems = computed(() => this.ordenProductos().length);
+    // v100.0: Estadísticas basadas en lo verificado (escaneados)
+    totalOrder = computed(() => this.ordenProductos().length);
+    totalVerificados = computed(() => this.escaneados().length);
+    totalItems = computed(() => this.escaneados().length); // Mismo que verificados por solicitud usuario
     totalCorrectos = computed(() => this.escaneados().filter(p => p.color === 'negro').length);
-    totalIncompletos = computed(() => this.escaneados().filter(p => p.color === 'azul').length);
+    totalIncompletos = computed(() => this.escaneados().filter(p => p.color === 'azul' || p.color === 'naranja').length);
 
     constructor() {
         // v45.0: Sincronización reactiva con la metadata de la orden cargada
@@ -106,9 +111,6 @@ export class ReposicionComponent implements OnInit {
         this.simularEscaneo();
     }
 
-    notificationMessage = signal("");
-    notificationTitle = signal("");
-    isError = signal(false);
 
     simularEscaneo() {
         if (!this.barcodeInput) return;
@@ -190,19 +192,7 @@ export class ReposicionComponent implements OnInit {
     }
 
     private showToast(message: string, isError: boolean = false, title?: string) {
-        this.isError.set(isError);
-        this.notificationMessage.set(message);
-
-        // v68.0: Títulos por defecto en MAYÚSCULAS para mayor consistencia visual
-        const defaultTitle = isError ? 'ERROR DE PISTOLEO' : 'REGISTRO EXITOSO';
-        this.notificationTitle.set(title || defaultTitle);
-
-        setTimeout(() => {
-            if (this.notificationMessage() === message) {
-                this.notificationMessage.set("");
-                this.notificationTitle.set("");
-            }
-        }, 4000);
+        this.notificationService.show(message, isError, title);
         this.focusScanner();
     }
 
@@ -261,7 +251,7 @@ export class ReposicionComponent implements OnInit {
     guardarBorrador() {
         this.revisorService.executeProcess('SORT_PRIORITY'); // v42.0
         this.revisorService.executeProcess('SAVE_SESSION', null);
-        this.showToast("OK: Sesión asegurada y ordenada.", false, "BORRADOR GUARDADO");
+        this.showToast("Tu borrador ha sido guardado exitosamente en este equipo.", false, "SESIÓN GUARDADA");
         this.focusScanner();
     }
 
@@ -289,9 +279,9 @@ export class ReposicionComponent implements OnInit {
                 next: (res: any) => {
                     this.loadingService.hide();
                     if (res?.mensaje !== 'ERROR') {
-                        this.showToast("¡REGISTRO COMPLETADO! La orden ha sido actualizada.", false, "ÉXITO");
+                        this.showToast("¡REGISTRO COMPLETADO! La orden ha sido actualizada correctamente.", false, "ÉXITO");
                     } else {
-                        this.showToast(`ERROR: ${res.error || 'No se pudo completar el registro'}`, true, "ERROR DE REGISTRO");
+                        this.openModal("❌ ERROR", `Error al guardar: ${res.error || 'No se pudo completar el registro'}`, "❌", "alert");
                     }
                 },
                 error: () => {
@@ -338,45 +328,53 @@ export class ReposicionComponent implements OnInit {
             return;
         }
 
-        // v50.1: Verificar si hay excedentes para bloquear el botón del modal
-        const hasSurplus = errors.some(e => e.type === 'SURPLUS');
-        this.modalActionDisabled.set(hasSurplus);
-
-        // v39.1: Consolidación Pro de Discrepancias con Scroll
-        let messageHtml = `<div style="text-align:left; font-family:inherit;">`;
-        messageHtml += `<p style="margin-bottom:15px; font-weight:700; color:#e17055; display:flex; align-items:center; gap:8px;">
-                            <span class="material-icons" style="font-size:20px;">info</span>
-                            Se han detectado discrepancias que requieren su atención:
-                         </p>`;
-
-        messageHtml += `<div style="display:flex; flex-direction:column; gap:8px;">`;
+        // v100.0: Diseño de Auditoría en formato Tabla (Solicitud Usuario)
+        let messageHtml = `
+            <div class="audit-modal-container">
+                <p class="audit-intro">
+                    <span class="icon">⚠️</span>
+                    Se han detectado las siguientes novedades en el despacho actual:
+                </p>
+                <div class="audit-table-wrapper">
+                    <table class="audit-table">
+                        <thead>
+                            <tr>
+                                <th>Novedad</th>
+                                <th>Producto / Detalle</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
 
         errors.forEach(err => {
-            const getColor = () => {
-                if (err.type === 'TYPES') return '#0984e3'; // Azul
-                if (err.type === 'QTY') return '#d63031'; // Rojo
-                return '#6c5ce7'; // Morado para bultos
+            const getIcon = () => {
+                if (err.type === 'TYPES') return '📦';
+                if (err.type === 'QTY') return '🔢';
+                if (err.type === 'SURPLUS') return '🚨';
+                return '🏷️';
             };
-            const color = getColor();
 
             messageHtml += `
-                <div style="padding:12px; background:#fdfdfd; border-radius:10px; border:1px solid #eee; border-left:5px solid ${color};">
-                    <div style="font-weight:800; font-size:0.8rem; color:#2d3436; text-transform:uppercase; letter-spacing:0.5px; display:flex; justify-content:space-between;">
-                        <span>${err.message}</span>
-                    </div>
-                    <div style="font-size:0.75rem; color:#636e72; margin-top:4px; line-height:1.4;">
+                <tr class="audit-row type-${err.type.toLowerCase()}">
+                    <td class="audit-type">
+                        <span class="type-badge">${getIcon()} ${err.message}</span>
+                    </td>
+                    <td class="audit-detail">
                         ${err.detail}
-                    </div>
-                </div>`;
+                    </td>
+                </tr>`;
         });
 
-        messageHtml += `</div>`;
-        messageHtml += `<p style="margin-top:20px; font-size:0.85rem; color:#2d3436; text-align:center; padding-top:15px; border-top:1px dashed #ddd;">
-                            ¿Desea <b>IGNORAR</b> estos errores y proceder con el envío final?
-                        </p>`;
-        messageHtml += `</div>`;
+        messageHtml += `
+                        </tbody>
+                    </table>
+                </div>
+                <div class="audit-footer-msg">
+                    ¿Desea <b>ACEPTAR</b> y procesar el envío de todas formas o <b>CERRAR</b> para corregir?
+                </div>
+            </div>`;
 
-        const aceptado = await this.openModal("📋 AUDITORÍA DE CIERRE", messageHtml, "warning_amber", "confirm");
+        // Abrimos el modal con los nuevos textos de botón solicitados
+        const aceptado = await this.openModal("📋 AUDITORÍA DE CIERRE", messageHtml, "⚠️", "confirm");
 
         if (aceptado) {
             this.ejecutarEnvioFinal();
@@ -393,11 +391,13 @@ export class ReposicionComponent implements OnInit {
         (this.revisorService.finalizeProcess() as any)?.subscribe({
             next: (res: any) => {
                 this.loadingService.hide();
-                if (res?.mensaje !== 'ERROR') {
-                    this.showToast("OK: ¡REGISTRO EXITOSO! La orden ha sido creada correctamente.", false, "ÉXITO");
-                    setTimeout(() => this.cerrarPantalla(), 2000);
+                if (res?.mensaje === 'OK') {
+                    this.showToast("¡ORDEN CREADA! El registro se ha realizado con éxito.", false, "ÉXITO");
+                    // v104.5: Se comentada el auto-cierre para que el usuario pueda validar el éxito
+                    // setTimeout(() => this.cerrarPantalla(), 2000);
                 } else {
-                    this.showToast(`ERROR: ${res.error || 'Fallo al finalizar registro'}`, true, "ERROR DE REGISTRO");
+                    // v104.5: Mostrar el mensaje de error directamente desde la respuesta (400/500)
+                    this.openModal("❌ ERROR EN PROCESO", `${res?.mensaje || 'Error desconocido'}`, "❌", "alert");
                 }
             },
             error: () => {

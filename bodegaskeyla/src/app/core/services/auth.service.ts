@@ -26,6 +26,7 @@ export class AuthService {
      * Step 1.1: Get XPOS Token using Basic Auth
      */
     getXPosToken(): Observable<string> {
+        console.log('[AuthService] 🔑 Solicitando XPOS Token...');
         const url = `${this.getBaseUrl()}${this.config.getEndpoint('LOGIN') || '/XPos/login'}`;
         const auth = this.config.getAuth();
         const headers = new HttpHeaders({
@@ -35,7 +36,15 @@ export class AuthService {
 
         return this.http.post<any>(url, {}, { headers }).pipe(
             map(res => res.accesToken),
-            tap(token => this.storage.saveLocal(this.XPOS_TOKEN_KEY, token))
+            tap(token => {
+                console.log('[AuthService] ✅ XPOS Token obtenido:', token ? '***' + token.slice(-5) : 'NULL');
+                this.storage.saveLocal(this.XPOS_TOKEN_KEY, token);
+            }),
+            catchError(err => {
+                console.error('[AuthService] ❌ Error obteniendo XPOS Token:', err);
+                const errorMsg = err.error?.mensaje || err.error?.causa || err.message || 'Error de autenticación base';
+                return of({ mensaje: errorMsg, isError: true } as any);
+            })
         );
     }
 
@@ -43,6 +52,7 @@ export class AuthService {
      * Step 1.2: Perform Login with encrypted password
      */
     login(username: string, encryptedPassword: string, xposToken: string): Observable<any> {
+        console.log(`[AuthService] 👤 Intentando inicio de sesión para: ${username.toUpperCase()}`);
         const headers = new HttpHeaders({
             'Authorization': `Bearer ${xposToken}`,
             'Content-Type': 'application/json'
@@ -53,7 +63,14 @@ export class AuthService {
             contrasenia: encryptedPassword
         };
 
-        return this.http.post<any>(`${this.getBaseUrl()}/XPos/inicioSesion`, body, { headers });
+        return this.http.post<any>(`${this.getBaseUrl()}/XPos/inicioSesion`, body, { headers }).pipe(
+            tap(res => console.log('[AuthService] 📡 Respuesta inicioSesion:', res)),
+            catchError(err => {
+                console.error('[AuthService] ❌ Error en inicio de sesión:', err);
+                const errorMsg = err.error?.mensaje || err.error?.causa || err.message || 'Error de credenciales';
+                return of({ mensaje: errorMsg, isError: true });
+            })
+        );
     }
 
     /**

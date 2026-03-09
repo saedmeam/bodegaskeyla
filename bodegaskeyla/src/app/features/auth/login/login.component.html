@@ -59,7 +59,7 @@
                         [class.is-open]="showEmpresaDropdown">
                         <div class="select-trigger" (click)="toggleEmpresaDropdown()">
                             <input type="text"
-                                [value]="selectedEmpresa ? selectedEmpresa.nombreEmpresa : 'Seleccione una empresa'"
+                                [value]="selectedEmpresa ? (selectedEmpresa.nombreComercial || selectedEmpresa.nombreEmpresa) : 'Seleccione una empresa'"
                                 readonly>
                             <span class="arrow">▼</span>
                         </div>
@@ -73,7 +73,7 @@
                                 @for (emp of empresasFiltradas; track emp.codigoEmpresa) {
                                 <div class="option-item" (click)="selectEmpresa(emp); $event.stopPropagation()">
                                     <span class="item-id">{{ emp.codigoEmpresa }}</span>
-                                    <span class="item-name">{{ emp.nombreEmpresa }}</span>
+                                    <span class="item-name">{{ emp.nombreComercial || emp.nombreEmpresa }}</span>
                                 </div>
                                 }
                             </div>
@@ -116,6 +116,7 @@
                             <div class="options-list">
                                 @for (suc of sucursalesFiltradas; track suc.codigoSucursal) {
                                 <div class="option-item" (click)="selectSucursal(suc); $event.stopPropagation()">
+                                    <span class="item-id">{{ suc.codigoSucursal }}</span>
                                     <span class="item-name">{{ suc.nombreSucursal }}</span>
                                 </div>
                                 }

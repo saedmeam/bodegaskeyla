@@ -127,8 +127,11 @@ export class RevisorService {
                     const cab_solicitud = cabecera.numeroSolicitud || 1;
                     const cab_orden = cabecera.numeroOrdenDespacho || 1; // v64.0: Forzar 1 según instrucción usuario
 
+                    const user = this.authService.getStoredUser();
+                    const sessionEmpresa = user?.empresa?.codigoEmpresa;
+
                     this.orderMetadata.set({
-                        codigoEmpresa: cabecera.codigoEmpresa || 20, // v78.0: Capturar empresa real
+                        codigoEmpresa: cabecera.codigoEmpresa || sessionEmpresa, // v103.0: Dynamic company
                         bodega: cabecera.codigoBodega?.toString() || '001',
                         movimiento: '057',
                         nombre: 'REPOSICIÓN AUTOMÁTICA',
@@ -500,105 +503,18 @@ export class RevisorService {
         return this.updateDetallesReal('AGREGAR');
     }
 
-    /**
-     * V55.0: Orquestador POST para la API real.
-     * Maneja las acciones de AGREGAR, EDITAR y ELIMINAR con sus respectivos estados.
-     */
     private updateDetallesReal(tipo: 'AGREGAR' | 'EDITAR' | 'ELIMINAR', itemCode?: string) {
         const metadata = this.orderMetadata();
         if (!metadata) return of(null);
 
-        const currentUser = this.authService.getStoredUser()?.username || 'DESCONOCIDO';
+        console.log(`[RevisorService] Solicitando Finalización Real [${tipo}] para Sol: ${metadata.numeroSolicitud} Ord: ${metadata.numeroOrdenDespacho}`);
 
-        // v65.0: Usar metadatos persistidos directamente (numeroSolicitud y numeroOrdenDespacho)
-        const payload: any = {
-            codigoEmpresa: metadata.codigoEmpresa || 20,
-            numeroSolicitud: metadata.numeroSolicitud || 1,
-            codigoUsuario: currentUser,
-            detalles: []
-        };
-
-        // v68.0: Enviar numeroOrdenDespacho SIEMPRE.
-        // Aunque sea "AGREGAR", el backend parece requerirlo para vincular a la solicitud.
-        payload.numeroOrdenDespacho = metadata.numeroOrdenDespacho || 1;
-
-        if (tipo === 'ELIMINAR' && itemCode) {
-            // Caso ELIMINAR: Enviamos solo el item a anular
-            const prod = this.ordenProductos().find(p => p.item === itemCode);
-            if (prod) {
-                payload.detalles.push({
-                    lineaDetalle: prod.lineaDetalle || 1, // v78.0: Usar línea real persistida
-                    codigoExistencia: parseInt(prod.item) || 0,
-                    cantidad: prod.despachado || 0,
-                    unidadesXCaja: prod.bulto || 1,
-                    cantidadCajas: Math.floor((prod.despachado || 0) / (prod.bulto || 1)),
-                    cantidadUnidades: (prod.despachado || 0),
-                    grupoUnidadMedidaStockBase: 1,
-                    unidadMedidaStockBase: 1,
-                    cantidadUnidadMedidaStockB: 1,
-                    cantidadBaseEquivalente: 1,
-                    observacion: "ELIMINACION VIA REVISOR",
-                    codigoEstado: "ING", // v71.0: Siempre ING
-                    esActivo: "N"        // v71.0: Inactivar item
-                });
+        return this.dataService.executeAction<any>('UPDATE_ORDEN_DETALLES', {
+            params: {
+                solicitud: metadata.numeroSolicitud || 1,
+                orden: metadata.numeroOrdenDespacho || 1
             }
-        } else {
-            // Caso AGREGAR o EDITAR (v76.0): Sincronización Total (Match vs Solicitados)
-            const detallesFinales: any[] = [];
-            const idsEscaneados = new Set(this.escaneados().map(p => p.item));
-
-            // 1. Mapear todos los productos que están en la orden original
-            this.ordenProductos().forEach((orig, index) => {
-                const esc = this.escaneados().find(e => e.item === orig.item);
-                const fuePistoleado = !!esc;
-
-                detallesFinales.push({
-                    lineaDetalle: orig.lineaDetalle || (index + 1), // v78.0: Usar línea real si existe
-                    codigoExistencia: parseInt(orig.item) || 0,
-                    cantidad: fuePistoleado ? esc.despachado : 0,
-                    unidadesXCaja: orig.bulto || 1,
-                    cantidadCajas: fuePistoleado ? Math.floor(esc.despachado / (orig.bulto || 1)) : 0,
-                    cantidadUnidades: fuePistoleado ? esc.despachado : 0,
-                    grupoUnidadMedidaStockBase: 1,
-                    unidadMedidaStockBase: 1,
-                    cantidadUnidadMedidaStockB: 1,
-                    cantidadBaseEquivalente: 1,
-                    observacion: fuePistoleado
-                        ? (tipo === 'AGREGAR' ? "INGRESO VIA REVISOR" : "ACTUALIZACION VIA REVISOR")
-                        : "DETALLE NO PISTOLEADO - INACTIVACIÓN AUTOMÁTICA",
-                    codigoEstado: "ING",
-                    esActivo: fuePistoleado ? "S" : "N" // v76.0: Inactivar si no se pistoleó
-                });
-            });
-
-            // 2. Agregar productos "Extra" que no estaban en la orden (v76.0)
-            this.escaneados().forEach(esc => {
-                const estaEnOrden = this.ordenProductos().some(o => o.item === esc.item);
-                if (!estaEnOrden) {
-                    detallesFinales.push({
-                        lineaDetalle: detallesFinales.length + 1,
-                        codigoExistencia: parseInt(esc.item) || 0,
-                        cantidad: esc.despachado,
-                        unidadesXCaja: esc.bulto || 1,
-                        cantidadCajas: Math.floor(esc.despachado / (esc.bulto || 1)),
-                        cantidadUnidades: esc.despachado,
-                        grupoUnidadMedidaStockBase: 1,
-                        unidadMedidaStockBase: 1,
-                        cantidadUnidadMedidaStockB: 1,
-                        cantidadBaseEquivalente: 1,
-                        observacion: "PRODUCTO EXTRA - INGRESO VIA REVISOR",
-                        codigoEstado: "ING",
-                        esActivo: "S"
-                    });
-                }
-            });
-
-            payload.detalles = detallesFinales;
-        }
-
-        console.log(`[RevisorService] Ejecutando POST Real [${tipo}]`, payload);
-
-        return this.dataService.executeAction<any>('UPDATE_ORDEN_DETALLES', { payload }).pipe(
+        }).pipe(
             tap(res => {
                 if (res?.mensaje !== 'ERROR') {
                     if (tipo === 'AGREGAR') {

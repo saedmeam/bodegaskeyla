@@ -30,4 +30,8 @@ export interface DispatchOrder {
     nombreBodega?: string;
     ubicacion?: string;
     despachador?: string;
+    // v100.0: New technical fields from API
+    nombreSucursalSolicita?: string;
+    descripcionUbicacion?: string;
+    nombreUsuarioDespachador?: string;
 }
