@@ -437,8 +437,9 @@
 }
 
 .reference-grid-header {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 1fr 60px 50px;
+    gap: 10px;
     padding: 10px 15px 5px 15px;
     font-weight: 800;
     font-size: 0.85rem;
@@ -470,8 +471,9 @@
     border-radius: 8px;
     padding: 12px 15px;
     /* Más padding interno */
-    display: flex;
-    align-items: flex-start;
+    display: grid;
+    grid-template-columns: 1fr 60px 40px;
+    align-items: center;
     gap: 12px;
     position: relative;
     overflow: hidden;
@@ -969,4 +971,147 @@
     background: #bdc3c7;
     cursor: not-allowed;
     box-shadow: none;
+}
+
+/* v145.4: Detailed Info Enhancement */
+.product-info-composite {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.product-name-main {
+    font-weight: 600;
+    color: #1a202c;
+}
+
+.product-metadata-secondary {
+    display: flex;
+    gap: 6px;
+}
+
+.meta-tag {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.meta-tag.blue {
+    background: rgba(52, 152, 219, 0.1);
+    color: #2980b9;
+}
+
+.meta-tag.dark {
+    background: rgba(0, 0, 0, 0.05);
+    color: #555;
+}
+
+.c-meta-detailed {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 4px 0;
+}
+
+.c-tag {
+    font-size: 9px;
+    background: #f0f2f5;
+    padding: 1px 4px;
+    border-radius: 3px;
+    color: #666;
+    font-weight: 600;
+}
+
+.c-tag.presentation {
+    background: #e1f5fe;
+    color: #0288d1;
+}
+
+.cell-stock {
+    font-weight: 700;
+    color: #2c3e50;
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.c-u-box {
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: #4a5568;
+    text-align: center;
+    background: #f8fafc;
+    padding: 4px;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* v160.0: Bulto Modal Styles */
+.bulto-modal {
+    max-width: 450px !important;
+}
+
+.bulto-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    padding: 10px 0;
+}
+
+.bulto-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 12px;
+    background: #f8fafc;
+    border: 1px solid #edf2f7;
+    transition: all 0.2s ease;
+}
+
+.bulto-row:hover {
+    background: #f1f5f9;
+    border-color: #e2e8f0;
+}
+
+.bulto-label {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #475569;
+}
+
+.bulto-input-control {
+    width: 100px;
+}
+
+.bulto-input {
+    width: 100%;
+    text-align: center;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #008080;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    height: 40px;
+}
+
+.modal-footer.central {
+    justify-content: center;
+    padding: 20px;
+}
+
+.btn-green-premium {
+    background: #27ae60 !important;
+    color: white !important;
+    padding: 12px 60px !important;
+    font-size: 1rem !important;
+    box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3) !important;
+}
+
+.btn-green-premium:hover {
+    background: #2ecc71 !important;
+    box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4) !important;
 }

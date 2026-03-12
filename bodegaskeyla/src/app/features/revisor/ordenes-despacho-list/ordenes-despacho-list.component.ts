@@ -125,9 +125,11 @@ export class OrdenesDespachoListComponent implements OnInit {
 
                 console.log(`[Revisor] Registros tras filtrado local: ${list.length}`);
 
-                // v100.0: Mapeo robusto de campos técnicos para visualización
+                // v100.0: Mapeo robusto de campos técnicos para visualización (Origen y Destino)
                 const mappedOrders = list.map((o: any) => ({
                     ...o,
+                    nombreSucursalOrigen: o.nombreSucursalOrigen || o.nombreSucursalSolicita || 'Origen N/A',
+                    nombreSucursalDestino: o.nombreSucursalDestino || o.nombreSucursal || 'Destino N/A',
                     nombreSucursal: o.nombreSucursal || 'Portete',
                     nombreSucursalSolicita: o.nombreSucursalSolicita || '---',
                     descripcionUbicacion: o.descripcionUbicacion || o.ubicacion || 'N/A',
@@ -147,6 +149,13 @@ export class OrdenesDespachoListComponent implements OnInit {
             this.ordenes.set([]);
         } finally {
             this.loadingService.hide();
+        }
+    }
+
+    purgarTodo() {
+        if (confirm('¿Está seguro de que desea eliminar todas las sesiones locales? Se recargará todo desde el servidor.')) {
+            this.revisorService.purgeAllSessions();
+            this.buscar();
         }
     }
 

@@ -105,4 +105,35 @@ export class StorageService {
             }
         }
     }
+
+    /**
+     * v160.0: Limpia absolutamente todos los registros de sesiones y caché de órdenes.
+     */
+    clearAllOrders(): void {
+        console.log('[StorageService] Purga completa de órdenes iniciada...');
+        // 1. Limpiar LocalStorage mediante prefijos conocidos
+        const keys = Object.keys(localStorage);
+        keys.forEach(key => {
+            if (key.startsWith('REVISION_SESSION_') || key.startsWith('ORDER_CACHE_')) {
+                localStorage.removeItem(key);
+            }
+        });
+
+        // 2. Limpiar directorio físico de backup
+        if (this.isElectron && this.fs) {
+            try {
+                const userDataPath = (window as any).process.env.APPDATA || (window as any).process.cwd();
+                const backupDir = this.path.join(userDataPath, 'BodegasKeyla_Backup');
+                if (this.fs.existsSync(backupDir)) {
+                    const files = this.fs.readdirSync(backupDir);
+                    files.forEach((file: string) => {
+                        this.fs.unlinkSync(this.path.join(backupDir, file));
+                    });
+                    console.log(`[StorageService] Directorio de backup vaciado: ${backupDir}`);
+                }
+            } catch (e) {
+                console.error('[StorageService] Error purgando directorio de backup', e);
+            }
+        }
+    }
 }

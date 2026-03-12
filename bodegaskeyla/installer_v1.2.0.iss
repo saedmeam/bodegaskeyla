@@ -47,7 +47,7 @@ Source: "release\win-unpacked\*"; DestDir: "{app}"; Flags: ignoreversion recurse
 ; 2. Extra Core Resources (Ensuring they are in \resources where Electron expects them)
 Source: "encrypter-xuit.jar"; DestDir: "{app}\resources"; Flags: ignoreversion
 Source: "config.json"; DestDir: "{app}\resources"; Flags: ignoreversion
-Source: "public\app_icon.png"; DestDir: "{app}"; Flags: ignoreversion
+Source: "public\logo-keyla-icon.png"; DestDir: "{app}\public"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\{#AppExeName}"; WorkingDir: "{app}"

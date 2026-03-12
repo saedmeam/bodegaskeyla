@@ -64,7 +64,8 @@
             "main.js",
             "package.json",
             "preload.js",
-            "encryptionService.js"
+            "encryptionService.js",
+            "public/**/*"
         ],
         "extraResources": [
             "encrypter-xuit.jar",
@@ -75,13 +76,13 @@
                 "nsis",
                 "portable"
             ],
-            "icon": "public/app_icon.png"
+            "icon": "public/logo-keyla-icon.png"
         },
         "nsis": {
             "oneClick": false,
             "allowToChangeInstallationDirectory": true,
-            "installerIcon": "public/app_icon.png",
-            "uninstallerIcon": "public/app_icon.png",
+            "installerIcon": "public/logo-keyla-icon.png",
+            "uninstallerIcon": "public/logo-keyla-icon.png",
             "createDesktopShortcut": true,
             "shortcutName": "Bodegas Keyla"
         },

@@ -86,9 +86,17 @@
                                     <td class="cell-code">{{ item.item }}</td>
                                     <td><input type="text" [value]="item.bulto || 1"
                                             class="input-v2 w-tiny text-center"></td>
-                                    <td class="cell-name" [title]="item.nombre">{{ item.nombre }}</td>
-                                    <td>U/C</td>
-                                    <td>{{ item.invBod }}</td>
+                                    <td class="cell-name">
+                                        <div class="product-info-composite">
+                                            <span class="product-name-main">{{ item.nombre }}</span>
+                                            <div class="product-metadata-secondary">
+                                                <span class="meta-tag blue">{{ item.tipoMedida }}</span>
+                                                <span class="meta-tag dark">{{ item.tipoPresentacion }}</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ item.tipoMedida }}</td>
+                                    <td class="cell-stock">{{ item.invBod }}</td>
                                     <td><span class="qty-bubble-sol">{{ orig?.solicita || 0 }}</span></td>
                                     <td>
                                         <div class="input-composite">
@@ -133,7 +141,8 @@
                 @if (showComparativo()) {
                 <div class="reference-grid-header">
                     <span>Producto</span>
-                    <span>SOL</span>
+                    <span class="text-center">U</span>
+                    <span class="text-right">SOL</span>
                 </div>
                 <div class="reference-grid-v2">
                     @for (prod of ordenProductos(); track prod.item) {
@@ -145,9 +154,14 @@
                         <div class="c-indicator" [class]="status ? (status?.color || 'naranja') : 'neutral'"></div>
                         <div class="c-info">
                             <strong class="c-title">{{ prod.nombre }}</strong>
-                            <span class="c-meta">CÓD: {{ prod.item }} | UNIDADES BOX: {{ prod.bulto || 1 }}</span>
-                            <span class="c-lote">LOTE: {{ prod.lote || 'N/A' }} | CAD: {{ prod.caducidad || 'N/A'
-                                }}</span>
+                            <div class="c-meta-detailed">
+                                <span class="c-tag">{{ prod.tipoMedida }}</span>
+                                <span class="c-tag presentation">{{ prod.tipoPresentacion }}</span>
+                            </div>
+                            <span class="c-meta">CÓD: {{ prod.item }} | STOCK: {{ prod.invBod }}</span>
+                        </div>
+                        <div class="c-u-box">
+                            {{ prod.tipoMedida }}
                         </div>
                         <div class="c-qty-circle">
                             {{ prod.solicita }}
@@ -209,6 +223,35 @@
                 Aceptar
             </button>
             }
+        </div>
+    </div>
+</div>
+}
+
+@if (bultoModalVisible()) {
+<div class="modal-overlay" (click)="bultoModalVisible.set(false)">
+    <div class="glass-modal bulto-modal animate-pop" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+            <button class="btn-close-modal" (click)="bultoModalVisible.set(false)">×</button>
+            <span class="modal-icon">📦</span>
+            <h3>Tipos de Bulto</h3>
+        </div>
+        <div class="modal-body">
+            <div class="bulto-grid">
+                @for (type of bultoTypes(); track type.label; let i = $index) {
+                <div class="bulto-row">
+                    <span class="bulto-label">{{ type.label }}</span>
+                    <div class="bulto-input-control">
+                        <input type="number" [(ngModel)]="type.value" class="input-v2 bulto-input" min="0">
+                    </div>
+                </div>
+                }
+            </div>
+        </div>
+        <div class="modal-footer central">
+            <button class="btn-modal-action btn-green-premium" (click)="procesarBultos()">
+                Procesar
+            </button>
         </div>
     </div>
 </div>

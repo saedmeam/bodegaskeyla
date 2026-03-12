@@ -70,7 +70,7 @@ function createWindow() {
     win = new BrowserWindow({
         width: 1200,
         height: 800,
-        icon: path.join(__dirname, 'public/app_icon.png'),
+        icon: path.join(__dirname, 'public/logo-keyla-icon.png'),
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,

@@ -1,9 +1,14 @@
 <div class="dispatch-container">
     <div class="page-header">
         <h1 class="page-title">Mantenimiento de Órdenes</h1>
-        <button class="btn-secondary" (click)="cerrarPantalla()">
-            <span class="icon">⬅️</span> Regresar
-        </button>
+        <div class="header-actions">
+            <button class="btn-clean-all" (click)="purgarTodo()">
+                <span class="icon">🧹</span> Limpiar Todo
+            </button>
+            <button class="btn-secondary" (click)="cerrarPantalla()">
+                <span class="icon">⬅️</span> Regresar
+            </button>
+        </div>
     </div>
 
     <!-- Filtros en 2 Filas (Estilo Original Modernizado) -->
@@ -100,9 +105,10 @@
                         <tr class="order-row-v2">
                             <td class="bold">#{{ order.numeroSolicitud }}</td>
                             <td>#{{ order.numeroOrdenDespacho }}</td>
-                            <td class="branch-cell" [title]="order.nombreSucursalSolicita">{{
-                                order.nombreSucursalSolicita }}</td>
-                            <td class="branch-cell" [title]="order.nombreSucursal">{{ order.nombreSucursal }}</td>
+                            <td class="branch-cell" [title]="order.nombreSucursalOrigen">{{
+                                order.nombreSucursalOrigen }}</td>
+                            <td class="branch-cell" [title]="order.nombreSucursalDestino">{{
+                                order.nombreSucursalDestino }}</td>
                             <td>{{ order.nombreBodega || order.codigoBodega }}</td>
                             <td class="loc-cell" [title]="order.descripcionUbicacion">{{ order.descripcionUbicacion }}
                             </td>

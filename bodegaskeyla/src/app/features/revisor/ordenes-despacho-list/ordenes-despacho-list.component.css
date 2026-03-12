@@ -31,6 +31,33 @@
     font-weight: 800;
 }
 
+.header-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.btn-clean-all {
+    background: #fff5f5;
+    color: #c53030;
+    border: 1px solid #feb2b2;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.btn-clean-all:hover {
+    background: #fffafa;
+    border-color: #fc8181;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(197, 48, 48, 0.1);
+}
+
 /* --- Search Panel Enterprise (2 Rows) --- */
 .search-panel-enterprise {
     background: white;

@@ -149,16 +149,20 @@ export class RevisorService {
                             return detalles.map((d: any) => ({
                                 item: d.codigoExistencia?.toString() || '',
                                 nombre: d.nombreExistencia || 'SIN NOMBRE',
-                                unidad: 'U/C',
+                                unidad: d.tipoMedida || 'U/C',
                                 solicita: d.cantidad || 0,
-                                invBod: d.stock || d.existencia || d.invBod || 0, // v140.0: Mapeo de Stock
+                                invBod: d.cantidadUnidadMedidaStockB || d.stock || d.existencia || 0, // v145.0: Principal stock mapping
                                 despachado: 0,
                                 color: 'naranja',
                                 bulto: d.unidadesXCaja || 1,
                                 lote: d.lote || '',
                                 caducidad: d.caducidad || '',
-                                lineaDetalle: d.lineaDetalle, // v78.0: Preservar línea original
-                                estado: d.codigoEstado       // v78.0: Restaurar estado
+                                lineaDetalle: d.lineaDetalle,
+                                estado: d.codigoEstado,
+                                // v145.0: Persisting detailed technical fields
+                                tipoMedida: d.tipoMedida || 'N/A',
+                                tipoPresentacion: d.tipoPresentacion || 'N/A',
+                                unidadesXCaja: d.unidadesXCaja || 0
                             })) as Product[];
                         }),
                         tap(() => this.loadingService.hide()),
@@ -368,6 +372,16 @@ export class RevisorService {
 
         // 3. Persistir la limpieza (crea una sesión vacía limpia)
         this.persistCurrentState();
+    }
+
+    /**
+     * V160.0: Limpia absolutamente toda la persistencia de órdenes.
+     */
+    public purgeAllSessions() {
+        this.storage.clearAllOrders();
+        this.ordenProductos.set([]);
+        this.escaneados.set([]);
+        this.currentOrderNumber = null;
     }
 
     /**

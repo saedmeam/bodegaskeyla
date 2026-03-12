@@ -14,6 +14,10 @@ export interface Product {
     lote?: string;
     caducidad?: string;
     bulto?: number;
+    // v145.0: New technical fields for detailed view
+    tipoMedida?: string;
+    tipoPresentacion?: string;
+    unidadesXCaja?: number;
 }
 
 export interface DispatchOrder {
@@ -32,6 +36,8 @@ export interface DispatchOrder {
     despachador?: string;
     // v100.0: New technical fields from API
     nombreSucursalSolicita?: string;
+    nombreSucursalOrigen?: string;
+    nombreSucursalDestino?: string;
     descripcionUbicacion?: string;
     nombreUsuarioDespachador?: string;
 }

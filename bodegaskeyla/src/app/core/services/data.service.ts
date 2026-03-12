@@ -130,12 +130,16 @@ export class DataService {
     }
 
     getOrdenDespacho(numero: string): Observable<any> {
+        const user = this.authService?.getStoredUser();
+        const username = user?.username || 'DESCONOCIDO';
+
         const params = {
             arg0: this.getCurrentCompany(),
-            arg1: 'numeroSolicitud-numeroOrdenDespacho',
-            arg2: numero,
-            arg3: 0,
-            arg4: 20
+            arg1: username,
+            arg2: 'numeroSolicitud-numeroOrdenDespacho',
+            arg3: numero,
+            arg4: 0,
+            arg5: 20
         };
         const headers = this.getHeaders();
         return this.http.get(`${this.API_BASE}/XPosConsultas/ordenesDespacho`, { params, headers }).pipe(
@@ -148,17 +152,21 @@ export class DataService {
     }
 
     getOrdenesDespachoList(empresa: number, filtro: string, valor: string, pagina: number = 0): Observable<any> {
+        const user = this.authService?.getStoredUser();
+        const username = user?.username || 'DESCONOCIDO';
+
         let params = new HttpParams()
             .set('arg0', (empresa || this.getCurrentCompany()).toString())
-            .set('arg1', '')
+            .set('arg1', username)
             .set('arg2', '')
-            .set('arg3', pagina.toString())
-            .set('arg4', '20');
+            .set('arg3', '')
+            .set('arg4', pagina.toString())
+            .set('arg5', '20');
 
         if (filtro && filtro.trim() !== '') {
-            // v100.0: Estandarizar arg1 a la clave compuesta según instrucción del usuario
-            params = params.set('arg1', 'numeroSolicitud-numeroOrdenDespacho');
-            params = params.set('arg2', valor || '');
+            // v100.0: Estandarizar arg2 a la clave compuesta según instrucción del usuario (desplazado por arg1:user)
+            params = params.set('arg2', 'numeroSolicitud-numeroOrdenDespacho');
+            params = params.set('arg3', valor || '');
         }
 
         const headers = this.getHeaders();
@@ -223,20 +231,21 @@ export class DataService {
      */
     finalizarOrdenDespacho(params: { solicitud: number, orden: number }): Observable<any> {
         const user = this.authService?.getStoredUser();
+        const username = user?.username || 'DESCONOCIDO';
+
         const queryParams = {
             arg0: this.getCurrentCompany(),
             arg1: params.solicitud,
             arg2: params.orden,
-            arg3: user?.username || 'DESCONOCIDO'
+            arg3: username // v104.5: Keep as arg4 if legacy backend expects it there too, but arg1 is now primary
         };
 
         const headers = this.getHeaders();
         // Nota: El usuario especificó una URL que parece estar fuera del API_BASE estándar,
-        // pero seguiremos el patrón de inyectar los parámetros solicitados.
+        // pero seguiremos el patrón de inyectar los parámetros solicitados con el nuevo orden.
         return this.http.get(`${this.API_BASE}/XPos/finalizarOrdenDespacho`, { params: queryParams, headers }).pipe(
             catchError(err => {
                 console.error('[DataService] Error en finalizarOrdenDespacho', err);
-                // v104.5: Extraer mensaje o causa según especificación de captura Word
                 const errorBody = err.error;
                 const errorMsg = errorBody?.mensaje || errorBody?.causa || err.message || 'Error de conexión';
                 return of({ mensaje: errorMsg, isError: true });

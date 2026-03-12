@@ -53,6 +53,17 @@ export class ReposicionComponent implements OnInit {
     modalActionDisabled = signal(false);
     private modalResolve?: (value: boolean) => void;
 
+    // Estados de Modal Bultos (v160.0)
+    bultoModalVisible = signal(false);
+    bultoTypes = signal([
+        { label: 'Cajas', value: 0 },
+        { label: 'Gavetas', value: 0 },
+        { label: 'Pañales', value: 0 },
+        { label: 'Frío', value: 0 },
+        { label: 'Psicotrópicos', value: 0 },
+        { label: 'Impresión de etiquetas', value: 0 }
+    ]);
+
     // Proyecciones del servicio orquestador
     ordenProductos = this.revisorService.ordenProductos;
     escaneados = this.revisorService.escaneados;
@@ -131,14 +142,13 @@ export class ReposicionComponent implements OnInit {
             return;
         }
 
-        // Si hay múltiples lotes para el mismo código de existencia (mismo item)
+        /* v160.0: Bloque de validación por Lote y Caducidad comentado por solicitud de usuario
         if (matches.length > 1) {
             if (!this.loteInput) {
                 this.openModal("Selección de Lote", "Se detectaron <b>múltiples lotes</b> para este producto. Por favor, especifique el lote manualmente.", "inventory", "alert");
                 return;
             }
 
-            // Si el lote está escrito, filtramos por ese lote
             const matchConLote = matches.find(m => m.lote === this.loteInput);
             if (!matchConLote) {
                 this.showToast(`ERROR: El lote [${this.loteInput}] no es válido para este producto.`, true);
@@ -146,13 +156,13 @@ export class ReposicionComponent implements OnInit {
             }
             matches = [matchConLote];
         } else {
-            // Un solo match, autocompletamos lote si no está
             const match = matches[0];
             if (match.lote && !this.loteInput) {
                 this.loteInput = match.lote;
                 if (match.caducidad) this.caducidadInput = match.caducidad;
             }
         }
+        */
 
         // Uso del método orquestador
         const result = this.revisorService.executeProcess('SCAN', {
@@ -324,7 +334,7 @@ export class ReposicionComponent implements OnInit {
         const errors = this.revisorService.getValidationErrors();
 
         if (errors.length === 0) {
-            this.ejecutarEnvioFinal();
+            this.bultoModalVisible.set(true);
             return;
         }
 
@@ -377,10 +387,18 @@ export class ReposicionComponent implements OnInit {
         const aceptado = await this.openModal("📋 AUDITORÍA DE CIERRE", messageHtml, "⚠️", "confirm");
 
         if (aceptado) {
-            this.ejecutarEnvioFinal();
+            this.bultoModalVisible.set(true);
         } else {
             this.showToast("DESPACHO RETENIDO: Auditoría cancelada por el usuario.", true);
         }
+    }
+
+    /**
+     * V160.0: Procesa los tipos de bulto y ejecuta el envío final.
+     */
+    procesarBultos() {
+        this.bultoModalVisible.set(false);
+        this.ejecutarEnvioFinal();
     }
 
     /**
