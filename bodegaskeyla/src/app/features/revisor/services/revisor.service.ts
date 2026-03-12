@@ -156,7 +156,7 @@ export class RevisorService {
                                 nombre: d.nombreExistencia || 'SIN NOMBRE',
                                 unidad: d.tipoMedida || 'U/C',
                                 solicita: d.cantidad || 0,
-                                invBod: d.cantidadUnidadMedidaStockB || d.stock || d.existencia || 0, // v145.0: Principal stock mapping
+                                invBod: d.stock !== undefined && d.stock !== null ? d.stock : (d.cantidadUnidadMedidaStockB || d.existencia || 0), // v2.1: Prioridad al stock real del API
                                 despachado: 0,
                                 color: 'naranja',
                                 bulto: d.unidadesXCaja || 1,

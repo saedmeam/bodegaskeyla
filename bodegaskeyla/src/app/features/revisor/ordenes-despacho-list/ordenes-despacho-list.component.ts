@@ -3,10 +3,11 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RevisorService } from '../services/revisor.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { CajaService } from '../../../core/services/caja.service';
 import { Sucursal } from '../../../shared/models/auth.model';
 import { LoadingService } from '../../../core/services/loading.service';
+import { NotificationService } from '../../../core/services/notification.service';
 import { DispatchOrder } from '../../../shared/models/product.model';
 import { firstValueFrom } from 'rxjs';
 
@@ -18,10 +19,12 @@ import { firstValueFrom } from 'rxjs';
     styleUrl: './ordenes-despacho-list.component.css'
 })
 export class OrdenesDespachoListComponent implements OnInit {
-    private revisorService = inject(RevisorService);
-    private authService = inject(AuthService);
-    private router = inject(Router);
+    public revisorService = inject(RevisorService);
+    public authService = inject(AuthService); // v2.3: Inyección pública para acceso en template
+    private route = inject(ActivatedRoute);
     private loadingService = inject(LoadingService);
+    private notificationService = inject(NotificationService);
+    private router = inject(Router);
     private cajaService = inject(CajaService);
 
     // Filters
@@ -219,7 +222,39 @@ export class OrdenesDespachoListComponent implements OnInit {
         }
     }
 
-    cerrarPantalla() {
-        window.history.back();
+    logout() {
+        this.authService.logout();
+        this.router.navigate(['/login']);
+    }
+
+    /**
+     * v2.3: Formatea fecha string del API a dd/MM/yyyy de forma robusta
+     */
+    formatDate(dateStr: string): string {
+        if (!dateStr) return '---';
+        try {
+            // Si viene YYYY-MM-DD
+            if (dateStr.includes('-')) {
+                const parts = dateStr.split('T')[0].split('-');
+                if (parts.length === 3 && parts[0].length === 4) {
+                    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                }
+            }
+            // Si viene MM/DD/YYYY (como parece sugerir la captura)
+            if (dateStr.includes('/')) {
+                const parts = dateStr.split('/');
+                if (parts.length === 3) {
+                    // Asumimos MM/DD/YYYY -> DD/MM/YYYY
+                    if (Number(parts[0]) <= 12 && Number(parts[1]) > 12) {
+                        return `${parts[1]}/${parts[0]}/${parts[2]}`;
+                    }
+                    // Si ya es DD/MM/YYYY o ambiguo, lo dejamos igual pero aseguramos orden
+                    return `${parts[0].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[2]}`;
+                }
+            }
+            return dateStr;
+        } catch (e) {
+            return dateStr;
+        }
     }
 }

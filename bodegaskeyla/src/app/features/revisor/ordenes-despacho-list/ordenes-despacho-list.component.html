@@ -5,8 +5,8 @@
             <button class="btn-clean-all" (click)="purgarTodo()">
                 <span class="icon">🧹</span> Limpiar Todo
             </button>
-            <button class="btn-secondary" (click)="cerrarPantalla()">
-                <span class="icon">⬅️</span> Regresar
+            <button class="btn-logout-header" (click)="logout()">
+                <span class="icon">🚪</span> Cerrar Sesión
             </button>
         </div>
     </div>
@@ -114,7 +114,7 @@
                             </td>
                             <td class="user-cell" [title]="order.nombreUsuarioDespachador">{{
                                 order.nombreUsuarioDespachador }}</td>
-                            <td class="date-cell">{{ order.fechaEmision | date:'dd/MM/yyyy' }}</td>
+                            <td class="date-cell">{{ formatDate(order.fechaEmision) }}</td>
                             <td>
                                 <span class="status-badge" [class]="getStatusClass(order.codigoEstado)">
                                     {{ order.codigoEstado }}

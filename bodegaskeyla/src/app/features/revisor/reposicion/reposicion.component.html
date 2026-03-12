@@ -3,6 +3,9 @@
     <div class="h-indicator"></div>
     <span class="h-title">NEU360 - Pantalla de Revisor v2.0</span>
     <span class="h-subtitle">Reposicion de Mercaderia</span>
+    <button class="btn-logout-small" (click)="logout()">
+        <span class="icon">🚪</span> Salir
+    </button>
 </div>
 
 <div class="reposicion-container-v2">
@@ -45,9 +48,9 @@
                 <div class="scanner-input-container">
                     <input #scannerInput type="text" [(ngModel)]="barcodeInput" (keyup.enter)="simularEscaneo()"
                         class="scanner-input-v2 code-input" placeholder="Escanear ítem..." autocomplete="off">
-                    <input type="text" [(ngModel)]="loteInput" class="scanner-input-v2 lote-input-v2"
-                        placeholder="Lote">
-                    <input type="text" [value]="fecha" readonly class="scanner-input-v2 date-input-v2">
+                    <!-- v2.2: Campos ocultos por solicitud de usuario -->
+                    <input type="hidden" [(ngModel)]="loteInput">
+                    <input type="hidden" [value]="fecha">
                 </div>
             </div>
 
@@ -141,7 +144,7 @@
                 @if (showComparativo()) {
                 <div class="reference-grid-header">
                     <span>Producto</span>
-                    <span class="text-center">U</span>
+                    <span class="text-center">U/C</span>
                     <span class="text-right">SOL</span>
                 </div>
                 <div class="reference-grid-v2">
@@ -211,18 +214,18 @@
 <div class="modal-overlay" (click)="closeModal(false)">
     <div class="glass-modal animate-pop" [class.alert]="modalType() === 'alert'" (click)="$event.stopPropagation()">
         <div class="modal-header">
-            <button class="btn-close-modal" (click)="closeModal(false)">×</button>
             <span class="modal-icon">{{ modalIcon() }}</span>
             <h3>{{ modalTitle() }}</h3>
+            <button class="btn-close-modal" (click)="closeModal(false)">×</button>
         </div>
         <div class="modal-body" [innerHTML]="modalMessage()"></div>
         <div class="modal-footer">
-            <button class="btn-modal-cancel" (click)="closeModal(false)">Cerrar</button>
             @if (modalType() === 'confirm') {
-            <button class="btn-modal-action" [disabled]="modalActionDisabled()" (click)="closeModal(true)">
+            <button class="btn-modal-action" [disabled]="modalActionDisabled()" (click)="$event.stopPropagation(); closeModal(true)">
                 Aceptar
             </button>
             }
+            <button class="btn-modal-cancel" (click)="$event.stopPropagation(); closeModal(false)">Cerrar</button>
         </div>
     </div>
 </div>
@@ -232,9 +235,9 @@
 <div class="modal-overlay" (click)="bultoModalVisible.set(false)">
     <div class="glass-modal bulto-modal animate-pop" (click)="$event.stopPropagation()">
         <div class="modal-header">
-            <button class="btn-close-modal" (click)="bultoModalVisible.set(false)">×</button>
             <span class="modal-icon">📦</span>
             <h3>Tipos de Bulto</h3>
+            <button class="btn-close-modal" (click)="bultoModalVisible.set(false)">×</button>
         </div>
         <div class="modal-body">
             <div class="bulto-grid">

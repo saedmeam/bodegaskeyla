@@ -2,7 +2,8 @@ import { Component, signal, computed, inject, OnInit, ViewChild, ElementRef, eff
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RevisorService } from '../services/revisor.service';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
+import { AuthService } from '../../../core/services/auth.service';
 import { firstValueFrom } from 'rxjs';
 import { LoadingService } from '../../../core/services/loading.service';
 import { NotificationService } from '../../../core/services/notification.service';
@@ -16,9 +17,11 @@ import { NotificationService } from '../../../core/services/notification.service
 })
 export class ReposicionComponent implements OnInit {
     public revisorService = inject(RevisorService);
+    public authService = inject(AuthService); // v2.3: Inyección pública para acceso en template
     private route = inject(ActivatedRoute);
     private loadingService = inject(LoadingService);
     private notificationService = inject(NotificationService);
+    private router = inject(Router);
 
     @ViewChild('scannerInput') scannerInput!: ElementRef<HTMLInputElement>;
 
@@ -75,7 +78,7 @@ export class ReposicionComponent implements OnInit {
     // v100.0: Estadísticas basadas en lo verificado (escaneados)
     totalOrder = computed(() => this.ordenProductos().length);
     totalVerificados = computed(() => this.escaneados().length);
-    totalItems = computed(() => this.escaneados().length); // Mismo que verificados por solicitud usuario
+    totalItems = computed(() => this.totalOrder()); // v2.1: Refiere al total de la orden (ej. 5761) en lugar de escaneados
     totalCorrectos = computed(() => this.escaneados().filter(p => p.color === 'negro').length);
     totalIncompletos = computed(() => this.escaneados().filter(p => p.color === 'azul' || p.color === 'naranja').length);
 
@@ -310,9 +313,12 @@ export class ReposicionComponent implements OnInit {
      * Cierra la pantalla y regresa al menú anterior.
      */
     cerrarPantalla() {
-        // En una app Electron/Angular real se usaría el Router,
-        // pero history.back() es una solución estándar segura para navegación.
         window.history.back();
+    }
+
+    logout() {
+        this.authService.logout();
+        this.router.navigate(['/login']);
     }
 
     /**
@@ -343,23 +349,36 @@ export class ReposicionComponent implements OnInit {
         }
 
         // v100.0: Diseño de Auditoría en formato Tabla (Solicitud Usuario)
+        const generalErrors = errors.filter(e => e.type === 'TYPES');
+        const detailErrors = errors.filter(e => e.type !== 'TYPES');
+
         let messageHtml = `
             <div class="audit-modal-container">
                 <p class="audit-intro">
                     <span class="icon">⚠️</span>
                     Se han detectado las siguientes novedades en el despacho actual:
-                </p>
+                </p>`;
+
+        if (generalErrors.length > 0) {
+            messageHtml += `
+                <div class="audit-summary-observations" style="margin-bottom: 15px; padding: 12px; background: #eff6ff; border-radius: 8px; border: 1px solid #3182ce;">
+                    <strong style="color: #1e40af; display: block; margin-bottom: 8px; font-size: 0.85rem;">📌 OBSERVACIONES GENERALES:</strong>
+                    ${generalErrors.map(err => `<div style="font-weight: 800; color: #1e40af; font-size: 0.8rem;">📦 ${err.message} - ${err.detail}</div>`).join('')}
+                </div>`;
+        }
+
+        messageHtml += `
                 <div class="audit-table-wrapper">
-                    <table class="audit-table">
+                    <table class="audit-table" style="border-collapse: collapse; width: 100%; border: 2px solid black; background: white;">
                         <thead>
                             <tr>
-                                <th>Novedad</th>
-                                <th>Producto / Detalle</th>
+                                <th style="border: 1px solid black; background: white; padding: 8px; color: black;">Novedad</th>
+                                <th style="border: 1px solid black; background: white; padding: 8px; color: black;">Producto / Detalle</th>
                             </tr>
                         </thead>
                         <tbody>`;
 
-        errors.forEach(err => {
+        detailErrors.forEach(err => {
             const getIcon = () => {
                 if (err.type === 'TYPES') return '📦';
                 if (err.type === 'QTY') return '🔢';
@@ -369,10 +388,10 @@ export class ReposicionComponent implements OnInit {
 
             messageHtml += `
                 <tr class="audit-row type-${err.type.toLowerCase()}">
-                    <td class="audit-type">
-                        <span class="type-badge">${getIcon()} ${err.message}</span>
+                    <td class="audit-type" style="border: 1px solid black; padding: 8px; background: white;">
+                        <span class="type-badge" style="background: transparent; padding: 0;">${getIcon()} ${err.message}</span>
                     </td>
-                    <td class="audit-detail">
+                    <td class="audit-detail" style="border: 1px solid black; padding: 8px; background: white;">
                         ${err.detail}
                     </td>
                 </tr>`;
@@ -381,6 +400,11 @@ export class ReposicionComponent implements OnInit {
         messageHtml += `
                         </tbody>
                     </table>
+                </div>
+                <div class="audit-legend-footer">
+                    <div class="audit-legend-item"><span class="audit-dot" style="background:#3182ce;"></span> TIPOS</div>
+                    <div class="audit-legend-item"><span class="audit-dot" style="background:#d69e2e;"></span> CANTIDADES</div>
+                    <div class="audit-legend-item"><span class="audit-dot" style="background:#e53e3e;"></span> EXCEDENTES</div>
                 </div>
                 <div class="audit-footer-msg">
                     ¿Desea <b>ACEPTAR</b> y procesar el envío de todas formas o <b>CERRAR</b> para corregir?
@@ -419,7 +443,7 @@ export class ReposicionComponent implements OnInit {
                     // setTimeout(() => this.cerrarPantalla(), 2000);
                 } else {
                     // v104.5: Mostrar el mensaje de error directamente desde la respuesta (400/500)
-                    this.openModal("❌ ERROR EN PROCESO", `${res?.mensaje || 'Error desconocido'}`, "❌", "alert");
+                    this.openModal("ERROR EN PROCESO", `${res?.mensaje || 'Error desconocido'}`, "❌", "alert");
                 }
             },
             error: () => {

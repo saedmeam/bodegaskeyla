@@ -38,6 +38,32 @@
     font-size: 0.75rem;
     font-style: italic;
     margin-left: auto;
+    margin-right: 15px;
+}
+
+.btn-logout-small {
+    background: #e17055;
+    color: white;
+    border: none;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.2s;
+    text-transform: uppercase;
+}
+
+.btn-logout-small:hover {
+    background: #d63031;
+    transform: scale(1.05);
+}
+
+.btn-logout-small .icon {
+    font-size: 0.8rem;
 }
 
 .reposicion-container-v2 {
@@ -169,13 +195,13 @@
 /* Section: Barra de Escaneo */
 .section-escaneo {
     background: #35a0ab;
-    padding: 8px 15px;
-    border-radius: 8px;
+    padding: 6px 15px;
+    border-radius: 6px;
     display: flex;
     align-items: center;
     gap: 15px;
     color: white;
-    box-shadow: 0 4px 6px rgba(53, 160, 171, 0.2);
+    box-shadow: 0 2px 4px rgba(53, 160, 171, 0.2);
 }
 
 .scanner-prompt {
@@ -287,47 +313,23 @@
     /* Forzamos anchos fijos */
 }
 
-.col-code {
-    width: 85px;
-}
-
-.col-bulto {
-    width: 70px;
-}
-
-.col-name {
-    width: auto;
-}
-
-/* Crece lo necesario */
-.col-u {
-    width: 60px;
-}
-
-.col-stock {
-    width: 70px;
-}
-
-.col-qty {
-    width: 65px;
-}
-
-.col-status {
-    width: 110px;
-}
-
-.col-actions {
-    width: 50px;
-}
+.col-code { width: 75px; text-align: center; }
+.col-bulto { width: 55px; text-align: center; }
+.col-name { width: auto; }
+.col-u { width: 65px; text-align: center; }
+.col-stock { width: 75px; text-align: center; }
+.col-qty { width: 62px; text-align: center; }
+.col-status { width: 95px; text-align: center; }
+.col-actions { width: 35px; text-align: center; }
 
 .neu-table-v2 th {
     background: #f8fafc;
-    padding: 10px 15px;
-    font-size: 0.7rem;
+    padding: 6px 8px;
+    font-size: 0.65rem;
     font-weight: 800;
     color: #94a3b8;
     text-transform: uppercase;
-    text-align: left;
+    text-align: center;
     position: sticky;
     top: 0;
     z-index: 10;
@@ -335,17 +337,22 @@
 }
 
 .neu-table-v2 td {
-    padding: 8px 15px;
+    padding: 3px 6px;
     border-bottom: 1px solid #f8fafc;
-    font-size: 0.8rem;
+    font-size: 0.65rem;
     vertical-align: middle;
-    word-break: break-word;
-    /* Permitir que descripciones largas bajen */
+    word-break: break-all;
+    text-align: center;
+}
+
+.cell-name {
+    text-align: left !important;
 }
 
 .cell-code {
     font-weight: 800;
     color: #35a0ab;
+    white-space: nowrap;
 }
 
 .cell-name {
@@ -404,13 +411,18 @@
     background: #fff9c4;
     color: #856404;
     font-weight: 800;
-    padding: 2px 6px;
+    font-size: 0.65rem;
+    padding: 1px 4px;
     border-radius: 4px;
+    display: inline-block;
+    min-width: 25px;
 }
 
 .qty-bubble-pend {
     font-weight: 800;
     color: #e53e3e;
+    display: block;
+    text-align: center;
 }
 
 .qty-bubble-pend.pend-ok {
@@ -472,15 +484,14 @@
     padding: 12px 15px;
     /* Más padding interno */
     display: grid;
-    grid-template-columns: 1fr 60px 40px;
+    grid-template-columns: 1fr 70px 40px;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     position: relative;
     overflow: hidden;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     transition: background 0.2s ease;
-    min-height: 80px;
-    /* v160.0: Alto incrementado para visibilidad total */
+    min-height: 65px;
     cursor: pointer;
 }
 
@@ -540,17 +551,17 @@
 
 .c-title {
     display: block;
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     font-weight: 800;
     color: #1a202c;
-    line-height: 1.2;
-    margin-bottom: 3px;
+    line-height: 1.1;
+    margin-bottom: 2px;
     word-break: break-word;
 }
 
 .c-meta {
     display: block;
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     color: #4a5568;
     font-weight: 600;
     margin-bottom: 2px;
@@ -572,17 +583,15 @@
     /* Orange background as per capture */
     color: white;
     font-weight: 800;
-    min-width: 40px;
-    height: 40px;
-    border-radius: 8px;
+    min-width: 32px;
+    height: 32px;
+    border-radius: 6px;
     /* Slightly rounded as per capture */
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.9rem;
-    /* v100.0: Reduced from 1.1rem for large numbers */
-    padding: 2px 6px;
-    /* v100.0: Added padding */
+    font-size: 0.75rem;
+    padding: 2px 4px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
@@ -740,83 +749,89 @@
     background: #f8fafc;
 }
 
-.audit-table {
-    width: 100%;
-    border-collapse: collapse;
-    border: 2px solid #94a3b8;
-    /* v104.1: Stronger outer border */
+/* v160.2: Forzado de bordes negros para contenido dinámico (Audit Modal) */
+:host ::ng-deep .audit-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    border: 2px solid black !important;
+    margin-bottom: 15px !important;
 }
 
-.audit-table th {
-    background: #edf2f7;
-    color: #4a5568;
-    font-size: 0.75rem;
-    font-weight: 800;
-    padding: 10px 12px;
-    text-align: left;
-    text-transform: uppercase;
-    position: sticky;
-    top: 0;
-    border-bottom: 2px solid #94a3b8;
-    /* v104.2: Darker header line */
-    border-right: 2px solid #94a3b8;
+:host ::ng-deep .audit-table th,
+:host ::ng-deep .audit-table td {
+    border: 1px solid black !important;
+    padding: 6px 10px !important;
+    text-align: center !important;
+    font-size: 0.75rem !important;
+    color: #1e293b !important;
+    background: white !important; /* No shading inside */
 }
 
-.audit-row {
-    border-bottom: 2px solid #cbd5e1;
-    /* v104.2: Visible row line */
+:host ::ng-deep .audit-table th {
+    background: #f8fafc !important; /* Subtle header shading stays or goes? User said no shading. I'll make it white. */
+    background: white !important; 
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
 }
 
-.audit-row:last-child {
-    border-bottom: none;
+:host ::ng-deep .audit-type {
+    width: 140px !important;
 }
 
-.audit-type {
-    width: 180px;
-    padding: 12px;
-    vertical-align: top;
-    border-right: 2px solid #cbd5e1;
-    /* v104.1: Visible vertical line */
+:host ::ng-deep .audit-detail {
+    text-align: left !important;
+    line-height: 1.4 !important;
 }
 
-.type-badge {
-    font-size: 0.7rem;
-    font-weight: 800;
-    padding: 4px 8px;
-    border-radius: 4px;
-    text-transform: uppercase;
-    display: inline-block;
-    white-space: nowrap;
+:host ::ng-deep .type-badge {
+    font-weight: 800 !important;
+    font-size: 0.7rem !important;
+    background: transparent !important; /* No shading */
+    padding: 0 !important;
 }
 
-.type-surplus .type-badge {
-    background: #fee2e2;
-    color: #991b1b;
+:host ::ng-deep .type-surplus .type-badge {
+    color: #e53e3e !important;
 }
 
-.type-qty .type-badge {
-    background: #fff7ed;
-    color: #9a3412;
+:host ::ng-deep .type-qty .type-badge {
+    color: #d69e2e !important;
 }
 
-.type-types .type-badge {
-    background: #eff6ff;
-    color: #1e40af;
+:host ::ng-deep .type-types .type-badge {
+    color: #3182ce !important;
 }
 
-.type-bulto .type-badge {
-    background: #f3e8ff;
-    color: #6b21a8;
+:host ::ng-deep .type-bulto .type-badge {
+    color: #805ad5 !important;
 }
 
-.audit-detail {
-    padding: 10px 12px;
-    font-size: 0.8rem;
-    color: #1e293b;
-    line-height: 1.4;
-    border-right: 1px solid #cbd5e1;
-    /* Missing vertical line */
+/* v160.3: Legend for Audit Modal (Outside Table) */
+:host ::ng-deep .audit-legend-footer {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 15px;
+    padding: 10px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px dashed #cbd5e1;
 }
+
+:host ::ng-deep .audit-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.65rem;
+    font-weight: 700;
+}
+
+:host ::ng-deep .audit-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
 
 .audit-footer-msg {
     text-align: center;
@@ -886,18 +901,17 @@
 .btn-close-modal {
     background: transparent;
     border: none;
-    font-size: 1.8rem;
+    font-size: 1.5rem;
+    color: #94a3b8;
     cursor: pointer;
-    color: #b2bec3;
-    padding: 0 5px;
+    transition: all 0.2s;
     line-height: 1;
+    margin-left: auto; /* Push to the right */
+    order: 3; /* Ensure it's last in flex flow if needed */
     display: flex;
     align-items: center;
     border-radius: 6px;
-    transition: all 0.2s;
-    order: -1;
-    /* Move to left */
-    margin-right: 10px;
+    padding: 0 5px;
 }
 
 .btn-close-modal:hover {
@@ -927,8 +941,8 @@
 }
 
 .modal-footer {
-    padding: 15px 25px;
-    border-top: 1px solid #f1f2f6;
+    padding: 15px 20px;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
     display: flex;
     justify-content: flex-end;
     gap: 12px;
