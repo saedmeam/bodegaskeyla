@@ -81,6 +81,11 @@ export class RevisorService {
 
     private loadOrder(orderNumber: string) {
         this.currentOrderNumber = orderNumber;
+        // v130.2: Reset total del estado para evitar persistencia visual de la orden anterior
+        this.orderMetadata.set(null);
+        this.ordenProductos.set([]);
+        this.escaneados.set([]);
+        
         const storageKey = `REVISION_SESSION_${orderNumber}`;
 
         this.isLoading = true; // Bloqueamos autoguardado reactivo

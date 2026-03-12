@@ -175,8 +175,10 @@ export class OrdenesDespachoListComponent implements OnInit {
     }
 
     procesar(orden: DispatchOrder) {
+        // v131.0: Usar clave compuesta (Solicitud-Orden) para evitar ambigüedades en la carga
+        const compositeKey = `${orden.numeroSolicitud}-${orden.numeroOrdenDespacho}`;
         this.router.navigate(['/revisor'], {
-            queryParams: { order: orden.numeroOrdenDespacho }
+            queryParams: { order: compositeKey }
         });
     }
 

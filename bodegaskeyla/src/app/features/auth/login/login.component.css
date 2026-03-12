@@ -149,7 +149,7 @@
     border-radius: 24px;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
     border: 1px solid rgba(255, 255, 255, 0.3);
-    overflow: hidden;
+    overflow: visible; /* v131.2: Cambiado a visible para permitir que el dropdown flote fuera de la tarjeta compacta */
     margin-top: 5px;
 }
 
@@ -299,7 +299,7 @@
 
 .select-trigger {
     width: 100%;
-    height: 48px;
+    height: 44px; /* v131.4: Reducido de 48px */
     padding: 0 16px;
     background: white;
     border: 1px solid #e2e8f0;
@@ -353,14 +353,14 @@
 }
 
 .search-box {
-    padding: 12px;
+    padding: 8px; /* v131.4: Reducido de 12px */
     border-bottom: 1px solid #f1f5f9;
     background: #f8fafc;
 }
 
 .search-box input {
     width: 100%;
-    height: 40px;
+    height: 36px; /* v131.4: Reducido de 40px */
     padding: 0 12px;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
@@ -369,11 +369,9 @@
 }
 
 .options-list {
-    max-height: 250px;
-    /* Tamaño máximo solicitado */
+    max-height: 160px; /* v131.4: Ultra-compacto para exactamente 4 items con scroll */
     overflow-y: auto;
-    /* Scroll automático solicitado */
-    padding: 8px;
+    padding: 4px; /* v131.4: Reducido de 8px */
 }
 
 /* Estilo del scrollbar */
@@ -391,7 +389,7 @@
 }
 
 .option-item {
-    padding: 12px;
+    padding: 8px 12px; /* v131.4: Reducido de 12px */
     border-radius: 8px;
     display: flex;
     align-items: center;
@@ -422,7 +420,7 @@
 }
 
 .dropdown-footer {
-    padding: 10px 15px;
+    padding: 6px 15px; /* v131.4: Reducido de 10px */
     background: #f8fafc;
     border-top: 1px solid #f1f5f9;
     font-size: 11px;

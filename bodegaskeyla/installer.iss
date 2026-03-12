@@ -7,7 +7,7 @@
 #define AppPublisher "Farmacias Keyla - Neu360 solutions"
 #define AppURL "https://www.keyla.com.ec"
 #define AppExeName "BodegasKeyla.exe"
-#define AppId "{com.neu360.bodegaskeyla}"
+#define AppId "{{com.neu360.bodegaskeyla}"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application.
@@ -23,7 +23,7 @@ DisableProgramGroupPage=yes
 DefaultGroupName={#AppName}
 OutputDir=Output
 OutputBaseFilename=BodegasKeyla_Setup
-SetupIconFile=public\logo-keyla-icon.png
+SetupIconFile=public\logo-keyla.ico
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern

@@ -81,7 +81,7 @@ function createWindow() {
     win.loadFile(path.join(__dirname, 'dist/bodegaskeyla/browser/index.html'));
 
     // Abrir las herramientas de desarrollo automáticamente
-    win.webContents.openDevTools();
+    // win.webContents.openDevTools();
 
     win.setMenu(null);
     win.on('closed', () => {

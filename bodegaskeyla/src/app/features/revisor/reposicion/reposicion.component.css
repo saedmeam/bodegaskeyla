@@ -1049,24 +1049,24 @@
     text-overflow: ellipsis;
 }
 
-/* v160.0: Bulto Modal Styles */
+/* v160.1: Bulto Modal Styles - Más compactos */
 .bulto-modal {
-    max-width: 450px !important;
+    max-width: 500px !important; /* Un poco más ancho para el grid */
 }
 
 .bulto-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
     padding: 10px 0;
 }
 
 .bulto-row {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 12px;
-    border-radius: 12px;
+    flex-direction: column; /* Label arriba, input abajo para ahorrar espacio lateral */
+    gap: 4px;
+    padding: 6px 10px;
+    border-radius: 8px;
     background: #f8fafc;
     border: 1px solid #edf2f7;
     transition: all 0.2s ease;
@@ -1074,28 +1074,30 @@
 
 .bulto-row:hover {
     background: #f1f5f9;
-    border-color: #e2e8f0;
 }
 
 .bulto-label {
-    font-size: 0.95rem;
+    font-size: 0.85rem;
     font-weight: 600;
     color: #475569;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .bulto-input-control {
-    width: 100px;
+    width: 100%;
 }
 
 .bulto-input {
     width: 100%;
     text-align: center;
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 700;
     color: #008080;
     border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    height: 40px;
+    border-radius: 6px;
+    height: 32px; /* Más compacto */
 }
 
 .modal-footer.central {

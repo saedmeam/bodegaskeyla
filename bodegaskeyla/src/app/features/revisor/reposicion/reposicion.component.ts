@@ -33,10 +33,14 @@ export class ReposicionComponent implements OnInit {
     loteInput = "";
     caducidadInput = "";
     public get orderNumber() {
-        // v130.0: Blindaje total para asegurar concatenación (Solicitud-Orden)
+        // v130.1: Priorizar 'numero' (URL) para evitar desfase visual con metadata lenta
         const meta = this.revisorService.orderMetadata();
+        if (meta && this.numero && this.numero.includes('-')) {
+            // Si hay meta y numero, verificamos consistencia básica
+            return this.numero; 
+        }
         if (meta) {
-            const sol = meta.numeroSolicitud || this.numero || '---';
+            const sol = meta.numeroSolicitud || '---';
             const ord = meta.numeroOrdenDespacho || 1;
             return `${sol}-${ord}`;
         }
