@@ -313,12 +313,12 @@
     /* Forzamos anchos fijos */
 }
 
-.col-code { width: 75px; text-align: center; }
-.col-bulto { width: 55px; text-align: center; }
+.col-code { width: 120px; text-align: center; }
+.col-bulto { width: 75px; text-align: center; }
 .col-name { width: auto; }
 .col-u { width: 65px; text-align: center; }
-.col-stock { width: 75px; text-align: center; }
-.col-qty { width: 62px; text-align: center; }
+.col-stock { width: 70px; text-align: center; }
+.col-qty { width: 60px; text-align: center; }
 .col-status { width: 95px; text-align: center; }
 .col-actions { width: 35px; text-align: center; }
 
@@ -347,12 +347,14 @@
 
 .cell-name {
     text-align: left !important;
+    padding-left: 12px !important;
 }
 
 .cell-code {
     font-weight: 800;
     color: #35a0ab;
     white-space: nowrap;
+    font-size: 0.6rem; /* v2.5: Slightly smaller for long barcodes */
 }
 
 .cell-name {
@@ -360,22 +362,21 @@
     color: #475569;
 }
 
-/* Status Colors */
-.tr-status-negro {
-    background: white;
+/* Status Colors (Rows in Despachados) */
+.tr-status-negro { /* COMPLETO = GREEN */
+    background: #bbf7d0 !important;
 }
 
-.tr-status-naranja {
-    /* v120.0: Sin color de fondo para que se vea blanco si no se ha tocado */
-    background: white !important;
+.tr-status-naranja { /* PENDIENTE = YELLOW */
+    background: #fde047 !important;
 }
 
-.tr-status-azul {
-    background: #f0f7ff;
+.tr-status-azul { /* EN PROCESO = BLUE */
+    background: #bfdbfe !important;
 }
 
-.tr-status-verde {
-    background: #f0fff4;
+.tr-status-verde { /* EXCEDIDO = RED */
+    background: #fca5a5 !important;
 }
 
 .status-marker {
@@ -386,25 +387,25 @@
     text-transform: uppercase;
 }
 
-.status-marker.negro {
-    background: #e2e8f0;
-    color: #475569;
+.status-marker.negro { /* COMPLETO */
+    background: #22c55e;
+    color: white;
 }
 
-.status-marker.naranja {
-    background: transparent;
-    color: #856404;
-    border: 1px solid #ffeeba;
+.status-marker.naranja { /* PENDIENTE */
+    background: #eab308;
+    color: white;
+    border: none;
 }
 
-.status-marker.azul {
-    background: #dbeafe;
-    color: #1e40af;
+.status-marker.azul { /* EN PROCESO */
+    background: #3b82f6;
+    color: white;
 }
 
-.status-marker.verde {
-    background: #dcfce7;
-    color: #166534;
+.status-marker.verde { /* EXCEDIDO */
+    background: #ef4444;
+    color: white;
 }
 
 .qty-bubble-sol {
@@ -500,21 +501,22 @@
     border-color: #cbd5e0;
 }
 
-.comparativo-item.status-neutral {
-    background: white !important;
-    border-color: #e2e8f0;
+/* Backgrounds for Comparativo items */
+.comparativo-item.c-bg-negro { /* COMPLETO */
+    background: #bbf7d0 !important;
+    border-color: #4ade80;
 }
-
-.comparativo-item.bg-completo {
-    background: #f0fff4 !important;
-    /* Verde muy suave (Watermark) */
-    border-color: #c6f6d5;
+.comparativo-item.c-bg-naranja { /* PENDIENTE */
+    background: #fde047 !important;
+    border-color: #facc15;
 }
-
-.comparativo-item.bg-excedido {
-    background: #fff5f5 !important;
-    /* Rojo muy suave (Watermark) */
-    border-color: #fed7d7;
+.comparativo-item.c-bg-azul { /* EN PROCESO */
+    background: #bfdbfe !important;
+    border-color: #60a5fa;
+}
+.comparativo-item.c-bg-verde { /* EXCEDIDO */
+    background: #fca5a5 !important;
+    border-color: #f87171;
 }
 
 .c-indicator {
@@ -525,21 +527,20 @@
     width: 4px;
 }
 
-.comparativo-item.negro .c-indicator {
-    background: #cbd5e0;
+.c-indicator.negro {
+    background: #16a34a !important;
 }
 
-.comparativo-item.naranja .c-indicator {
-    background: #f6ad55;
-    /* Orange indicator for pending */
+.c-indicator.naranja {
+    background: #ca8a04 !important;
 }
 
-.comparativo-item.azul .c-indicator {
-    background: #4299e1;
+.c-indicator.azul {
+    background: #2563eb !important;
 }
 
-.comparativo-item.verde .c-indicator {
-    background: #48bb78;
+.c-indicator.verde {
+    background: #dc2626 !important;
 }
 
 .c-info {
@@ -637,19 +638,19 @@
 }
 
 .marker.negro {
-    background: #cbd5e0;
+    background: #22c55e;
 }
 
 .marker.naranja {
-    background: #f6ad55;
+    background: #eab308;
 }
 
 .marker.azul {
-    background: #4299e1;
+    background: #3b82f6;
 }
 
 .marker.verde {
-    background: #48bb78;
+    background: #ef4444;
 }
 
 .lbl {
@@ -798,39 +799,11 @@
     color: #d69e2e !important;
 }
 
-:host ::ng-deep .type-types .type-badge {
-    color: #3182ce !important;
-}
-
 :host ::ng-deep .type-bulto .type-badge {
     color: #805ad5 !important;
 }
 
-/* v160.3: Legend for Audit Modal (Outside Table) */
-:host ::ng-deep .audit-legend-footer {
-    display: flex;
-    justify-content: center;
-    gap: 15px;
-    margin-top: 15px;
-    padding: 10px;
-    background: #f8fafc;
-    border-radius: 8px;
-    border: 1px dashed #cbd5e1;
-}
-
-:host ::ng-deep .audit-legend-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.65rem;
-    font-weight: 700;
-}
-
-:host ::ng-deep .audit-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-}
+/* Legend Removed - Moved to Summary */
 
 
 .audit-footer-msg {

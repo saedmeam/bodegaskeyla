@@ -1,4 +1,4 @@
-import { Component, signal, computed, inject, OnInit, ViewChild, ElementRef, effect } from '@angular/core';
+import { Component, signal, computed, inject, OnInit, AfterViewInit, ViewChild, ElementRef, effect, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RevisorService } from '../services/revisor.service';
@@ -7,6 +7,9 @@ import { AuthService } from '../../../core/services/auth.service';
 import { firstValueFrom } from 'rxjs';
 import { LoadingService } from '../../../core/services/loading.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { PrinterService } from '../../../core/services/printer.service';
+import { BultoType } from '../../../shared/models/product.model';
+import { DataService } from '../../../core/services/data.service';
 
 @Component({
     selector: 'app-reposicion',
@@ -15,15 +18,19 @@ import { NotificationService } from '../../../core/services/notification.service
     templateUrl: './reposicion.component.html',
     styleUrl: './reposicion.component.css'
 })
-export class ReposicionComponent implements OnInit {
+export class ReposicionComponent implements OnInit, AfterViewInit {
     public revisorService = inject(RevisorService);
     public authService = inject(AuthService); // v2.3: Inyección pública para acceso en template
     private route = inject(ActivatedRoute);
     private loadingService = inject(LoadingService);
     private notificationService = inject(NotificationService);
     private router = inject(Router);
+    private printerService = inject(PrinterService);
+    private dataService = inject(DataService);
 
     @ViewChild('scannerInput') scannerInput!: ElementRef<HTMLInputElement>;
+    @ViewChild('modalActionBtn') modalActionBtn!: ElementRef<HTMLButtonElement>;
+    @ViewChild('bultoActionBtn') bultoActionBtn!: ElementRef<HTMLButtonElement>;
 
     // Estados de UI
     numero = "";
@@ -40,7 +47,7 @@ export class ReposicionComponent implements OnInit {
         const meta = this.revisorService.orderMetadata();
         if (meta && this.numero && this.numero.includes('-')) {
             // Si hay meta y numero, verificamos consistencia básica
-            return this.numero; 
+            return this.numero;
         }
         if (meta) {
             const sol = meta.numeroSolicitud || '---';
@@ -60,16 +67,9 @@ export class ReposicionComponent implements OnInit {
     modalActionDisabled = signal(false);
     private modalResolve?: (value: boolean) => void;
 
-    // Estados de Modal Bultos (v160.0)
+    // Estados de Modal Bultos (v107.2: Dinámico por API)
     bultoModalVisible = signal(false);
-    bultoTypes = signal([
-        { label: 'Cajas', value: 0 },
-        { label: 'Gavetas', value: 0 },
-        { label: 'Pañales', value: 0 },
-        { label: 'Frío', value: 0 },
-        { label: 'Psicotrópicos', value: 0 },
-        { label: 'Impresión de etiquetas', value: 0 }
-    ]);
+    bultoTypes = signal<BultoType[]>([]);
 
     // Proyecciones del servicio orquestador
     ordenProductos = this.revisorService.ordenProductos;
@@ -99,6 +99,32 @@ export class ReposicionComponent implements OnInit {
                 this.concepto = "";
             }
         });
+
+        // v2.8: Efectos de foco automático para modales
+        effect(() => {
+            if (this.modalVisible()) {
+                setTimeout(() => this.modalActionBtn?.nativeElement?.focus(), 150);
+            }
+        });
+
+        effect(() => {
+            if (this.bultoModalVisible()) {
+                setTimeout(() => this.bultoActionBtn?.nativeElement?.focus(), 150);
+            }
+        });
+    }
+
+    @HostListener('window:keydown', ['$event'])
+    handleKeyboardShortcuts(event: KeyboardEvent) {
+        if (this.modalVisible() || this.bultoModalVisible()) return; // Don't trigger if a modal is open
+
+        if (event.key === 'F5') {
+            event.preventDefault();
+            this.finalizar(); // Same as "Agregar" button according to request
+        } else if (event.key === 'Escape') {
+            event.preventDefault();
+            this.cerrarPantalla(); // Return to previous screen
+        }
     }
 
     ngOnInit() {
@@ -109,6 +135,30 @@ export class ReposicionComponent implements OnInit {
                 this.consultarOrden();
             }
         });
+
+        // v107.0: Cargar tipos de bultos dinámicos
+        this.cargarTiposBultos();
+    }
+
+    async cargarTiposBultos() {
+        try {
+            const res = await firstValueFrom(this.revisorService.getTiposBultos());
+            if (!res?.isError) {
+                const list = res?.tiposBultos || [];
+                this.bultoTypes.set(list.map((t: any) => ({
+                    codigoTipoBulto: t.codigoTipoBulto,
+                    nombreTipoBulto: t.nombreTipoBulto || t.descripcion || 'Bulto',
+                    cantidad: 0 // Empezamos en cero
+                })));
+            }
+        } catch (e) {
+            console.error('Error cargando tipos de bultos', e);
+        }
+    }
+
+    ngAfterViewInit() {
+        // Enfoque inmediato al abrir la pantalla
+        this.focusScanner();
     }
 
     async consultarOrden() {
@@ -119,6 +169,7 @@ export class ReposicionComponent implements OnInit {
 
         try {
             this.revisorService.executeProcess('LOAD', { orderNumber: this.numero });
+            setTimeout(() => this.focusScanner(), 500); // Aseguramos el enfoque después de cargar
         } catch (e) {
             this.showToast("Error al iniciar la carga de la orden", true);
         }
@@ -130,23 +181,51 @@ export class ReposicionComponent implements OnInit {
     }
 
 
-    simularEscaneo() {
-        if (!this.barcodeInput) return;
+    simularEscaneo(): boolean {
+        if (!this.barcodeInput) {
+            this.focusScanner();
+            return false;
+        }
 
         // REGLA DE NEGOCIO: No permitir pistoleo si no hay orden cargada
         if (this.ordenProductos().length === 0) {
             this.showToast("ERROR: Debe cargar una orden antes de pistolear.", true);
             this.barcodeInput = "";
-            return;
+            return false;
+        }
+
+        // --- NUEVA VALIDACIÓN GLOBAL: Bloqueo si hay errores previos en la lista ---
+        const errorNoExiste = this.escaneados().find(e => !this.getOriginalRequested(e.item));
+        if (errorNoExiste) {
+            this.openModal("PRODUCTO NO PERTENECE", `El producto <b>${errorNoExiste.nombre || errorNoExiste.item}</b> no existe en la orden original. Por favor, elimínelo antes de continuar pistoleando.`, "❌", "alert");
+            this.barcodeInput = "";
+            return false;
+        }
+
+        const errorGlobal = this.escaneados().find(e => {
+            const req = this.getOriginalRequested(e.item);
+            if (!req) return false;
+            return Number(e.despachado) > Number(req.solicita) || Number(e.despachado) > Number(req.invBod || 0);
+        });
+
+        if (errorGlobal) {
+            const req = this.getOriginalRequested(errorGlobal.item);
+            if (Number(errorGlobal.despachado) > Number(req?.invBod || 0)) {
+                this.openModal("ALERTA DE STOCK", `Tienes el producto <b>${errorGlobal.nombre}</b> con cantidad mayor a tu stock actual físico (${req?.invBod || 0}). Por favor, corrige la cantidad antes de continuar pistoleando.`, "⚠️", "alert");
+            } else {
+                this.openModal("PRODUCTO EXCEDIDO", `Tienes el producto <b>${errorGlobal.nombre}</b> excedido (Sol: ${req?.solicita}). Por favor eliminar o corrige antes de continuar.`, "🚨", "alert");
+            }
+            this.barcodeInput = "";
+            return false;
         }
 
         // 1. Prioridad: Coincidencia exacta por código de ítem (Restricción v57.0)
         let matches = this.ordenProductos().filter(p => p.item === this.barcodeInput);
 
         if (matches.length === 0) {
-            this.showToast(`ERROR: [${this.barcodeInput}] no existe en esta orden.`, true);
+            this.openModal("ERROR", `ERROR el código : [${this.barcodeInput}] no existe en esta orden.`, "❌", "alert");
             this.barcodeInput = "";
-            return;
+            return false;
         }
 
         /* v160.0: Bloque de validación por Lote y Caducidad comentado por solicitud de usuario
@@ -172,6 +251,7 @@ export class ReposicionComponent implements OnInit {
         */
 
         // Uso del método orquestador
+        const barcodeAttempt = this.barcodeInput; // Safeguard the input for the message
         const result = this.revisorService.executeProcess('SCAN', {
             barcode: this.barcodeInput,
             lote: this.loteInput,
@@ -179,19 +259,34 @@ export class ReposicionComponent implements OnInit {
         }) as any;
 
         if (!result) {
-            this.showToast(`ERROR: [${this.barcodeInput}] No pertenece a esta orden o el lote no coincide.`, true);
+            this.openModal("ERROR", `ERROR: [${barcodeAttempt}] no existe en esta orden o el lote no coincide.`, "❌", "alert");
+            this.barcodeInput = "";
+            return false;
         } else {
-            if (result.isAccumulated) {
-                this.showToast(`OK: [${result.product.item}] Ya existe, se sumó a lo despachado.`, false, "REGISTRO EXISTENTE");
-            } else {
-                this.showToast(`OK: [${result.product.item}] Registrado con éxito.`, false, "REGISTRO EXITOSO");
+            // Evaluamos si el escaneo acaba de generar un excedente para notificar inmediatamente
+            const req = this.getOriginalRequested(result.product.item);
+            const scannedItem = this.getScannedProduct(result.product.item);
+
+            if (req && scannedItem) {
+                if (Number(scannedItem.despachado) > Number(req.invBod || 0)) {
+                    this.openModal("STOCK INSUFICIENTE", `No puedes despachar más de lo que tienes en stock en bodega. Stock actual: <b>${req.invBod}</b>`, "⚠️", "alert");
+                } else if (Number(scannedItem.despachado) > Number(req.solicita)) {
+                    this.openModal("PRODUCTO EXCEDIDO", `Tienes el producto <b>${result.product.nombre}</b> excedido, por favor eliminar o corrige antes de continuar.`, "🚨", "alert");
+                } else {
+                    if (result.isAccumulated) {
+                        this.showToast(`OK: [${result.product.item}] Ya existe, se sumó a lo despachado.`, false, "REGISTRO EXISTENTE");
+                    } else {
+                        this.showToast(`OK: [${result.product.item}] Registrado con éxito.`, false, "REGISTRO EXITOSO");
+                    }
+                }
             }
+
             // Limpiamos lote y caducidad después de un registro exitoso si no queremos que persistan
             this.loteInput = "";
             this.caducidadInput = "";
+            this.barcodeInput = "";
+            return true;
         }
-
-        this.barcodeInput = "";
     }
 
     onProductDblClick(prod: any) {
@@ -204,8 +299,11 @@ export class ReposicionComponent implements OnInit {
         if (prod.lote) this.loteInput = prod.lote;
         if (prod.caducidad) this.caducidadInput = prod.caducidad;
 
-        this.simularEscaneo();
-        this.showToast(`CARGA MANUAL: [${prod.item}] cargado vía comparativo.`, false, "REGISTRO MANUAL");
+        const wasAdded = this.simularEscaneo();
+        if (wasAdded) {
+            // Only show manual scan toast if it passed the filters inside simularEscaneo
+            this.showToast(`CARGA MANUAL: [${prod.item}] cargado vía comparativo.`, false, "REGISTRO MANUAL");
+        }
     }
 
     private showToast(message: string, isError: boolean = false, title?: string) {
@@ -238,10 +336,8 @@ export class ReposicionComponent implements OnInit {
 
     closeModal(result: boolean) {
         this.modalVisible.set(false);
-        if (this.modalResolve) {
-            this.modalResolve(result);
-        }
-        this.focusScanner();
+        this.modalResolve?.(result);
+        setTimeout(() => this.focusScanner(), 200); // v2.8: Siempre volver al scanner tras modal
     }
 
     async eliminarItem(item: string) {
@@ -254,8 +350,19 @@ export class ReposicionComponent implements OnInit {
         }
     }
 
-    updateQty(item: string, qty: number) {
-        this.revisorService.executeProcess('UPDATE_QTY', { item, qty });
+    updateQty(itemCode: string, qty: number) {
+        // Ejecutamos cálculo del estado independientemente de que se pase
+        this.revisorService.executeProcess('UPDATE_QTY', { item: itemCode, qty: Number(qty) });
+
+        // Y lanzamos las modales si hay problemas, pero el registro ya se dio y calculó.
+        const targetItem = this.getOriginalRequested(itemCode);
+        if (targetItem) {
+            if (Number(qty) > Number(targetItem.invBod || 0)) {
+                this.openModal("STOCK INSUFICIENTE", `No puedes despachar más de lo que tienes en stock en bodega. Stock actual: <b>${targetItem.invBod || 0}</b>`, "⚠️", "alert");
+            } else if (Number(qty) > Number(targetItem.solicita)) {
+                this.openModal("PRODUCTO EXCEDIDO", `Tienes el producto <b>${targetItem.nombre}</b> excedido (Sol: ${targetItem.solicita}). Por favor eliminar o corrige antes de continuar.`, "🚨", "alert");
+            }
+        }
     }
 
     toggleComparativo() {
@@ -349,8 +456,9 @@ export class ReposicionComponent implements OnInit {
         }
 
         // v100.0: Diseño de Auditoría en formato Tabla (Solicitud Usuario)
-        const generalErrors = errors.filter(e => e.type === 'TYPES');
-        const detailErrors = errors.filter(e => e.type !== 'TYPES');
+        // v100.0: Diseño de Auditoría en formato Tabla (Solicitud Usuario)
+        const generalErrors = errors.filter(e => e.type === 'TYPES' || e.type === 'BULTO');
+        const detailErrors = errors.filter(e => e.type !== 'TYPES' && e.type !== 'BULTO');
 
         let messageHtml = `
             <div class="audit-modal-container">
@@ -361,52 +469,71 @@ export class ReposicionComponent implements OnInit {
 
         if (generalErrors.length > 0) {
             messageHtml += `
-                <div class="audit-summary-observations" style="margin-bottom: 15px; padding: 12px; background: #eff6ff; border-radius: 8px; border: 1px solid #3182ce;">
-                    <strong style="color: #1e40af; display: block; margin-bottom: 8px; font-size: 0.85rem;">📌 OBSERVACIONES GENERALES:</strong>
-                    ${generalErrors.map(err => `<div style="font-weight: 800; color: #1e40af; font-size: 0.8rem;">📦 ${err.message} - ${err.detail}</div>`).join('')}
+                <div class="audit-summary-observations" style="margin-bottom: 20px; padding: 15px; background: #fff7ed; border-radius: 10px; border: 2px solid #ed8936;">
+                    <strong style="color: #9c4221; display: block; margin-bottom: 8px; font-size: 0.9rem;">📌 OBSERVACIONES GENERALES:</strong>
+                    ${generalErrors.map(err => `
+                        <div style="font-weight: 800; color: #7b341e; font-size: 0.85rem; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
+                            <span>${err.type === 'TYPES' ? '📦' : '🏗️'}</span>
+                            <span>${err.message} - ${err.detail}</span>
+                        </div>
+                    `).join('')}
                 </div>`;
         }
 
         messageHtml += `
-                <div class="audit-table-wrapper">
-                    <table class="audit-table" style="border-collapse: collapse; width: 100%; border: 2px solid black; background: white;">
+                <div class="audit-table-label" style="font-weight: 700; font-size: 0.85rem; color: #4a5568; margin-bottom: 8px; text-transform: uppercase;">
+                    Detalle de Productos:
+                </div>
+                <div class="audit-table-wrapper" style="border: 2px solid black; border-radius: 4px; overflow: hidden;">
+                    <table class="audit-table" style="border-collapse: collapse; width: 100%; background: white;">
                         <thead>
-                            <tr>
-                                <th style="border: 1px solid black; background: white; padding: 8px; color: black;">Novedad</th>
-                                <th style="border: 1px solid black; background: white; padding: 8px; color: black;">Producto / Detalle</th>
+                            <tr style="background: #f1f2f6;">
+                                <th style="border: 1px solid black; padding: 10px; color: black; font-weight: 800; text-transform: uppercase; font-size: 0.75rem;">Novedad</th>
+                                <th style="border: 1px solid black; padding: 10px; color: black; font-weight: 800; text-transform: uppercase; font-size: 0.75rem;">Producto / Detalle</th>
                             </tr>
                         </thead>
                         <tbody>`;
 
         detailErrors.forEach(err => {
             const getIcon = () => {
-                if (err.type === 'TYPES') return '📦';
                 if (err.type === 'QTY') return '🔢';
                 if (err.type === 'SURPLUS') return '🚨';
                 return '🏷️';
             };
 
+            const getColor = () => {
+                if (err.type === 'SURPLUS') return '#e53e3e';
+                if (err.type === 'QTY') return '#d69e2e';
+                return '#4a5568';
+            };
+
             messageHtml += `
-                <tr class="audit-row type-${err.type.toLowerCase()}">
-                    <td class="audit-type" style="border: 1px solid black; padding: 8px; background: white;">
-                        <span class="type-badge" style="background: transparent; padding: 0;">${getIcon()} ${err.message}</span>
+                <tr class="audit-row">
+                    <td class="audit-type" style="border: 1px solid black; padding: 10px; background: white; width: 150px; text-align: center;">
+                        <span class="type-badge" style="background: transparent; padding: 0; font-weight: 800; color: ${getColor()}; font-size: 0.75rem;">
+                            ${getIcon()} ${err.message}
+                        </span>
                     </td>
-                    <td class="audit-detail" style="border: 1px solid black; padding: 8px; background: white;">
+                    <td class="audit-detail" style="border: 1px solid black; padding: 10px; background: white; color: #1a202c; font-size: 0.8rem; line-height: 1.4;">
                         ${err.detail}
                     </td>
                 </tr>`;
         });
 
+        if (detailErrors.length === 0) {
+            messageHtml += `
+                <tr>
+                    <td colspan="2" style="padding: 20px; text-align: center; color: #718096; font-style: italic;">
+                        Sin discrepancias individuales en productos.
+                    </td>
+                </tr>`;
+        }
+
         messageHtml += `
                         </tbody>
                     </table>
                 </div>
-                <div class="audit-legend-footer">
-                    <div class="audit-legend-item"><span class="audit-dot" style="background:#3182ce;"></span> TIPOS</div>
-                    <div class="audit-legend-item"><span class="audit-dot" style="background:#d69e2e;"></span> CANTIDADES</div>
-                    <div class="audit-legend-item"><span class="audit-dot" style="background:#e53e3e;"></span> EXCEDENTES</div>
-                </div>
-                <div class="audit-footer-msg">
+                <div class="audit-footer-msg" style="margin-top: 20px; text-align: center; font-size: 0.9rem; color: #2d3748; padding: 10px; border-top: 1px dashed #cbd5e1;">
                     ¿Desea <b>ACEPTAR</b> y procesar el envío de todas formas o <b>CERRAR</b> para corregir?
                 </div>
             </div>`;
@@ -421,26 +548,73 @@ export class ReposicionComponent implements OnInit {
         }
     }
 
-    /**
-     * V160.0: Procesa los tipos de bulto y ejecuta el envío final.
-     */
     procesarBultos() {
+        // v107.5: Validación y Extracción de bultos registrados
+        const bultosParaEnviar = this.bultoTypes().filter(b => (b.cantidad || 0) > 0);
+        
+        if (bultosParaEnviar.length === 0) {
+            this.showToast("DEBE REGISTRAR AL MENOS UN BULTO: Verifique las cantidades antes de continuar.", true, "VALIDACIÓN DE BULTOS");
+            return;
+        }
+
         this.bultoModalVisible.set(false);
-        this.ejecutarEnvioFinal();
+        this.ejecutarEnvioFinal(bultosParaEnviar);
+
+        // 1. v115.0: Impresión de etiquetas mediante Puente Java (Texto Plano)
+        if (bultosParaEnviar.length > 0) {
+            console.log('[ReposicionComponent] Generando etiquetas TXT para puente Java:', bultosParaEnviar);
+            const metadata = this.revisorService.orderMetadata();
+            const user = this.authService.getStoredUser();
+
+            const extraData = {
+                sucursal: metadata?.sucursalDestino || '---',
+                digitador: user?.username || 'SISTEMA',
+                fecha: new Date().toLocaleDateString('es-EC')
+            };
+
+            const bultosLabels = bultosParaEnviar.map(b => ({ label: b.nombreTipoBulto, value: b.cantidad }));
+            const labelsTxt = this.printerService.generateLabelsText(this.orderNumber, bultosLabels, extraData);
+            
+            // Impresión asíncrona pero sin bloquear el flujo principal
+            this.printerService.printLabelsText(labelsTxt).catch(err => {
+                this.showToast("Error al imprimir etiquetas físicas. Verifique impresora y Java.", true);
+            });
+        }
+
+        // 2. v2.7: Reporte de Transferencia de Mercadería (Formato A4 - Se mantiene HTML)
+        const productsVerificados = this.escaneados().filter(p => p.despachado > 0);
+        if (productsVerificados.length > 0) {
+            console.log('[ReposicionComponent] Generando reporte de transferencia A4...');
+            const metadata = this.revisorService.orderMetadata();
+            const user = this.authService.getStoredUser();
+
+            const extraReport = {
+                sucursal: metadata?.sucursalDestino || '---',
+                usuario: user?.username || 'SISTEMA',
+                digitador: user?.username || 'SISTEMA',
+                fecha: new Date().toLocaleDateString('es-EC')
+            };
+
+            const reportHtml = this.printerService.generateTransferReportHtml(this.orderNumber, productsVerificados, extraReport);
+            this.printerService.printLabels(reportHtml, undefined, { pageSize: 'A4' }, true);
+            
+            this.showToast("Etiquetas enviadas al motor Java y Reporte abierto.", false, "IMPRESIÓN");
+        }
+        
+        setTimeout(() => this.focusScanner(), 300); // v2.8: Volver al scanner tras procesar bultos
     }
 
     /**
      * Ejecuta el cierre definitivo y envío de datos (AGREGAR).
      */
-    private ejecutarEnvioFinal() {
+    private ejecutarEnvioFinal(bultos?: any[]) {
         this.loadingService.show();
-        (this.revisorService.finalizeProcess() as any)?.subscribe({
+        (this.revisorService.finalizeProcess(bultos) as any)?.subscribe({
             next: (res: any) => {
                 this.loadingService.hide();
-                if (res?.mensaje === 'OK') {
+                if (res?.mensaje === 'OK' || res?.codigo === '000') {
                     this.showToast("¡ORDEN CREADA! El registro se ha realizado con éxito.", false, "ÉXITO");
-                    // v104.5: Se comentada el auto-cierre para que el usuario pueda validar el éxito
-                    // setTimeout(() => this.cerrarPantalla(), 2000);
+                    // v118.0: Se descarta impresión de tirilla por solicitud de usuario (Solo etiquetas)
                 } else {
                     // v104.5: Mostrar el mensaje de error directamente desde la respuesta (400/500)
                     this.openModal("ERROR EN PROCESO", `${res?.mensaje || 'Error desconocido'}`, "❌", "alert");

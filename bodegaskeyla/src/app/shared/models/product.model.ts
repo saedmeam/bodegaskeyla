@@ -18,6 +18,17 @@ export interface Product {
     tipoMedida?: string;
     tipoPresentacion?: string;
     unidadesXCaja?: number;
+    codigoExistencia?: string;
+    codigoBarras?: string;
+    // v146.0: Fields for actualizarDetallesOrdenDespacho
+    cantidadCajas?: number;
+    cantidadUnidades?: number;
+    grupoUnidadMedidaStockBase?: number;
+    unidadMedidaStockBase?: number;
+    cantidadUnidadMedidaStockB?: number;
+    cantidadBaseEquivalente?: number;
+    observacion?: string;
+    esActivo?: string;
 }
 
 export interface DispatchOrder {
@@ -40,4 +51,17 @@ export interface DispatchOrder {
     nombreSucursalDestino?: string;
     descripcionUbicacion?: string;
     nombreUsuarioDespachador?: string;
+    // v2.9: UI specific fields
+    solicitudOrden?: string;
+    grupoDespacho?: string;
+    // v106.0: New technical fields for Keyla API
+    codigoGrupoDespacho?: number;
+    usuarioIngreso?: string;
+}
+
+export interface BultoType {
+    codigoTipoBulto: number;
+    nombreTipoBulto: string;
+    // UI field
+    cantidad?: number;
 }

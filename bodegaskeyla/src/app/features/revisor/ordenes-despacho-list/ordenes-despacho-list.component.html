@@ -13,8 +13,15 @@
 
     <!-- Filtros en 2 Filas (Estilo Original Modernizado) -->
     <div class="search-panel-enterprise shadow-premium">
-        <!-- Fila 1: Fechas, Estado y Pedido -->
         <div class="filter-row">
+            <div class="filter-group-inline">
+                <label>Día Embarque:</label>
+                <select [(ngModel)]="diaEmbarque" (change)="buscar()">
+                    @for (dia of diasSemana; track dia.value) {
+                        <option [value]="dia.value">{{ dia.label }}</option>
+                    }
+                </select>
+            </div>
             <div class="filter-group-inline">
                 <label>Desde:</label>
                 <input type="date" [(ngModel)]="fechaDesde" (change)="buscar()">
@@ -26,13 +33,13 @@
             <div class="filter-group-inline">
                 <label>Estado:</label>
                 <select [(ngModel)]="estado" (change)="buscar()">
-                    <option value="ING">Pendiente</option>
-                    <option value="PRO">Procesado</option>
-                    <option value="CAN">Cancelado</option>
+                    <option value="ING">Ingresado</option>
+                    <option value="DP">Despacho Parcial</option>
+                    <option value="DT">Despacho Total</option>
                 </select>
             </div>
             <div class="filter-group-inline flex-grow">
-                <input type="text" [(ngModel)]="numeroPedido" placeholder="Número de Pedido" (keyup.enter)="buscar()">
+                <input type="text" [(ngModel)]="numeroPedido" placeholder="Número de Pedido (Solicitud-Orden)" (keyup.enter)="buscar()">
             </div>
         </div>
 
@@ -88,12 +95,10 @@
                 <table class="enterprise-table">
                     <thead>
                         <tr>
-                            <th class="col-id">Sol. #</th>
-                            <th class="col-id">Orden #</th>
+                            <th class="col-id">Orden de Despacho</th>
                             <th class="col-branch">Origen</th>
                             <th class="col-branch">Destino</th>
-                            <th class="col-box">Bodega</th>
-                            <th class="col-loc">Ubicación</th>
+                            <th class="col-loc">Grupo Despacho/Línea</th>
                             <th class="col-user">Despachador</th>
                             <th class="col-date">Fecha</th>
                             <th class="col-status">Estado</th>
@@ -101,23 +106,17 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @for (order of ordenes(); track order.numeroOrdenDespacho) {
-                        <tr class="order-row-v2">
-                            <td class="bold">#{{ order.numeroSolicitud }}</td>
-                            <td>#{{ order.numeroOrdenDespacho }}</td>
-                            <td class="branch-cell" [title]="order.nombreSucursalOrigen">{{
-                                order.nombreSucursalOrigen }}</td>
-                            <td class="branch-cell" [title]="order.nombreSucursalDestino">{{
-                                order.nombreSucursalDestino }}</td>
-                            <td>{{ order.nombreBodega || order.codigoBodega }}</td>
-                            <td class="loc-cell" [title]="order.descripcionUbicacion">{{ order.descripcionUbicacion }}
-                            </td>
-                            <td class="user-cell" [title]="order.nombreUsuarioDespachador">{{
-                                order.nombreUsuarioDespachador }}</td>
+                        @for (order of ordenes(); track order.numeroOrdenDespacho; let i = $index) {
+                        <tr class="order-row-v2" [class.selected-row]="selectedIndex() === i">
+                            <td class="bold">{{ order.solicitudOrden }}</td>
+                            <td class="branch-cell" [title]="order.nombreSucursalOrigen">{{ order.nombreSucursalOrigen }}</td>
+                            <td class="branch-cell" [title]="order.nombreSucursalDestino">{{ order.nombreSucursalDestino }}</td>
+                            <td class="loc-cell" [title]="order.grupoDespacho">{{ order.grupoDespacho }}</td>
+                            <td class="user-cell" [title]="order.nombreUsuarioDespachador">{{ order.nombreUsuarioDespachador }}</td>
                             <td class="date-cell">{{ formatDate(order.fechaEmision) }}</td>
                             <td>
                                 <span class="status-badge" [class]="getStatusClass(order.codigoEstado)">
-                                    {{ order.codigoEstado }}
+                                    {{ getStatusLabel(order.codigoEstado) }}
                                 </span>
                             </td>
                             <td>
@@ -164,7 +163,9 @@
 </div>
 
 @if (error()) {
-<div class="error-toast animate-shake">
-    ⚠️ {{ error() }}
+<div class="error-toast-pill animate-pop">
+    <span class="icon">⚠️</span>
+    <span class="error-content" [innerHTML]="error()"></span>
+    <button class="btn-close-toast" (click)="error.set('')">×</button>
 </div>
 }

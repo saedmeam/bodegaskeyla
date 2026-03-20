@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RevisorService } from '../services/revisor.service';
@@ -28,11 +28,24 @@ export class OrdenesDespachoListComponent implements OnInit {
     private cajaService = inject(CajaService);
 
     // Filters
+    // Filters (v2.9)
+    diaEmbarque: string = 'TODOS';
     fechaDesde: string = new Date().toISOString().split('T')[0];
-    fechaHasta: string = new Date().toISOString().split('T')[0]; // Not used by current API signature but kept for UI
-    estado: string = 'ING';
+    fechaHasta: string = new Date().toISOString().split('T')[0];
+    estado: string = 'DP';
     numeroPedido: string = '';
     selectedSucursal: Sucursal | null = null;
+
+    diasSemana = [
+        { value: 'TODOS', label: 'Todos' },
+        { value: 'LUN', label: 'Lunes' },
+        { value: 'MAR', label: 'Martes' },
+        { value: 'MIE', label: 'Miércoles' },
+        { value: 'JUE', label: 'Jueves' },
+        { value: 'VIE', label: 'Viernes' },
+        { value: 'SAB', label: 'Sábado' },
+        { value: 'DOM', label: 'Domingo' }
+    ];
 
     // Selection UI State
     sucursales: Sucursal[] = [];
@@ -46,6 +59,32 @@ export class OrdenesDespachoListComponent implements OnInit {
     public error = signal<string>('');
     public currentPage = signal<number>(0);
     public pageInput: number = 1;
+    public selectedIndex = signal<number>(0); // v2.4: Keyboard navigation
+
+    @HostListener('window:keydown', ['$event'])
+    handleKeyboardEvent(event: KeyboardEvent) {
+        if (this.ordenes().length === 0) return;
+
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            this.selectedIndex.update(i => Math.min(i + 1, this.ordenes().length - 1));
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            this.selectedIndex.update(i => Math.max(i - 1, 0));
+        } else if (event.key === 'ArrowRight') {
+            event.preventDefault();
+            this.nextPage();
+        } else if (event.key === 'ArrowLeft') {
+            event.preventDefault();
+            this.prevPage();
+        } else if (event.key === 'Enter') {
+            event.preventDefault();
+            const order = this.ordenes()[this.selectedIndex()];
+            if (order) {
+                this.procesar(order);
+            }
+        }
+    }
 
     ngOnInit() {
         const user = this.authService.getStoredUser();
@@ -88,6 +127,7 @@ export class OrdenesDespachoListComponent implements OnInit {
         this.loadingService.show();
         this.error.set('');
         this.currentPage.set(page);
+        this.selectedIndex.set(0); // Reset selection on new search
 
         try {
             const user = this.authService.getStoredUser();
@@ -102,21 +142,25 @@ export class OrdenesDespachoListComponent implements OnInit {
             let filtro = '';
             let valor = '';
 
+            // v2.9: Solo enviar filtro si se busca por Numero de Pedido (Solicitud-Orden)
             if (this.numeroPedido && this.numeroPedido.trim() !== '') {
-                // v100.0: El valor se envía a DataService, que ahora fuerza la clave compuesta
-                filtro = 'NUMERO_SOLICITUD'; // Nombre descriptivo, DataService usará el compuesto
+                filtro = 'NUMERO_SOLICITUD'; // DataService interpreta esto como concatenado
                 valor = this.numeroPedido.trim();
             }
 
-            console.log(`[Revisor] Consultando Órdenes - Empresa: ${empresa}, Filtro: "${filtro}", Valor: "${valor}", Pág: ${page}`);
-            const res = await firstValueFrom(this.revisorService.getOrdenesDespachoList(empresa, filtro, valor, page));
+            // v110.0: Corregir inicio de página (0-indexed para el API de Keyla)
+            const pagedArg = page * 20;
+            console.log('[Revisor:Mantenimiento] 🚀 Ejecutando búsqueda:', { empresa, usuario: user?.username, filtro, valor, pag: pagedArg });
+            const res = await firstValueFrom(this.revisorService.getOrdenesDespachoList(empresa, filtro, valor, pagedArg));
+            console.log('[Revisor:Mantenimiento] 📥 Respuesta API:', res);
             console.log('[Revisor] Respuesta de API:', res);
 
             if (res?.mensaje === 'OK' || res?.codigo === '000') {
                 let list = res.ordenesDespacho || [];
                 console.log(`[Revisor] Total registros recibidos: ${list.length}`);
 
-                // Aplicar filtros en el cliente para mayor flexibilidad (Sucursal y Estado)
+                // v2.9.2: Desactivados filtros locales por Sucursal y Estado según solicitud (Solo vista)
+                /*
                 if (this.selectedSucursal && Number(this.selectedSucursal.codigoSucursal) !== 0) {
                     const sid = Number(this.selectedSucursal.codigoSucursal);
                     list = list.filter((o: any) => Number(o.codigoSucursal) === sid);
@@ -125,18 +169,21 @@ export class OrdenesDespachoListComponent implements OnInit {
                 if (this.estado) {
                     list = list.filter((o: any) => o.codigoEstado === this.estado);
                 }
+                */
 
-                console.log(`[Revisor] Registros tras filtrado local: ${list.length}`);
+                console.log(`[Revisor] Registros finales (sin filtros locales): ${list.length}`);
 
-                // v100.0: Mapeo robusto de campos técnicos para visualización (Origen y Destino)
+                // v2.9.3: Mapeo unificado según requerimiento mantenimiento y lógica de esDespachado
                 const mappedOrders = list.map((o: any) => ({
                     ...o,
+                    solicitudOrden: `${o.numeroSolicitud}-${o.numeroOrdenDespacho}`,
                     nombreSucursalOrigen: o.nombreSucursalOrigen || o.nombreSucursalSolicita || 'Origen N/A',
                     nombreSucursalDestino: o.nombreSucursalDestino || o.nombreSucursal || 'Destino N/A',
-                    nombreSucursal: o.nombreSucursal || 'Portete',
-                    nombreSucursalSolicita: o.nombreSucursalSolicita || '---',
-                    descripcionUbicacion: o.descripcionUbicacion || o.ubicacion || 'N/A',
-                    nombreUsuarioDespachador: o.nombreUsuarioDespachador || o.despachador || 'Sistema'
+                    // v106.0: Nuevos campos según especificación Keyla
+                    grupoDespacho: o.codigoGrupoDespacho || 'SIN GRUPO',
+                    nombreUsuarioDespachador: o.usuarioIngreso || 'SISTEMA',
+                    // v2.9.3: Usar el código de estado real del API (DP / DT / etc)
+                    codigoEstado: o.codigoEstado || 'DP'
                 }));
 
                 this.ordenes.set(mappedOrders);
@@ -187,8 +234,10 @@ export class OrdenesDespachoListComponent implements OnInit {
 
     getStatusLabel(code: string): string {
         const labels: Record<string, string> = {
-            'ING': 'Pendiente',
-            'PRO': 'Procesado',
+            'DP': 'Despacho Parcial',
+            'DT': 'Despacho Total',
+            'ING': 'Ingresado',
+            'PRO': 'Despachado',
             'CAN': 'Cancelado'
         };
         return labels[code] || code;

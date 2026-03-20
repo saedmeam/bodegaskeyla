@@ -40,7 +40,11 @@ export class DataService {
             }),
             catchError(err => {
                 console.error('[DataService] Error en el login', err);
-                const errorMsg = err.error?.mensaje || err.error?.causa || err.message || 'Error de conexión';
+                const errorBody = err.error;
+                let errorMsg = errorBody?.mensaje || errorBody?.causa || err.message || 'Error de conexión';
+                if (errorBody?.errorSistemas) {
+                    errorMsg = `<strong>MENSAJE:</strong> ${errorMsg}<br/><br/><strong>DETALLE SISTEMA:</strong> ${errorBody.errorSistemas}`;
+                }
                 return of({ mensaje: errorMsg, isError: true });
             })
         );
@@ -64,7 +68,7 @@ export class DataService {
 
     private getCurrentCompany(): number {
         const user = this.authService?.getStoredUser();
-        return user?.empresa?.codigoEmpresa || 20; // Fallback to 20 if not logged in
+        return user?.empresa?.codigoEmpresa || 0; 
     }
 
     getOrdenComparativo(numeroOrden: string): Observable<any[]> {
@@ -78,7 +82,9 @@ export class DataService {
             map(response => {
                 const detalles = response?.detalles || [];
                 return detalles.map((d: any) => ({
-                    item: d.codigoExistencia?.toString() || '',
+                    item: d.codigoBarras?.toString() || '',
+                    codigoExistencia: d.codigoExistencia?.toString() || '',
+                    codigoBarras: d.codigoBarras?.toString() || '',
                     nombre: d.nombreExistencia || 'SIN NOMBRE',
                     unidad: 'UND',
                     invBod: 0,
@@ -119,11 +125,15 @@ export class DataService {
             case 'GET_LABORATORIO':
                 return this.getMockLaboratorio(params.codigo) as Observable<T>;
             case 'UPDATE_ORDEN_DETALLES':
-                // v104.5: El servicio anterior se comenta pero se mantiene por si se requiere
-                // return this.actualizarDetallesOrdenDespacho(params.payload) as Observable<T>;
                 return this.finalizarOrdenDespacho(params.params) as Observable<T>;
+            case 'ACTUALIZAR_ORDEN_DETALLES':
+                return this.actualizarDetallesOrdenDespacho(params.payload) as Observable<T>;
             case 'GET_ORDENES_DESPACHO_LIST':
                 return this.getOrdenesDespachoList(params.empresa, params.filtro, params.valor, params.pagina) as Observable<T>;
+            case 'GET_TIPOS_BULTOS':
+                return this.getTiposBultos() as Observable<T>;
+            case 'IMPRIMIR_TIRILLA':
+                return this.imprimirTirilla(params.empresa, params.secuencia) as Observable<T>;
             default:
                 return of(null as any);
         }
@@ -145,7 +155,11 @@ export class DataService {
         return this.http.get(`${this.API_BASE}/XPosConsultas/ordenesDespacho`, { params, headers }).pipe(
             catchError(err => {
                 console.error('[DataService] Error consultando ordenesDespacho', err);
-                const errorMsg = err.error?.mensaje || err.error?.causa || err.message || 'Error consultando orden';
+                const errorBody = err.error;
+                let errorMsg = errorBody?.mensaje || errorBody?.causa || err.message || 'Error consultando orden';
+                if (errorBody?.errorSistemas) {
+                    errorMsg = `<strong>MENSAJE:</strong> ${errorMsg}<br/><br/><strong>DETALLE SISTEMA:</strong> ${errorBody.errorSistemas}`;
+                }
                 return of({ mensaje: errorMsg, isError: true, ordenesDespacho: [] });
             })
         );
@@ -163,17 +177,34 @@ export class DataService {
             .set('arg4', pagina.toString())
             .set('arg5', '20');
 
-        if (filtro && filtro.trim() !== '') {
-            // v100.0: Estandarizar arg2 a la clave compuesta según instrucción del usuario (desplazado por arg1:user)
+        if (valor && valor.trim() !== '') {
+            // v110.0: Requerimiento mandatorio Keyla: arg2 siempre es la clave compuesta
             params = params.set('arg2', 'numeroSolicitud-numeroOrdenDespacho');
-            params = params.set('arg3', valor || '');
+            params = params.set('arg3', valor.trim());
         }
 
         const headers = this.getHeaders();
-        return this.http.get(`${this.API_BASE}/XPosConsultas/ordenesDespacho`, { params, headers }).pipe(
+        const url_final = `${this.API_BASE}/XPosConsultas/ordenesDespacho`;
+
+        // v110.5: LOG DETALLADO PARA INSPECCION (F12)
+        console.log(`[DataService] 📡 REQUEST: ${url_final}`, {
+            arg0: params.get('arg0'),
+            arg1: params.get('arg1'),
+            arg2: params.get('arg2'),
+            arg3: params.get('arg3'),
+            arg4: params.get('arg4'),
+            arg5: params.get('arg5')
+        });
+
+        return this.http.get(url_final, { params, headers }).pipe(
+            tap(res => console.log('[DataService] 📥 RESPONSE:', res)),
             catchError(err => {
                 console.error('[DataService] Error consultando lista ordenesDespacho', err);
-                const errorMsg = err.error?.mensaje || err.error?.causa || err.message || 'Error consultando listado';
+                const errorBody = err.error;
+                let errorMsg = errorBody?.mensaje || errorBody?.causa || err.message || 'Error consultando listado';
+                if (errorBody?.errorSistemas) {
+                    errorMsg = `<strong>MENSAJE:</strong> ${errorMsg}<br/><br/><strong>DETALLE SISTEMA:</strong> ${errorBody.errorSistemas}`;
+                }
                 return of({
                     mensaje: errorMsg,
                     isError: true,
@@ -193,9 +224,27 @@ export class DataService {
         return this.http.get(`${this.API_BASE}/XPosConsultas/detallesOrdenDespacho`, { params, headers }).pipe(
             catchError(err => {
                 console.error('[DataService] Error consultando detallesOrdenDespacho', err);
-                const errorMsg = err.error?.mensaje || err.error?.causa || err.message || 'Error consultando detalles';
+                const errorBody = err.error;
+                let errorMsg = errorBody?.mensaje || errorBody?.causa || err.message || 'Error consultando detalles';
+                if (errorBody?.errorSistemas) {
+                    errorMsg = `<strong>MENSAJE:</strong> ${errorMsg}<br/><br/><strong>DETALLE SISTEMA:</strong> ${errorBody.errorSistemas}`;
+                }
                 return of({ mensaje: errorMsg, isError: true, detalles: [] });
             })
+        );
+    }
+
+    private getTiposBultos(): Observable<any> {
+        const params = {
+            arg0: this.getCurrentCompany(),
+            arg1: '',
+            arg2: '',
+            arg3: 1,
+            arg4: 100
+        };
+        const headers = this.getHeaders();
+        return this.http.get(`${this.API_BASE}${this.config.getEndpoint('TIPOS_BULTOS') || '/XPosConsultas/tiposBultos'}`, { params, headers }).pipe(
+            catchError(err => of({ mensaje: err.message, isError: true, tiposBultos: [] }))
         );
     }
 
@@ -219,36 +268,60 @@ export class DataService {
         return this.http.post(`${this.API_BASE}/XPos/actualizarDetallesOrdenDespacho`, payload, { headers }).pipe(
             catchError(err => {
                 console.error('[DataService] Error en actualizarDetallesOrdenDespacho', err);
-                const errorMsg = err.error?.mensaje || err.error?.causa || err.message || 'Error actualizando detalles';
+                const errorBody = err.error;
+                let errorMsg = errorBody?.mensaje || errorBody?.causa || err.message || 'Error actualizando detalles';
+                if (errorBody?.errorSistemas) {
+                    errorMsg = `<strong>MENSAJE:</strong> ${errorMsg}<br/><br/><strong>DETALLE SISTEMA:</strong> ${errorBody.errorSistemas}`;
+                }
                 return of({ mensaje: errorMsg, isError: true });
             })
         );
     }
 
     /**
-     * v104.5: Nuevo servicio de finalización de orden de despacho
-     * URL: http://test.neu360.com/X-uitWSRestMagkaz2/XPos/finalizarOrdenDespacho
+     * v105.0: Servicio de finalización actualizado (POST Body JSON)
      */
-    finalizarOrdenDespacho(params: { solicitud: number, orden: number }): Observable<any> {
-        const user = this.authService?.getStoredUser();
-        const username = user?.username || 'DESCONOCIDO';
-
-        const queryParams = {
-            arg0: this.getCurrentCompany(),
-            arg1: params.solicitud,
-            arg2: params.orden,
-            arg3: username // v104.5: Keep as arg4 if legacy backend expects it there too, but arg1 is now primary
+    finalizarOrdenDespacho(payload: any): Observable<any> {
+        const headers = this.getHeaders();
+        // El backend ahora espera un JSON body completo
+        const finalBody = {
+            codigoEmpresa: this.getCurrentCompany(),
+            numeroSolicitud: payload.solicitud,
+            numeroOrdenDespacho: payload.orden,
+            codigoUsuario: this.authService?.getStoredUser()?.username || 'DESCONOCIDO',
+            tiposBultosXOrdenDespacho: payload.bultos || []
         };
 
-        const headers = this.getHeaders();
-        // Nota: El usuario especificó una URL que parece estar fuera del API_BASE estándar,
-        // pero seguiremos el patrón de inyectar los parámetros solicitados con el nuevo orden.
-        return this.http.get(`${this.API_BASE}/XPos/finalizarOrdenDespacho`, { params: queryParams, headers }).pipe(
+        return this.http.post(`${this.API_BASE}/XPos/finalizarOrdenDespacho`, finalBody, { headers }).pipe(
             catchError(err => {
                 console.error('[DataService] Error en finalizarOrdenDespacho', err);
                 const errorBody = err.error;
-                const errorMsg = errorBody?.mensaje || errorBody?.causa || err.message || 'Error de conexión';
+                let errorMsg = errorBody?.mensaje || errorBody?.causa || err.message || 'Error de conexión';
+                if (errorBody?.errorSistemas) {
+                    errorMsg = `<strong>MENSAJE:</strong> ${errorMsg}<br/><br/><strong>DETALLE SISTEMA:</strong> ${errorBody.errorSistemas}`;
+                }
                 return of({ mensaje: errorMsg, isError: true });
+            })
+        );
+    }
+
+    /**
+     * v2.0: Servicio para obtener la tirilla formateada para la impresora térmica
+     */
+    imprimirTirilla(codigoEmpresa: number, secuencia: number): Observable<any> {
+        const headers = this.getHeaders();
+        const params = {
+            arg0: codigoEmpresa,
+            arg1: secuencia
+        };
+
+        console.log('📡 [DataService] Solicitando Tirilla para impresión...', { params });
+
+        return this.http.post(`${this.API_BASE}/XPos/imprimirTirilla`, {}, { headers, params }).pipe(
+            tap(res => console.log('✅ [DataService] Respuesta Tirilla:', res)),
+            catchError(err => {
+                console.error('[DataService] Error en imprimirTirilla', err);
+                return of({ mensaje: 'Error al obtener formato de impresión', isError: true });
             })
         );
     }

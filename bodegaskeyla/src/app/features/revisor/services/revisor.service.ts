@@ -20,6 +20,10 @@ export class RevisorService {
         return this.dataService.executeAction<any>('GET_ORDENES_DESPACHO_LIST', { empresa, filtro, valor, pagina });
     }
 
+    public getTiposBultos() {
+        return this.dataService.executeAction<any>('GET_TIPOS_BULTOS');
+    }
+
     private currentOrderNumber: string | null = null;
     private isLoading = false; // v62.0: Prevenir autoguardado durante la carga inicial
 
@@ -143,17 +147,24 @@ export class RevisorService {
                         numeroSolicitud: cab_solicitud,
                         numeroOrdenDespacho: cab_orden,
                         concepto: `Orden #${orderNumber} | Solicitud: ${cab_solicitud}`,
-                        estado: cabecera.codigoEstado
+                        estado: cabecera.codigoEstado,
+                        sucursalDestino: cabecera.nombreSucursal || 'JARDINES 10' // v2.6: For print labels
                     });
 
                     // Invocamos el servicio unificado pasando explícitamente los datos obtenidos
                     return this.dataService.getDetallesOrdenDespacho(cab_solicitud, cab_orden).pipe(
                         map(detRes => {
                             const detalles = detRes?.detalles || [];
-                            // Mapeo manual al modelo Product (v64.0: Aseguramos mapeo correcto aquí mismo)
-                            return detalles.map((d: any) => ({
-                                item: d.codigoExistencia?.toString() || '',
-                                nombre: d.nombreExistencia || 'SIN NOMBRE',
+                            return detalles.map((d: any) => {
+                                // v105.0: New barcode resolution from nested array
+                                const barcode = d.sciExistenciasXCodBarras?.[0]?.codigoBarras?.toString() 
+                                                || d.codigoBarras?.toString() 
+                                                || '';
+                                return {
+                                    item: barcode,
+                                    codigoExistencia: d.codigoExistencia?.toString() || '',
+                                    codigoBarras: barcode,
+                                    nombre: d.nombreExistencia || 'SIN NOMBRE',
                                 unidad: d.tipoMedida || 'U/C',
                                 solicita: d.cantidad || 0,
                                 invBod: d.stock !== undefined && d.stock !== null ? d.stock : (d.cantidadUnidadMedidaStockB || d.existencia || 0), // v2.1: Prioridad al stock real del API
@@ -167,8 +178,18 @@ export class RevisorService {
                                 // v145.0: Persisting detailed technical fields
                                 tipoMedida: d.tipoMedida || 'N/A',
                                 tipoPresentacion: d.tipoPresentacion || 'N/A',
-                                unidadesXCaja: d.unidadesXCaja || 0
-                            })) as Product[];
+                                unidadesXCaja: d.unidadesXCaja || 0,
+                                // v146.0: Additional technical fields for dispatch update
+                                cantidadCajas: d.cantidadCajas || 0,
+                                cantidadUnidades: d.cantidadUnidades || 0,
+                                grupoUnidadMedidaStockBase: d.grupoUnidadMedidaStockBase || 0,
+                                unidadMedidaStockBase: d.unidadMedidaStockBase || 0,
+                                cantidadUnidadMedidaStockB: d.cantidadUnidadMedidaStockB || 0,
+                                cantidadBaseEquivalente: d.cantidadBaseEquivalente || 0,
+                                observacion: d.observacion || 'API_LOAD_ORIGINAL',
+                                esActivo: d.esActivo || 'S'
+                                };
+                            }) as Product[];
                         }),
                         tap(() => this.loadingService.hide()),
                         catchError(err => {
@@ -183,9 +204,9 @@ export class RevisorService {
                     const cleanProducts = products || [];
                     this.ordenProductos.set(cleanProducts);
 
-                    // v160.0: Solo cargar en "Escaneados" aquellos que ya tienen cantidad despachada física (DB)
-                    const actuallyDispatched = cleanProducts.filter(p => (p.despachado || 0) > 0);
-                    this.escaneados.set(actuallyDispatched);
+                    // Si es una carga nueva, los escaneados inician vacíos. 
+                    // Si viene del guardado local, ya se seteó antes y no llega aquí.
+                    this.escaneados.set([]);
 
                     this.isLoading = false;
                     this.loadingService.hide();
@@ -516,22 +537,86 @@ export class RevisorService {
     }
 
     /**
-     * V31.0/v55.0: Ejecuta el envío final de la orden procesada.
+     * V31.0/v55.0/v107.0: Ejecuta el envío final de la orden procesada.
+     * Ahora recibe los bultos dinámicos del modal.
      */
-    public finalizeProcess() {
-        return this.updateDetallesReal('AGREGAR');
-    }
-
-    private updateDetallesReal(tipo: 'AGREGAR' | 'EDITAR' | 'ELIMINAR', itemCode?: string) {
+    /**
+     * V112.0: Orquestación de cierre definitiva.
+     * 1. Invoca Actualizar Detalles (Productos con cantidadADespachar).
+     * 2. Si es exitoso, invoca Finalizar (Bultos).
+     */
+    public finalizeProcess(bultos?: any[]) {
         const metadata = this.orderMetadata();
         if (!metadata) return of(null);
 
-        console.log(`[RevisorService] Solicitando Finalización Real [${tipo}] para Sol: ${metadata.numeroSolicitud} Ord: ${metadata.numeroOrdenDespacho}`);
+        // A. Mapear productos escaneados (v112.0: Nuevo parámetro 'cantidadADespachar')
+        const payloadActualizar = {
+            codigoEmpresa: metadata.codigoEmpresa || 1,
+            numeroSolicitud: metadata.numeroSolicitud,
+            numeroOrdenDespacho: metadata.numeroOrdenDespacho,
+            codigoUsuario: this.authService.getStoredUser()?.username || 'AAAVEROS',
+            detalles: this.escaneados().map(p => ({
+                lineaDetalle: p.lineaDetalle || 1,
+                codigoExistencia: Number(p.codigoExistencia) || 0,
+                unidadesXCaja: p.unidadesXCaja || 1,
+                cantidadADespachar: p.despachado !== undefined ? p.despachado : 0, // v131.0: Default a 0 si no se escaneó
+                // v146.0: Technical fields for API consistency
+                cantidadCajas: p.cantidadCajas || 0,
+                cantidadUnidades: p.cantidadUnidades || 0,
+                grupoUnidadMedidaStockBase: p.grupoUnidadMedidaStockBase !== undefined ? p.grupoUnidadMedidaStockBase : null,
+                unidadMedidaStockBase: p.unidadMedidaStockBase !== undefined ? p.unidadMedidaStockBase : null,
+                cantidadUnidadMedidaStockB: p.cantidadUnidadMedidaStockB || 0,
+                cantidadBaseEquivalente: p.cantidadBaseEquivalente || 0,
+                observacion: p.observacion || 'API_UPDATE_KEYLA',
+                codigoEstado: p.estado || 'ING',
+                esActivo: p.esActivo || 'S'
+            }))
+        };
+
+        console.log('[RevisorService] 🛠️ Paso 1: Actualizando detalles de productos...', payloadActualizar);
+
+        return this.dataService.executeAction<any>('ACTUALIZAR_ORDEN_DETALLES', { payload: payloadActualizar }).pipe(
+            switchMap(resAct => {
+                if (resAct?.mensaje === 'OK' || resAct?.codigo === '000') {
+                    console.log('[RevisorService] ✅ Productos actualizados. Paso 2: Finalizando con bultos...');
+                    return this.updateDetallesReal('AGREGAR', undefined, bultos);
+                } else {
+                    console.error('[RevisorService] ❌ Error en Actualizar Detalles:', resAct);
+                    return of(resAct); // Devolver error para detener el flujo
+                }
+            })
+        );
+    }
+
+    private updateDetallesReal(tipo: 'AGREGAR' | 'EDITAR' | 'ELIMINAR', itemCode?: string, bultos?: any[]) {
+        const metadata = this.orderMetadata();
+        if (!metadata) return of(null);
+
+        console.log(`[RevisorService] Solicitando Acción [${tipo}] para Sol: ${metadata.numeroSolicitud} Ord: ${metadata.numeroOrdenDespacho}`);
+
+        let bultosMapped: any[] = [];
+        
+        if (tipo === 'AGREGAR' && bultos) {
+            // v107.0: Mapear desde información dinámica del modal bultos
+            bultosMapped = bultos.map((b, index) => ({
+                lineaDetalle: index + 1, // Autoincrementable solicitado por el usuario
+                codigoTipoBulto: Number(b.codigoTipoBulto),
+                cantidad: Number(b.cantidad)
+            }));
+        } else {
+            // Modo retrocompatibilidad o actualización de detalle
+            bultosMapped = this.escaneados().map((p, index) => ({
+                lineaDetalle: index + 1, 
+                codigoTipoBulto: p.bulto || 1, 
+                cantidad: p.despachado
+            }));
+        }
 
         return this.dataService.executeAction<any>('UPDATE_ORDEN_DETALLES', {
             params: {
                 solicitud: metadata.numeroSolicitud || 1,
-                orden: metadata.numeroOrdenDespacho || 1
+                orden: metadata.numeroOrdenDespacho || 1,
+                bultos: bultosMapped
             }
         }).pipe(
             tap(res => {

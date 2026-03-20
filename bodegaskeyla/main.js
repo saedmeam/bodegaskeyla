@@ -2,7 +2,21 @@ const electron = require('electron');
 const { app, BrowserWindow } = electron;
 const path = require('path');
 const { ipcMain } = electron;
+
 let encryptionService;
+let printerService;
+let win; // v130.0: Definición explícita de la ventana principal para evitar errores de scope
+
+function getPrinterService() {
+    if (!printerService) {
+        try {
+            printerService = require(path.join(__dirname, 'printer.js'));
+        } catch (error) {
+            console.error('⚠️ Error al cargar servicio de impresora:', error.message);
+        }
+    }
+    return printerService;
+}
 
 function getEncryptionService() {
     if (!encryptionService) {
@@ -64,6 +78,72 @@ function setupIpcHandlers() {
         }
         return { success: false, error: 'Config file not found' };
     });
+
+    ipcMain.handle('get-printers', async () => {
+        console.log('[Electron:Main] 📨 IPC Receive: get-printers');
+        try {
+            const printers = await win.webContents.getPrintersAsync();
+            return { success: true, data: printers };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('print-labels', async (event, { html, printerName, options, preview }) => {
+        console.log('[Electron:Main] 📨 IPC Receive: print-labels (Preview:', !!preview, ')');
+        let printWindow = new BrowserWindow({
+            show: !!preview,
+            width: 800,
+            height: 900,
+            title: 'Vista Previa de Reporte',
+            webPreferences: {
+                nodeIntegration: false,
+                contextIsolation: true
+            }
+        });
+
+        try {
+            await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+            
+            if (!preview) {
+                const printOptions = {
+                    silent: true,
+                    deviceName: printerName || '',
+                    printBackground: true,
+                    pageSize: options?.pageSize || 'A4',
+                    margins: { marginType: 'none' },
+                    ...options
+                };
+                await printWindow.webContents.print(printOptions);
+                printWindow.close();
+            } else {
+                // Si es vista previa, dejamos la ventana abierta
+                // para que el usuario pueda usar Ctrl+P u otros
+                printWindow.setMenu(null);
+                printWindow.focus();
+            }
+            return { success: true };
+        } catch (error) {
+            if (printWindow) printWindow.close();
+            return { success: false, error: error.message };
+        }
+    });
+
+    /**
+     * v2.0: Manejador para impresión de texto plano vía Java (PrintVeris.jar)
+     */
+    ipcMain.handle('print-text', async (event, { text, printerName }) => {
+        console.log('[Electron:Main] 📨 IPC Receive: print-text');
+        const svc = getPrinterService();
+        if (!svc) return { success: false, error: 'Servicio de impresión no disponible' };
+        try {
+            const result = await svc.imprimir(printerName, text);
+            return { success: true, data: result };
+        } catch (error) {
+            console.error('[Electron:Main] ❌ Error en print-text:', error.message);
+            return { success: false, error: error.message };
+        }
+    });
 }
 
 function createWindow() {
@@ -80,8 +160,8 @@ function createWindow() {
     // Apunta al archivo index.html generado por Angular después de hacer 'ng build'
     win.loadFile(path.join(__dirname, 'dist/bodegaskeyla/browser/index.html'));
 
-    // Abrir las herramientas de desarrollo automáticamente
-    // win.webContents.openDevTools();
+    // v110.0: Abrir las herramientas de desarrollo automáticamente por solicitud de usuario
+    win.webContents.openDevTools();
 
     win.setMenu(null);
     win.on('closed', () => {

@@ -4,10 +4,10 @@
 
 #define AppName "BodegasKeyla"
 #define AppVersion "1.0.0"
-#define AppPublisher "Farmacias Keyla - Neu360 solutions"
+#define AppPublisher "Neu360"
 #define AppURL "https://www.keyla.com.ec"
 #define AppExeName "BodegasKeyla.exe"
-#define AppId "{{com.neu360.bodegaskeyla}"
+#define AppId "{{0C7AE8E9-1736-4C5D-8E1E-1798305F8C7A}"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application.
@@ -41,13 +41,17 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 ; 1. Base Electron Application (Result of electron-builder: win-unpacked)
-Source: "release\win-unpacked\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "release\win-unpacked\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
-; 2. Extra Core Resources (Ensuring they are in \resources where Electron expects them)
+; 2. Extra Core Resources (Ensuring they are in the root or \resources if needed)
 Source: "encrypter-xuit.jar"; DestDir: "{app}\resources"; Flags: ignoreversion
+Source: "PrintVeris.jar"; DestDir: "{app}\resources"; Flags: ignoreversion
 Source: "config.json"; DestDir: "{app}\resources"; Flags: ignoreversion
 Source: "public\logo-keyla-icon.png"; DestDir: "{app}\public"; Flags: ignoreversion
+Source: "main.js"; DestDir: "{app}"; Flags: ignoreversion
+Source: "preload.js"; DestDir: "{app}"; Flags: ignoreversion
+Source: "printer.js"; DestDir: "{app}"; Flags: ignoreversion
+Source: "encryptionService.js"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\{#AppExeName}"; WorkingDir: "{app}"

@@ -37,7 +37,13 @@ export class ConfigService {
     }
 
     getApiUrl(): string {
-        return this.getConfig()?.apiUrl || 'http://test.neu360.com/X-uitWSRestMagkaz2';
+        const config = this.getConfig();
+        const env = config?.environment;
+        if (env && config?.environments?.[env]) {
+            const envConfig = config.environments[env];
+            return typeof envConfig === 'string' ? envConfig : envConfig.apiUrl;
+        }
+        return config?.apiUrl || 'http://test.neu360.com/X-uitWSRestMagkaz2';
     }
 
     getEndpoint(key: string): string {
@@ -45,6 +51,11 @@ export class ConfigService {
     }
 
     getAuth(): { user: string, pass: string } {
-        return this.getConfig()?.auth || { user: 'wsxpos', pass: 'n3UE60@s3Rv1c10@Xp0s' };
+        const config = this.getConfig();
+        const env = config?.environment;
+        if (env && config?.environments?.[env]?.auth) {
+            return config.environments[env].auth;
+        }
+        return config?.auth || { user: 'wsxpos', pass: 'n3UE60@s3Rv1c10@Xp0s' };
     }
 }

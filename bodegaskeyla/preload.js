@@ -45,12 +45,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
      * @param {string} [printerName] - Nombre de la impresora opcional
      * @returns {Promise<{success: boolean, data?: string, printer?: string, error?: string}>}
      */
-    printText: (text, printerName) => ipcRenderer.invoke('print-text', text, printerName),
+    printText: (text, printerName) => ipcRenderer.invoke('print-text', { text, printerName }),
 
     /**
      * Obtener lista de impresoras
      * @returns {Promise<{success: boolean, data?: Array, error?: string}>}
      */
+    printLabels: (payload) => ipcRenderer.invoke('print-labels', payload),
     getPrinters: () => ipcRenderer.invoke('get-printers'),
 
     // Otras APIs que puedas necesitar

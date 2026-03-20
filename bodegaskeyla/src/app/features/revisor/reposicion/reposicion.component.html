@@ -46,7 +46,7 @@
             <div class="section-escaneo">
                 <div class="scanner-prompt">Escaneo de Códigos |</div>
                 <div class="scanner-input-container">
-                    <input #scannerInput type="text" [(ngModel)]="barcodeInput" (keyup.enter)="simularEscaneo()"
+                    <input #scannerInput autofocus type="text" [(ngModel)]="barcodeInput" (keyup.enter)="simularEscaneo()"
                         class="scanner-input-v2 code-input" placeholder="Escanear ítem..." autocomplete="off">
                     <!-- v2.2: Campos ocultos por solicitud de usuario -->
                     <input type="hidden" [(ngModel)]="loteInput">
@@ -93,7 +93,6 @@
                                         <div class="product-info-composite">
                                             <span class="product-name-main">{{ item.nombre }}</span>
                                             <div class="product-metadata-secondary">
-                                                <span class="meta-tag blue">{{ item.tipoMedida }}</span>
                                                 <span class="meta-tag dark">{{ item.tipoPresentacion }}</span>
                                             </div>
                                         </div>
@@ -151,14 +150,11 @@
                     @for (prod of ordenProductos(); track prod.item) {
                     @let status = getScannedProduct(prod.item);
                     <div class="comparativo-item clickable" (dblclick)="onProductDblClick(prod)"
-                        [class.bg-completo]="(status?.despachado || 0) === prod.solicita && (status?.despachado || 0) > 0"
-                        [class.bg-excedido]="(status?.despachado || 0) > prod.solicita"
-                        [class.status-neutral]="!status || (status?.despachado || 0) === 0">
-                        <div class="c-indicator" [class]="status ? (status?.color || 'naranja') : 'neutral'"></div>
+                        [ngClass]="'c-bg-' + (status ? (status?.color || 'naranja') : 'naranja')">
+                        <div class="c-indicator" [class]="status ? (status?.color || 'naranja') : 'naranja'"></div>
                         <div class="c-info">
                             <strong class="c-title">{{ prod.nombre }}</strong>
                             <div class="c-meta-detailed">
-                                <span class="c-tag">{{ prod.tipoMedida }}</span>
                                 <span class="c-tag presentation">{{ prod.tipoPresentacion }}</span>
                             </div>
                             <span class="c-meta">CÓD: {{ prod.item }} | STOCK: {{ prod.invBod }}</span>
@@ -185,15 +181,10 @@
     <div class="app-footer-v2">
         <div class="footer-meta-v2">
             <div class="legend-v2">
-                <div class="legend-item"><span class="marker negro"></span> <span class="lbl">COMPLETO
-                        (CUADRA)</span>
-                </div>
-                <div class="legend-item"><span class="marker naranja"></span> <span class="lbl">INCOMPLETO
-                        (PENDIENTE)</span></div>
-                <div class="legend-item"><span class="marker azul"></span> <span class="lbl">INCOMPLETO (EN
-                        PROCESO)</span></div>
-                <div class="legend-item"><span class="marker verde"></span> <span class="lbl">EXCEDIDO (+
-                        CANTIDAD)</span></div>
+                <div class="legend-item"><span class="marker negro"></span> <span class="lbl">COMPLETO</span></div>
+                <div class="legend-item"><span class="marker naranja"></span> <span class="lbl">PENDIENTE</span></div>
+                <div class="legend-item"><span class="marker azul"></span> <span class="lbl">EN PROCESO</span></div>
+                <div class="legend-item"><span class="marker verde"></span> <span class="lbl">EXCEDIDO</span></div>
             </div>
             <div class="system-stats">
                 TRA#: 18369 | Terminal: 55336 | NEU360 Engine v2.0 Ready
@@ -219,13 +210,15 @@
             <button class="btn-close-modal" (click)="closeModal(false)">×</button>
         </div>
         <div class="modal-body" [innerHTML]="modalMessage()"></div>
-        <div class="modal-footer">
+        <div class="modal-footer" [class.central]="modalType() === 'alert'">
             @if (modalType() === 'confirm') {
-            <button class="btn-modal-action" [disabled]="modalActionDisabled()" (click)="$event.stopPropagation(); closeModal(true)">
+            <button #modalActionBtn class="btn-modal-action" [disabled]="modalActionDisabled()" (click)="$event.stopPropagation(); closeModal(true)">
                 Aceptar
             </button>
-            }
             <button class="btn-modal-cancel" (click)="$event.stopPropagation(); closeModal(false)">Cerrar</button>
+            } @else {
+            <button #modalActionBtn class="btn-modal-action btn-green-premium" (click)="$event.stopPropagation(); closeModal(true)">Aceptar</button>
+            }
         </div>
     </div>
 </div>
@@ -241,18 +234,18 @@
         </div>
         <div class="modal-body">
             <div class="bulto-grid">
-                @for (type of bultoTypes(); track type.label; let i = $index) {
+                @for (type of bultoTypes(); track type.codigoTipoBulto; let i = $index) {
                 <div class="bulto-row">
-                    <span class="bulto-label">{{ type.label }}</span>
+                    <span class="bulto-label">{{ type.nombreTipoBulto }}</span>
                     <div class="bulto-input-control">
-                        <input type="number" [(ngModel)]="type.value" class="input-v2 bulto-input" min="0">
+                        <input type="number" [(ngModel)]="type.cantidad" class="input-v2 bulto-input" min="0">
                     </div>
                 </div>
                 }
             </div>
         </div>
         <div class="modal-footer central">
-            <button class="btn-modal-action btn-green-premium" (click)="procesarBultos()">
+            <button #bultoActionBtn class="btn-modal-action btn-green-premium" (click)="procesarBultos()">
                 Procesar
             </button>
         </div>

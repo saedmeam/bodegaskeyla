@@ -1,0 +1,19 @@
+{
+  "appId": "com.neu360.bodegaskeyla",
+  "productName": "BodegasKeyla",
+  "directories": {
+    "output": "release"
+  },
+  "win": {
+    "target": ["dir"]
+  },
+  "asar": true,
+  "files": [
+    "dist/bodegaskeyla/**/*",
+    "main.js",
+    "package.json",
+    "preload.js",
+    "encryptionService.js",
+    "public/**/*"
+  ]
+}

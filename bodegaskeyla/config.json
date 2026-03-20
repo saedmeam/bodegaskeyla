@@ -1,12 +1,23 @@
 {
-    "apiUrl": "http://test.neu360.com/X-uitWSRestMagkaz2",
-    "EMPRESA_POR_DEFECTO": 20,
-    "SUCURSAL_POR_DEFECTO": 1,
-    "auth": {
-        "user": "wsxpos",
-        "pass": "n3UE60@s3Rv1c10@Xp0s"
+    "environment": "preproduccion",
+    "environments": {
+        "desarrollo": {
+            "apiUrl": "http://test.neu360.com/X-uitWSRestMagkaz2",
+            "auth": {
+                "user": "wsxpos",
+                "pass": "n3UE60@s3Rv1c10@Xp0s"
+            }
+        },
+        "preproduccion": {
+            "apiUrl": "https://test-erp.farmaciaskeyla.com/X-uitWSRest",
+            "auth": {
+                "user": "wsxpos",
+                "pass": "n3UE60@s3Rv1c10@Xp0s"
+            }
+        }
     },
     "DEV_TOOLS": 1,
+    "IMPRESORA_TICKET": "",
     "endpoints": {
         "LOGIN": "/XPos/login",
         "USUARIOS_SISTEMA": "/XPosConsultas/usuariosSistema",
@@ -17,6 +28,7 @@
         "CAJAS": "/XPosConsultas/cajas",
         "CAJEROS_X_CAJA": "/XPosConsultas/cajerosXCaja",
         "CAJAS_DISPONIBLES_USUARIO": "/XPosConsultas/cajasDisponiblesUsuario",
-        "INICIO_SESION": "/XPos/inicioSesion"
+        "INICIO_SESION": "/XPos/inicioSesion",
+        "TIPOS_BULTOS": "/XPosConsultas/tiposBultos"
     }
 }
