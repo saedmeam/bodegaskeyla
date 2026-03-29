@@ -24,6 +24,11 @@ export class DataService {
     }
 
     login(user?: string, pass?: string): Observable<any> {
+        // v150.0: Reusar token si ya existe (Optimización para equipos antiguos)
+        if (!user && !pass && this.token) {
+            return of({ accesToken: this.token });
+        }
+
         const auth = this.config.getAuth();
         const username = user || auth.user;
         const password = pass || auth.pass;
@@ -35,11 +40,9 @@ export class DataService {
                 if (res?.accesToken) {
                     this.token = res.accesToken;
                     this.storage.saveLocal('ACCESS_TOKEN', res.accesToken);
-                    console.log('[DataService] Token obtenido con éxito');
                 }
             }),
             catchError(err => {
-                console.error('[DataService] Error en el login', err);
                 const errorBody = err.error;
                 let errorMsg = errorBody?.mensaje || errorBody?.causa || err.message || 'Error de conexión';
                 if (errorBody?.errorSistemas) {
@@ -117,7 +120,7 @@ export class DataService {
             case 'GET_ORDER_PRODUCTS':
                 return this.getOrdenComparativo(params.orderNumber) as Observable<T>;
             case 'GET_ORDEN_DESPACHO':
-                return this.getOrdenDespacho(params.numero) as Observable<T>;
+                return this.getOrdenDespacho(params.numero, params.fechaDesde, params.fechaHasta) as Observable<T>;
             case 'GET_DETALLES_ORDEN':
                 return this.getDetallesOrdenDespacho(params.solicitud, params.orden) as Observable<T>;
             case 'GET_TRANSFERENCIA_PRODUCTS':
@@ -129,7 +132,7 @@ export class DataService {
             case 'ACTUALIZAR_ORDEN_DETALLES':
                 return this.actualizarDetallesOrdenDespacho(params.payload) as Observable<T>;
             case 'GET_ORDENES_DESPACHO_LIST':
-                return this.getOrdenesDespachoList(params.empresa, params.filtro, params.valor, params.pagina) as Observable<T>;
+                return this.getOrdenesDespachoList(params.empresa, params.filtro, params.valor, params.pagina, params.fechaDesde, params.fechaHasta) as Observable<T>;
             case 'GET_TIPOS_BULTOS':
                 return this.getTiposBultos() as Observable<T>;
             case 'IMPRIMIR_TIRILLA':
@@ -139,9 +142,18 @@ export class DataService {
         }
     }
 
-    getOrdenDespacho(numero: string): Observable<any> {
+    getOrdenDespacho(numero: string, fechaDesde?: string, fechaHasta?: string): Observable<any> {
         const user = this.authService?.getStoredUser();
         const username = user?.username || 'DESCONOCIDO';
+
+        const formatToAPI = (dateStr?: string) => {
+            if (!dateStr || dateStr.trim() === '') return '';
+            const parts = dateStr.split('-');
+            if (parts.length === 3) {
+                return `${parts[2]}/${parts[1]}/${parts[0]}`; // YYYY-MM-DD -> DD/MM/YYYY
+            }
+            return dateStr;
+        };
 
         const params = {
             arg0: this.getCurrentCompany(),
@@ -149,7 +161,9 @@ export class DataService {
             arg2: 'numeroSolicitud-numeroOrdenDespacho',
             arg3: numero,
             arg4: 0,
-            arg5: 20
+            arg5: 20,
+            arg6: formatToAPI(fechaDesde),
+            arg7: formatToAPI(fechaHasta)
         };
         const headers = this.getHeaders();
         return this.http.get(`${this.API_BASE}/XPosConsultas/ordenesDespacho`, { params, headers }).pipe(
@@ -165,9 +179,18 @@ export class DataService {
         );
     }
 
-    getOrdenesDespachoList(empresa: number, filtro: string, valor: string, pagina: number = 0): Observable<any> {
+    getOrdenesDespachoList(empresa: number, filtro: string, valor: string, pagina: number = 0, fechaDesde?: string, fechaHasta?: string): Observable<any> {
         const user = this.authService?.getStoredUser();
         const username = user?.username || 'DESCONOCIDO';
+
+        const formatToAPI = (dateStr?: string) => {
+            if (!dateStr || dateStr.trim() === '') return '';
+            const parts = dateStr.split('-');
+            if (parts.length === 3) {
+                return `${parts[2]}/${parts[1]}/${parts[0]}`; // YYYY-MM-DD -> DD/MM/YYYY
+            }
+            return dateStr;
+        };
 
         let params = new HttpParams()
             .set('arg0', (empresa || this.getCurrentCompany()).toString())
@@ -175,7 +198,9 @@ export class DataService {
             .set('arg2', '')
             .set('arg3', '')
             .set('arg4', pagina.toString())
-            .set('arg5', '20');
+            .set('arg5', '20')
+            .set('arg6', formatToAPI(fechaDesde))
+            .set('arg7', formatToAPI(fechaHasta));
 
         if (valor && valor.trim() !== '') {
             // v110.0: Requerimiento mandatorio Keyla: arg2 siempre es la clave compuesta
@@ -186,18 +211,21 @@ export class DataService {
         const headers = this.getHeaders();
         const url_final = `${this.API_BASE}/XPosConsultas/ordenesDespacho`;
 
-        // v110.5: LOG DETALLADO PARA INSPECCION (F12)
+        /* v150.0: Logs deshabilitados para optimizar equipos antiguos
         console.log(`[DataService] 📡 REQUEST: ${url_final}`, {
             arg0: params.get('arg0'),
             arg1: params.get('arg1'),
             arg2: params.get('arg2'),
             arg3: params.get('arg3'),
             arg4: params.get('arg4'),
-            arg5: params.get('arg5')
+            arg5: params.get('arg5'),
+            arg6: params.get('arg6'),
+            arg7: params.get('arg7')
         });
+        */
 
         return this.http.get(url_final, { params, headers }).pipe(
-            tap(res => console.log('[DataService] 📥 RESPONSE:', res)),
+            // tap(res => console.log('[DataService] 📥 RESPONSE:', res)),
             catchError(err => {
                 console.error('[DataService] Error consultando lista ordenesDespacho', err);
                 const errorBody = err.error;
@@ -239,7 +267,7 @@ export class DataService {
             arg0: this.getCurrentCompany(),
             arg1: '',
             arg2: '',
-            arg3: 1,
+            arg3: 0,
             arg4: 100
         };
         const headers = this.getHeaders();

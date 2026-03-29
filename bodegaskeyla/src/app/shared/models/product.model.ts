@@ -56,6 +56,7 @@ export interface DispatchOrder {
     grupoDespacho?: string;
     // v106.0: New technical fields for Keyla API
     codigoGrupoDespacho?: number;
+    nombreGrupoDespacho?: string;
     usuarioIngreso?: string;
 }
 

@@ -74,20 +74,28 @@
     margin-left: 4px;
 }
 
-.shortcuts {
+.shortcuts-revisor {
     margin-left: auto;
     display: flex;
-    gap: 12px;
+    align-items: center;
+    gap: 15px;
+    padding-right: 10px;
+}
+
+.shortcut-item {
+    display: flex;
+    align-items: center;
+}
+
+.shortcut-item .label {
+    font-weight: 500;
+    color: #ffffff;
 }
 
 .shortcut-item .keys {
-    color: #88aaaa;
-    font-size: 8px;
-    margin-left: 3px;
-}
-
-.shortcut-item.logout {
-    color: #e74c3c;
+    color: #f1c40f; /* Amarillo para resaltar la tecla */
+    font-size: 9px;
+    margin-left: 4px;
     font-weight: bold;
 }
 

@@ -3,7 +3,7 @@
 ; Logic: Bundles the win-unpacked output from electron-builder into a professional Setup.exe
 
 #define AppName "BodegasKeyla"
-#define AppVersion "1.0.0"
+#define AppVersion "1.1.0"
 #define AppPublisher "Neu360"
 #define AppURL "https://www.keyla.com.ec"
 #define AppExeName "BodegasKeyla.exe"
@@ -21,8 +21,9 @@ AppUpdatesURL={#AppURL}
 DefaultDirName={autopf}\{#AppName}
 DisableProgramGroupPage=yes
 DefaultGroupName={#AppName}
+SourceDir=.
 OutputDir=Output
-OutputBaseFilename=BodegasKeyla_Setup
+OutputBaseFilename=BodegasKeyla_Setup_v{#AppVersion}
 SetupIconFile=public\logo-keyla.ico
 Compression=lzma
 SolidCompression=yes
@@ -41,13 +42,17 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 ; 1. Base Electron Application (Result of electron-builder: win-unpacked)
+; v105.0: Using the dir output from the ps1 script
 Source: "release\win-unpacked\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
-; 2. Extra Core Resources (Ensuring they are in the root or \resources if needed)
+; 2. Extra Core Resources for Enterprise Printing & Encryption
+; These are placed in process.resourcesPath as expected by the JS modules
 Source: "encrypter-xuit.jar"; DestDir: "{app}\resources"; Flags: ignoreversion
 Source: "PrintVeris.jar"; DestDir: "{app}\resources"; Flags: ignoreversion
 Source: "config.json"; DestDir: "{app}\resources"; Flags: ignoreversion
-Source: "public\logo-keyla-icon.png"; DestDir: "{app}\public"; Flags: ignoreversion
+Source: "public\*"; DestDir: "{app}\public"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+; 3. Core Entry Points (Ensuring they are in the root for direct launch)
 Source: "main.js"; DestDir: "{app}"; Flags: ignoreversion
 Source: "preload.js"; DestDir: "{app}"; Flags: ignoreversion
 Source: "printer.js"; DestDir: "{app}"; Flags: ignoreversion

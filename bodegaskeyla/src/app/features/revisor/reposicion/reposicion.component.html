@@ -3,6 +3,9 @@
     <div class="h-indicator"></div>
     <span class="h-title">NEU360 - Pantalla de Revisor v2.0</span>
     <span class="h-subtitle">Reposicion de Mercaderia</span>
+    <button class="btn-refresh-v2" (click)="actualizarOrdenData()">
+        <span class="icon">🔄</span> ACTUALIZAR
+    </button>
     <button class="btn-logout-small" (click)="logout()">
         <span class="icon">🚪</span> Salir
     </button>
@@ -24,16 +27,12 @@
                         <input type="text" [value]="orderNumber" readonly class="input-v2 readonly-field">
                     </div>
                     <div class="form-group-v2">
-                        <label>BODEGA</label>
-                        <input type="text" [value]="bodega" readonly class="input-v2 readonly-field w-tiny">
+                        <label>BODEGA ORIGEN</label>
+                        <input type="text" [value]="origenNombre" readonly class="input-v2 readonly-field">
                     </div>
                     <div class="form-group-v2">
-                        <label>MOVIMIENTO</label>
-                        <div class="input-composite">
-                            <input type="text" [value]="movimiento" readonly class="input-v2 readonly-field w-tiny">
-                            <input type="text" [value]="movimientoNombre" readonly
-                                class="input-v2 readonly-field flex-grow">
-                        </div>
+                        <label>BODEGA DESTINO</label>
+                        <input type="text" [value]="destinoNombre" readonly class="input-v2 readonly-field">
                     </div>
                     <div class="form-group-v2 w-full">
                         <label>CONCEPTO / OBSERVACIONES</label>
@@ -70,9 +69,8 @@
                         <table class="neu-table-v2">
                             <thead>
                                 <tr>
-                                    <th class="col-code">Cód. Item</th>
+                                    <th class="col-code-name">Producto / Código</th>
                                     <th class="col-bulto">Bulto</th>
-                                    <th class="col-name">Descripción del Producto</th>
                                     <th class="col-u">U/C</th>
                                     <th class="col-stock">Stock</th>
                                     <th class="col-qty">Sol.</th>
@@ -86,17 +84,17 @@
                                 @for (item of escaneados(); track item.item) {
                                 @let orig = getOriginalRequested(item.item);
                                 <tr [class]="'tr-status-' + (item?.color || 'naranja')">
-                                    <td class="cell-code">{{ item.item }}</td>
-                                    <td><input type="text" [value]="item.bulto || 1"
-                                            class="input-v2 w-tiny text-center"></td>
-                                    <td class="cell-name">
+                                    <td class="cell-code-name">
                                         <div class="product-info-composite">
                                             <span class="product-name-main">{{ item.nombre }}</span>
                                             <div class="product-metadata-secondary">
+                                                <span class="meta-tag barcode">{{ item.item }}</span>
                                                 <span class="meta-tag dark">{{ item.tipoPresentacion }}</span>
                                             </div>
                                         </div>
                                     </td>
+                                    <td><input type="text" [value]="item.bulto || 1"
+                                            class="input-v2 w-tiny text-center"></td>
                                     <td>{{ item.tipoMedida }}</td>
                                     <td class="cell-stock">{{ item.invBod }}</td>
                                     <td><span class="qty-bubble-sol">{{ orig?.solicita || 0 }}</span></td>
@@ -183,7 +181,7 @@
             <div class="legend-v2">
                 <div class="legend-item"><span class="marker negro"></span> <span class="lbl">COMPLETO</span></div>
                 <div class="legend-item"><span class="marker naranja"></span> <span class="lbl">PENDIENTE</span></div>
-                <div class="legend-item"><span class="marker azul"></span> <span class="lbl">EN PROCESO</span></div>
+                <div class="legend-item"><span class="marker azul"></span> <span class="lbl">INCOMPLETO</span></div>
                 <div class="legend-item"><span class="marker verde"></span> <span class="lbl">EXCEDIDO</span></div>
             </div>
             <div class="system-stats">
@@ -192,9 +190,6 @@
         </div>
         <div class="footer-actions-v2">
             <button class="btn-v2 btn-primary" (click)="finalizar()">Agregar</button>
-            <button class="btn-v2" (click)="confirmarEdicion()">Editar</button>
-            <button class="btn-v2 btn-danger" (click)="eliminarItem('TODO')">Eliminar</button>
-            <button class="btn-v2 btn-dark" (click)="guardarBorrador()">Guardar</button>
             <button class="btn-v2 btn-dark" (click)="cerrarPantalla()">Cerrar</button>
         </div>
     </div>
@@ -238,7 +233,7 @@
                 <div class="bulto-row">
                     <span class="bulto-label">{{ type.nombreTipoBulto }}</span>
                     <div class="bulto-input-control">
-                        <input type="number" [(ngModel)]="type.cantidad" class="input-v2 bulto-input" min="0">
+                        <input [id]="'bulto-input-' + i" type="number" [(ngModel)]="type.cantidad" class="input-v2 bulto-input" min="0" (keyup.enter)="procesarBultos()">
                     </div>
                 </div>
                 }

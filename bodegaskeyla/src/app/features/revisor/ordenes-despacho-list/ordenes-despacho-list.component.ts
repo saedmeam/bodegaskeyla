@@ -63,21 +63,32 @@ export class OrdenesDespachoListComponent implements OnInit {
 
     @HostListener('window:keydown', ['$event'])
     handleKeyboardEvent(event: KeyboardEvent) {
+        // v136.0: Ignorar navegación global si el usuario está en un campo de texto
+        const target = event.target as HTMLElement;
+        const isInput = target?.tagName === 'INPUT' || target?.tagName === 'SELECT' || target?.tagName === 'TEXTAREA';
+
         if (this.ordenes().length === 0) return;
 
         if (event.key === 'ArrowDown') {
+            if (isInput) return;
             event.preventDefault();
             this.selectedIndex.update(i => Math.min(i + 1, this.ordenes().length - 1));
         } else if (event.key === 'ArrowUp') {
+            if (isInput) return;
             event.preventDefault();
             this.selectedIndex.update(i => Math.max(i - 1, 0));
         } else if (event.key === 'ArrowRight') {
+            if (isInput) return;
             event.preventDefault();
             this.nextPage();
         } else if (event.key === 'ArrowLeft') {
+            if (isInput) return;
             event.preventDefault();
             this.prevPage();
         } else if (event.key === 'Enter') {
+            // v136.0: Si es enter en un input, NO procesar la orden, solo dejar que el input maneje su evento (ej: buscar)
+            if (isInput) return;
+            
             event.preventDefault();
             const order = this.ordenes()[this.selectedIndex()];
             if (order) {
@@ -151,7 +162,9 @@ export class OrdenesDespachoListComponent implements OnInit {
             // v110.0: Corregir inicio de página (0-indexed para el API de Keyla)
             const pagedArg = page * 20;
             console.log('[Revisor:Mantenimiento] 🚀 Ejecutando búsqueda:', { empresa, usuario: user?.username, filtro, valor, pag: pagedArg });
-            const res = await firstValueFrom(this.revisorService.getOrdenesDespachoList(empresa, filtro, valor, pagedArg));
+            const res = await firstValueFrom(this.revisorService.getOrdenesDespachoList(
+                empresa, filtro, valor, pagedArg, this.fechaDesde, this.fechaHasta
+            ));
             console.log('[Revisor:Mantenimiento] 📥 Respuesta API:', res);
             console.log('[Revisor] Respuesta de API:', res);
 
@@ -180,7 +193,7 @@ export class OrdenesDespachoListComponent implements OnInit {
                     nombreSucursalOrigen: o.nombreSucursalOrigen || o.nombreSucursalSolicita || 'Origen N/A',
                     nombreSucursalDestino: o.nombreSucursalDestino || o.nombreSucursal || 'Destino N/A',
                     // v106.0: Nuevos campos según especificación Keyla
-                    grupoDespacho: o.codigoGrupoDespacho || 'SIN GRUPO',
+                    grupoDespacho: o.nombreGrupoDespacho || o.codigoGrupoDespacho || 'SIN GRUPO',
                     nombreUsuarioDespachador: o.usuarioIngreso || 'SISTEMA',
                     // v2.9.3: Usar el código de estado real del API (DP / DT / etc)
                     codigoEstado: o.codigoEstado || 'DP'
@@ -225,10 +238,20 @@ export class OrdenesDespachoListComponent implements OnInit {
     }
 
     procesar(orden: DispatchOrder) {
+        // v135.0: Bloqueo de navegación para órdenes finalizadas
+        if (orden.codigoEstado === 'DP' || orden.codigoEstado === 'DT') {
+            this.notificationService.show(`ERROR: La orden ${orden.solicitudOrden} ya ha sido procesada y no permite reingreso.`, true, 'ACCESO DENEGADO');
+            return;
+        }
+
         // v131.0: Usar clave compuesta (Solicitud-Orden) para evitar ambigüedades en la carga
         const compositeKey = `${orden.numeroSolicitud}-${orden.numeroOrdenDespacho}`;
         this.router.navigate(['/revisor'], {
-            queryParams: { order: compositeKey }
+            queryParams: { 
+                order: compositeKey,
+                fd: this.fechaDesde,
+                fh: this.fechaHasta
+            }
         });
     }
 

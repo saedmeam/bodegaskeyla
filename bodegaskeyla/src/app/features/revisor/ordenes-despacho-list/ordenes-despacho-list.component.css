@@ -608,9 +608,17 @@
     transition: all 0.2s;
 }
 
-.btn-process:hover {
+.btn-process:hover:not(:disabled) {
     background: #005153;
     box-shadow: 0 2px 4px rgba(0, 193, 197, 0.3);
+}
+
+.btn-process:disabled {
+    background: #cbd5e1;
+    color: #94a3b8;
+    cursor: not-allowed;
+    opacity: 0.7;
+    box-shadow: none;
 }
 
 .status-badge {

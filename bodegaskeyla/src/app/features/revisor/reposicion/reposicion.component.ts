@@ -35,9 +35,8 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
     // Estados de UI
     numero = "";
     fecha = new Date().toLocaleString();
-    movimiento = "";
-    movimientoNombre = "";
-    bodega = "";
+    origenNombre = "";
+    destinoNombre = "";
     concepto = "";
     barcodeInput = "";
     loteInput = "";
@@ -87,15 +86,13 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
         effect(() => {
             const metadata = this.revisorService.orderMetadata();
             if (metadata) {
-                this.bodega = metadata.bodega;
-                this.movimiento = metadata.movimiento;
-                this.movimientoNombre = metadata.nombre;
+                this.origenNombre = metadata.nombreSucursalOrigen || 'N/A';
+                this.destinoNombre = metadata.nombreSucursalDestino || 'N/A';
                 this.concepto = metadata.concepto;
             } else {
                 // Si no hay orden, limpiamos campos
-                this.bodega = "";
-                this.movimiento = "";
-                this.movimientoNombre = "";
+                this.origenNombre = "";
+                this.destinoNombre = "";
                 this.concepto = "";
             }
         });
@@ -109,7 +106,13 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
 
         effect(() => {
             if (this.bultoModalVisible()) {
-                setTimeout(() => this.bultoActionBtn?.nativeElement?.focus(), 150);
+                setTimeout(() => {
+                    const firstBulto = document.getElementById('bulto-input-0');
+                    if (firstBulto) {
+                        (firstBulto as HTMLInputElement).focus();
+                        (firstBulto as HTMLInputElement).select();
+                    }
+                }, 250); // v140.0: Un poco más de delay para asegurar renderizado
             }
         });
     }
@@ -128,16 +131,40 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
     }
 
     ngOnInit() {
-        // La pantalla inicia vacía or con una orden vía query param (v1.0 Nueva Pantalla)
+        // v160.10: Carga inicial sincronizada
         this.route.queryParams.subscribe(params => {
             if (params['order']) {
                 this.numero = params['order'];
-                this.consultarOrden();
+                const fd = params['fd'];
+                const fh = params['fh'];
+                this.actualizarOrdenData(fd, fh, true);
             }
         });
-
-        // v107.0: Cargar tipos de bultos dinámicos
         this.cargarTiposBultos();
+    }
+
+    /**
+     * v160.10: Método centralizado para actualizar stock y datos maestros.
+     */
+    async actualizarOrdenData(fd?: string, fh?: string, isInitial = false) {
+        if (!this.numero) return;
+
+        if (!isInitial) this.loadingService.show();
+        try {
+            // v160.10: El orquestador ya consume la API de manera segura
+            await firstValueFrom(this.revisorService.executeProcess('LOAD', { 
+                orderNumber: this.numero, 
+                fechaDesde: fd, 
+                fechaHasta: fh,
+                forceRefresh: true
+            }) as any);
+            if (!isInitial) this.showToast("STOCK ACTUALIZADO: Datos sincronizados con el servidor.", false, "SINCRONIZACIÓN");
+        } catch (e) {
+            this.showToast("Error al sincronizar datos.", true);
+        } finally {
+            if (!isInitial) this.loadingService.hide();
+            setTimeout(() => this.focusScanner(), 300);
+        }
     }
 
     async cargarTiposBultos() {
@@ -146,9 +173,10 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
             if (!res?.isError) {
                 const list = res?.tiposBultos || [];
                 this.bultoTypes.set(list.map((t: any) => ({
-                    codigoTipoBulto: t.codigoTipoBulto,
-                    nombreTipoBulto: t.nombreTipoBulto || t.descripcion || 'Bulto',
-                    cantidad: 0 // Empezamos en cero
+                    // v150.3: Mapeo robusto de códigos para evitar 'parent key not found'
+                    codigoTipoBulto: t.codigoTipoBulto || t.codigo || t.id || 0,
+                    nombreTipoBulto: t.nombreTipoBulto || t.descripcion || t.nombre || 'Bulto',
+                    cantidad: 0
                 })));
             }
         } catch (e) {
@@ -161,14 +189,18 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
         this.focusScanner();
     }
 
-    async consultarOrden() {
+    async consultarOrden(fd?: string, fh?: string) {
         if (!this.numero || this.numero.trim() === "") {
             this.revisorService.orderMetadata.set(null);
             return;
         }
 
         try {
-            this.revisorService.executeProcess('LOAD', { orderNumber: this.numero });
+            this.revisorService.executeProcess('LOAD', { 
+                orderNumber: this.numero, 
+                fechaDesde: fd, 
+                fechaHasta: fh 
+            });
             setTimeout(() => this.focusScanner(), 500); // Aseguramos el enfoque después de cargar
         } catch (e) {
             this.showToast("Error al iniciar la carga de la orden", true);
@@ -219,81 +251,65 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
             return false;
         }
 
-        // 1. Prioridad: Coincidencia exacta por código de ítem (Restricción v57.0)
-        let matches = this.ordenProductos().filter(p => p.item === this.barcodeInput);
+        // 1. Prioridad: Coincidencia exacta por código de ítem o NOMBRE (v160.12)
+        const searchText = this.barcodeInput.trim().toUpperCase();
+        let matches = this.ordenProductos().filter(p => 
+            p.item?.trim().toUpperCase() === searchText || p.nombre?.trim().toUpperCase() === searchText
+        );
 
         if (matches.length === 0) {
-            this.openModal("ERROR", `ERROR el código : [${this.barcodeInput}] no existe en esta orden.`, "❌", "alert");
+            this.openModal("ERROR", `ERROR el código o nombre : [${this.barcodeInput}] no existe en esta orden.`, "❌", "alert");
             this.barcodeInput = "";
             return false;
         }
 
-        /* v160.0: Bloque de validación por Lote y Caducidad comentado por solicitud de usuario
-        if (matches.length > 1) {
-            if (!this.loteInput) {
-                this.openModal("Selección de Lote", "Se detectaron <b>múltiples lotes</b> para este producto. Por favor, especifique el lote manualmente.", "inventory", "alert");
-                return;
-            }
+        // Uso del método orquestador con auditoría estricta (v160.15)
+        try {
+            const result = this.revisorService.executeProcess('SCAN', {
+                barcode: this.barcodeInput,
+                lote: this.loteInput,
+                caducidad: this.caducidadInput
+            });
 
-            const matchConLote = matches.find(m => m.lote === this.loteInput);
-            if (!matchConLote) {
-                this.showToast(`ERROR: El lote [${this.loteInput}] no es válido para este producto.`, true);
-                return;
-            }
-            matches = [matchConLote];
-        } else {
-            const match = matches[0];
-            if (match.lote && !this.loteInput) {
-                this.loteInput = match.lote;
-                if (match.caducidad) this.caducidadInput = match.caducidad;
-            }
-        }
-        */
+            if (result) {
+                // Evaluamos si el escaneo acaba de generar un excedente para notificar (v160.8)
+                const req = this.getOriginalRequested(result.product.item);
+                const scannedItem = this.getScannedProduct(result.product.item);
 
-        // Uso del método orquestador
-        const barcodeAttempt = this.barcodeInput; // Safeguard the input for the message
-        const result = this.revisorService.executeProcess('SCAN', {
-            barcode: this.barcodeInput,
-            lote: this.loteInput,
-            caducidad: this.caducidadInput
-        }) as any;
-
-        if (!result) {
-            this.openModal("ERROR", `ERROR: [${barcodeAttempt}] no existe en esta orden o el lote no coincide.`, "❌", "alert");
-            this.barcodeInput = "";
-            return false;
-        } else {
-            // Evaluamos si el escaneo acaba de generar un excedente para notificar inmediatamente
-            const req = this.getOriginalRequested(result.product.item);
-            const scannedItem = this.getScannedProduct(result.product.item);
-
-            if (req && scannedItem) {
-                if (Number(scannedItem.despachado) > Number(req.invBod || 0)) {
-                    this.openModal("STOCK INSUFICIENTE", `No puedes despachar más de lo que tienes en stock en bodega. Stock actual: <b>${req.invBod}</b>`, "⚠️", "alert");
-                } else if (Number(scannedItem.despachado) > Number(req.solicita)) {
-                    this.openModal("PRODUCTO EXCEDIDO", `Tienes el producto <b>${result.product.nombre}</b> excedido, por favor eliminar o corrige antes de continuar.`, "🚨", "alert");
-                } else {
-                    if (result.isAccumulated) {
-                        this.showToast(`OK: [${result.product.item}] Ya existe, se sumó a lo despachado.`, false, "REGISTRO EXISTENTE");
+                if (req && scannedItem) {
+                    if (Number(scannedItem.despachado) > Number(req.invBod || 0)) {
+                        this.showToast(`⚠️ STOCK INSUFICIENTE: ${result.product.nombre} (Stock: ${req.invBod})`, true);
+                    } else if (Number(scannedItem.despachado) > Number(req.solicita)) {
+                        this.showToast(`🚨 PRODUCTO EXCEDIDO: ${result.product.nombre} (Soli: ${req.solicita})`, true);
                     } else {
-                        this.showToast(`OK: [${result.product.item}] Registrado con éxito.`, false, "REGISTRO EXITOSO");
+                        if (result.isAccumulated) {
+                            this.showToast(`OK: [${result.product.item}] Ya existe, se sumó a lo despachado.`, false, "REGISTRO EXISTENTE");
+                        } else {
+                            this.showToast(`OK: [${result.product.item}] Registrado con éxito.`, false, "REGISTRO EXITOSO");
+                        }
                     }
                 }
-            }
 
-            // Limpiamos lote y caducidad después de un registro exitoso si no queremos que persistan
-            this.loteInput = "";
-            this.caducidadInput = "";
+                this.loteInput = "";
+                this.caducidadInput = "";
+                this.barcodeInput = "";
+                return true;
+            }
+        } catch (error: any) {
+            console.error('[ReposicionComponent] Error durante escaneo:', error.message);
+            // v160.15: Mostrar pantalla de error (Alert) solicitada por el usuario
+            this.openModal("❌ ERROR DE ESCANEO", error.message || 'No se pudo procesar el producto', "🚨", "alert");
             this.barcodeInput = "";
-            return true;
+            return false;
         }
+        return false;
     }
 
     onProductDblClick(prod: any) {
         if (!prod) return;
 
-        // V160.0: Manual Scan via double click
-        this.barcodeInput = prod.item;
+        // V160.12: Manual Scan via double click. Si no hay barcode, usamos el nombre exacto.
+        this.barcodeInput = prod.item || prod.nombre;
 
         // If the product has a specific lot/expiry in the order, we use it
         if (prod.lote) this.loteInput = prod.lote;
@@ -351,16 +367,15 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
     }
 
     updateQty(itemCode: string, qty: number) {
-        // Ejecutamos cálculo del estado independientemente de que se pase
+        // v160.8: Actualización directa permitida para visualización de discrepancias
         this.revisorService.executeProcess('UPDATE_QTY', { item: itemCode, qty: Number(qty) });
 
-        // Y lanzamos las modales si hay problemas, pero el registro ya se dio y calculó.
         const targetItem = this.getOriginalRequested(itemCode);
         if (targetItem) {
             if (Number(qty) > Number(targetItem.invBod || 0)) {
-                this.openModal("STOCK INSUFICIENTE", `No puedes despachar más de lo que tienes en stock en bodega. Stock actual: <b>${targetItem.invBod || 0}</b>`, "⚠️", "alert");
+                this.showToast(`⚠️ STOCK INSUFICIENTE: Stock actual: ${targetItem.invBod || 0}`, true);
             } else if (Number(qty) > Number(targetItem.solicita)) {
-                this.openModal("PRODUCTO EXCEDIDO", `Tienes el producto <b>${targetItem.nombre}</b> excedido (Sol: ${targetItem.solicita}). Por favor eliminar o corrige antes de continuar.`, "🚨", "alert");
+                this.showToast(`🚨 PRODUCTO EXCEDIDO: Solicitud: ${targetItem.solicita}`, true);
             }
         }
     }
@@ -391,6 +406,14 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
      * V55.0: Ejecuta el envío de actualización (ING / S) al presionar EDITAR.
      */
     async confirmarEdicion() {
+        // v135.0: Bloqueo de edición en estados definitivos
+        const metadata = this.revisorService.orderMetadata();
+        const status = metadata?.estado?.trim().toUpperCase();
+        if (status === 'DP' || status === 'DT') {
+            this.showToast(`ORDEN CERRADA: No se permite editar una orden en estado ${status}`, true);
+            return;
+        }
+
         if (this.escaneados().length === 0) {
             this.showToast("No hay cambios que editar.", true);
             return;
@@ -442,39 +465,63 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
         }
     }
 
-    /**
-     * V31.0: Proceso de finalización del despacho con validación multietapa.
-     * Se vincula al botón "Agregar" (que actúa como Procesar/Enviar).
-     */
     async finalizar() {
-        this.revisorService.executeProcess('SORT_PRIORITY'); // v42.0
+        // v135.0: Validación de estados definitivos (DP / DT) solicitada por usuario
+        const metadata = this.revisorService.orderMetadata();
+        const status = metadata?.estado?.trim().toUpperCase();
+        
+        if (status === 'DP' || status === 'DT') {
+            await this.openModal(
+                "ORDEN YA PROCESADA",
+                `<div style="text-align:center;">
+                    <span class="material-icons" style="font-size:48px; color:var(--danger-color); margin-bottom:15px;">lock</span>
+                    <p>Esta orden de despacho se encuentra actualmente en estado <b>[${status}]</b>.</p>
+                    <p style="margin-top:10px; font-size:0.9rem; color:#636e72;">No está permitido subir cambios ni bultos a una orden que ya ha sido cerrada o despachada totalmente.</p>
+                </div>`,
+                "🚫",
+                "alert"
+            );
+            return;
+        }
+
+        this.revisorService.executeProcess('SORT_PRIORITY');
         const errors = this.revisorService.getValidationErrors();
+        const criticalErrors = errors.filter(e => e.isCritical);
+        const hasCritical = criticalErrors.length > 0;
 
         if (errors.length === 0) {
             this.bultoModalVisible.set(true);
             return;
         }
 
-        // v100.0: Diseño de Auditoría en formato Tabla (Solicitud Usuario)
-        // v100.0: Diseño de Auditoría en formato Tabla (Solicitud Usuario)
+        // v160.9: Diseño de Auditoría con Bloqueo Crítico
         const generalErrors = errors.filter(e => e.type === 'TYPES' || e.type === 'BULTO');
         const detailErrors = errors.filter(e => e.type !== 'TYPES' && e.type !== 'BULTO');
 
         let messageHtml = `
             <div class="audit-modal-container">
+                ${hasCritical ? `
+                <div class="audit-lock-banner" style="background: #fee2e2; border: 2px solid #ef4444; border-radius: 8px; padding: 12px; margin-bottom: 15px; display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 24px;">🚫</span>
+                    <div style="color: #991b1b; font-weight: 800; font-size: 0.85rem;">
+                        ENVÍO BLOQUEADO: Se detectaron errores críticos (Stock o Excedidos). 
+                        Debe corregir los ítems marcados en rojo antes de continuar.
+                    </div>
+                </div>` : `
                 <p class="audit-intro">
                     <span class="icon">⚠️</span>
                     Se han detectado las siguientes novedades en el despacho actual:
-                </p>`;
+                </p>`}
+        `;
 
         if (generalErrors.length > 0) {
             messageHtml += `
                 <div class="audit-summary-observations" style="margin-bottom: 20px; padding: 15px; background: #fff7ed; border-radius: 10px; border: 2px solid #ed8936;">
-                    <strong style="color: #9c4221; display: block; margin-bottom: 8px; font-size: 0.9rem;">📌 OBSERVACIONES GENERALES:</strong>
+                    <strong style="color: #9c4221; display: block; margin-bottom: 8px; font-size: 0.9rem;">📌 OBSERVACIONES:</strong>
                     ${generalErrors.map(err => `
                         <div style="font-weight: 800; color: #7b341e; font-size: 0.85rem; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
                             <span>${err.type === 'TYPES' ? '📦' : '🏗️'}</span>
-                            <span>${err.message} - ${err.detail}</span>
+                            <span style="${err.isCritical ? 'color: #e53e3e; text-decoration: underline;' : ''}">${err.message} - ${err.detail}</span>
                         </div>
                     `).join('')}
                 </div>`;
@@ -496,56 +543,59 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
 
         detailErrors.forEach(err => {
             const getIcon = () => {
-                if (err.type === 'QTY') return '🔢';
+                if (err.type === 'STOCK') return '⚠️';
                 if (err.type === 'SURPLUS') return '🚨';
+                if (err.type === 'QTY') return '🔢';
                 return '🏷️';
             };
 
             const getColor = () => {
-                if (err.type === 'SURPLUS') return '#e53e3e';
+                if (err.isCritical) return '#e53e3e';
                 if (err.type === 'QTY') return '#d69e2e';
                 return '#4a5568';
             };
 
             messageHtml += `
-                <tr class="audit-row">
-                    <td class="audit-type" style="border: 1px solid black; padding: 10px; background: white; width: 150px; text-align: center;">
-                        <span class="type-badge" style="background: transparent; padding: 0; font-weight: 800; color: ${getColor()}; font-size: 0.75rem;">
+                <tr class="audit-row" style="${err.isCritical ? 'background: #fff5f5;' : ''}">
+                    <td class="audit-type" style="border: 1px solid black; padding: 10px; width: 150px; text-align: center;">
+                        <span class="type-badge" style="font-weight: 800; color: ${getColor()}; font-size: 0.75rem;">
                             ${getIcon()} ${err.message}
                         </span>
                     </td>
-                    <td class="audit-detail" style="border: 1px solid black; padding: 10px; background: white; color: #1a202c; font-size: 0.8rem; line-height: 1.4;">
-                        ${err.detail}
+                    <td class="audit-detail" style="border: 1px solid black; padding: 10px; color: #1a202c; font-size: 0.8rem; line-height: 1.4;">
+                        ${err.isCritical ? `<strong>${err.detail}</strong>` : err.detail}
                     </td>
                 </tr>`;
         });
-
-        if (detailErrors.length === 0) {
-            messageHtml += `
-                <tr>
-                    <td colspan="2" style="padding: 20px; text-align: center; color: #718096; font-style: italic;">
-                        Sin discrepancias individuales en productos.
-                    </td>
-                </tr>`;
-        }
 
         messageHtml += `
                         </tbody>
                     </table>
                 </div>
                 <div class="audit-footer-msg" style="margin-top: 20px; text-align: center; font-size: 0.9rem; color: #2d3748; padding: 10px; border-top: 1px dashed #cbd5e1;">
-                    ¿Desea <b>ACEPTAR</b> y procesar el envío de todas formas o <b>CERRAR</b> para corregir?
+                    ${hasCritical ? 
+                        `No se puede procesar el envío hasta que se resuelvan las novedades críticas.` : 
+                        `¿Desea <b>ACEPTAR</b> y procesar el envío de todas formas o <b>CERRAR</b> para corregir?`}
                 </div>
             </div>`;
 
-        // Abrimos el modal con los nuevos textos de botón solicitados
-        const aceptado = await this.openModal("📋 AUDITORÍA DE CIERRE", messageHtml, "⚠️", "confirm");
+        // Abrimos el modal con el reporte
+        this.modalActionDisabled.set(hasCritical);
+        const aceptado = await this.openModal(
+            hasCritical ? "⛔ BLOQUEO DE ENVÍO" : "📋 AUDITORÍA DE CIERRE", 
+            messageHtml, 
+            hasCritical ? "🚫" : "⚠️", 
+            "confirm"
+        );
 
-        if (aceptado) {
+        if (aceptado && !hasCritical) {
             this.bultoModalVisible.set(true);
-        } else {
+        } else if (!aceptado) {
             this.showToast("DESPACHO RETENIDO: Auditoría cancelada por el usuario.", true);
         }
+        
+        // Reset por seguridad
+        this.modalActionDisabled.set(false);
     }
 
     procesarBultos() {
@@ -559,9 +609,45 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
 
         this.bultoModalVisible.set(false);
         this.ejecutarEnvioFinal(bultosParaEnviar);
+        
+        setTimeout(() => this.focusScanner(), 300); // v2.8: Volver al scanner tras procesar bultos
+    }
 
+    /**
+     * Ejecuta el cierre definitivo y envío de datos (AGREGAR).
+     */
+    private ejecutarEnvioFinal(bultos?: any[]) {
+        this.loadingService.show();
+        (this.revisorService.finalizeProcess(bultos) as any)?.subscribe({
+            next: (res: any) => {
+                this.loadingService.hide();
+                if (res?.mensaje === 'OK' || res?.codigo === '000') {
+                    this.showToast("¡ORDEN CREADA! El registro se ha realizado con éxito.", false, "ÉXITO");
+                    // v120.0: Ahora la impresión se dispara solo si la API responde éxito total
+                    this.imprimirReportesFinales(bultos);
+
+                    // v160.11: Redirección automática al mantenimiento de órdenes tras éxito
+                    setTimeout(() => {
+                        this.router.navigate(['/despacho-lista']);
+                    }, 2500);
+                } else {
+                    // v104.5: Mostrar el mensaje de error directamente desde la respuesta (400/500)
+                    this.openModal("ERROR EN PROCESO", `${res?.mensaje || 'Error desconocido'}`, "❌", "alert");
+                }
+            },
+            error: () => {
+                this.loadingService.hide();
+                this.showToast("Error de conexión fatal", true);
+            }
+        });
+    }
+
+    /**
+     * v120.0: Centraliza la lógica de impresión de reportes y etiquetas.
+     */
+    private imprimirReportesFinales(bultosParaEnviar?: any[]) {
         // 1. v115.0: Impresión de etiquetas mediante Puente Java (Texto Plano)
-        if (bultosParaEnviar.length > 0) {
+        if (bultosParaEnviar && bultosParaEnviar.length > 0) {
             console.log('[ReposicionComponent] Generando etiquetas TXT para puente Java:', bultosParaEnviar);
             const metadata = this.revisorService.orderMetadata();
             const user = this.authService.getStoredUser();
@@ -574,8 +660,7 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
 
             const bultosLabels = bultosParaEnviar.map(b => ({ label: b.nombreTipoBulto, value: b.cantidad }));
             const labelsTxt = this.printerService.generateLabelsText(this.orderNumber, bultosLabels, extraData);
-            
-            // Impresión asíncrona pero sin bloquear el flujo principal
+
             this.printerService.printLabelsText(labelsTxt).catch(err => {
                 this.showToast("Error al imprimir etiquetas físicas. Verifique impresora y Java.", true);
             });
@@ -592,39 +677,17 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
                 sucursal: metadata?.sucursalDestino || '---',
                 usuario: user?.username || 'SISTEMA',
                 digitador: user?.username || 'SISTEMA',
-                fecha: new Date().toLocaleDateString('es-EC')
+                fecha: new Date().toLocaleDateString('es-EC'),
+                bodegaOrigen: metadata?.nombreSucursalOrigen,
+                bodegaDestino: metadata?.nombreSucursalDestino,
+                bultos: bultosParaEnviar
             };
 
             const reportHtml = this.printerService.generateTransferReportHtml(this.orderNumber, productsVerificados, extraReport);
             this.printerService.printLabels(reportHtml, undefined, { pageSize: 'A4' }, true);
-            
+
             this.showToast("Etiquetas enviadas al motor Java y Reporte abierto.", false, "IMPRESIÓN");
         }
-        
-        setTimeout(() => this.focusScanner(), 300); // v2.8: Volver al scanner tras procesar bultos
-    }
-
-    /**
-     * Ejecuta el cierre definitivo y envío de datos (AGREGAR).
-     */
-    private ejecutarEnvioFinal(bultos?: any[]) {
-        this.loadingService.show();
-        (this.revisorService.finalizeProcess(bultos) as any)?.subscribe({
-            next: (res: any) => {
-                this.loadingService.hide();
-                if (res?.mensaje === 'OK' || res?.codigo === '000') {
-                    this.showToast("¡ORDEN CREADA! El registro se ha realizado con éxito.", false, "ÉXITO");
-                    // v118.0: Se descarta impresión de tirilla por solicitud de usuario (Solo etiquetas)
-                } else {
-                    // v104.5: Mostrar el mensaje de error directamente desde la respuesta (400/500)
-                    this.openModal("ERROR EN PROCESO", `${res?.mensaje || 'Error desconocido'}`, "❌", "alert");
-                }
-            },
-            error: () => {
-                this.loadingService.hide();
-                this.showToast("Error de conexión fatal", true);
-            }
-        });
     }
 
     /**
@@ -650,7 +713,7 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
         switch (status.color) {
             case 'negro': return 'COMPLETO';
             case 'verde': return 'EXCEDIDO';
-            case 'azul': return 'EN PROCESO';
+            case 'azul': return 'INCOMPLETO'; // v160.12: Cambio de label sol. por usuario
             case 'naranja': return 'INCOMPLETO';
             default: return 'INCOMPLETO';
         }

@@ -240,9 +240,9 @@ export class PrinterService {
 
   /**
    * Genera el HTML para el reporte de Transferencia de Mercadería
-   * v2.7: Formato A4 profesional según fotografía del cliente
+   * v2.8: Optimizado para IMPRESORA MATRICIAL (Alto contraste, sin fondos grises)
    */
-  generateTransferReportHtml(orderNumber: string, products: any[], extra: { sucursal: string, usuario: string, digitador: string, fecha?: string }): string {
+  generateTransferReportHtml(orderNumber: string, products: any[], extra: { sucursal: string, usuario: string, digitador: string, fecha?: string, bodegaOrigen?: string, bodegaDestino?: string, bultos?: any[] }): string {
     const now = new Date();
     const dateStr = extra.fecha || now.toLocaleDateString('es-EC');
     const fullDateStr = `${dateStr} ${now.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
@@ -251,157 +251,158 @@ export class PrinterService {
     let html = `
       <html>
         <head>
-          <link rel="preconnect" href="https://fonts.googleapis.com">
-          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
           <style>
             @page { 
               size: A4;
-              margin: 1.2cm; 
+              margin: 1cm 1.2cm; 
             }
             body { 
-              font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-              font-size: 9pt;
+              font-family: Arial, Helvetica, sans-serif;
+              font-size: 10pt;
               margin: 0;
               padding: 0;
-              color: #1a202c;
-              line-height: 1.5;
+              color: black;
+              line-height: 1.2;
+              background: white;
             }
             .page-container {
               width: 100%;
+              min-height: 27cm;
+              position: relative;
+              display: flex;
+              flex-direction: column;
             }
             .header-main {
               display: flex;
               justify-content: space-between;
-              align-items: center;
-              margin-bottom: 25px;
+              align-items: flex-start;
+              margin-bottom: 15px;
+              border-bottom: 2px solid black;
+              padding-bottom: 10px;
             }
             .branding {
               display: flex;
               flex-direction: column;
             }
             .brand-name {
-              font-size: 18pt;
-              font-weight: 800;
-              color: #004a99;
-              letter-spacing: -0.5px;
+              font-size: 16pt;
+              font-weight: bold;
               margin: 0;
             }
             .report-type {
               font-size: 11pt;
-              font-weight: 700;
-              color: #4a5568;
+              font-weight: bold;
               text-transform: uppercase;
-              letter-spacing: 1px;
+              text-decoration: underline;
             }
             .doc-id-box {
               text-align: right;
-              background: #f8fafc;
-              padding: 10px 15px;
-              border-radius: 8px;
-              border: 1px solid #e2e8f0;
+              padding: 5px;
+              border: 1px solid black;
             }
             .doc-number {
-              font-size: 13pt;
-              font-weight: 800;
-              color: #2d3748;
+              font-size: 12pt;
+              font-weight: bold;
               display: block;
             }
             .doc-date {
-              font-size: 8.5pt;
-              color: #718096;
-              font-weight: 500;
+              font-size: 9pt;
             }
             .info-section {
               display: grid;
-              grid-template-columns: 1fr 1fr;
-              gap: 20px;
-              margin-bottom: 25px;
-              background: #fff;
-              padding: 15px;
-              border: 1px solid #edf2f7;
-              border-radius: 8px;
+              grid-template-columns: 1fr 1.2fr 1fr;
+              gap: 10px;
+              margin-bottom: 15px;
+              border: 1px solid black;
+              padding: 10px;
             }
             .info-group {
               display: flex;
               flex-direction: column;
-              gap: 4px;
             }
             .info-label {
-              font-size: 7.5pt;
-              font-weight: 700;
-              color: #a0aec0;
+              font-size: 8pt;
+              font-weight: bold;
               text-transform: uppercase;
-              letter-spacing: 0.5px;
             }
             .info-value {
-              font-size: 9.5pt;
-              font-weight: 600;
-              color: #2d3748;
+              font-size: 9pt;
+              margin-bottom: 4px;
             }
             .table-container {
-              margin-top: 20px;
-              min-height: 400px;
+              flex-grow: 1;
             }
             .report-table {
               width: 100%;
-              border-collapse: separate;
-              border-spacing: 0;
+              border-collapse: collapse;
             }
             .report-table th {
-              background: #f1f5f9;
-              color: #475569;
-              font-weight: 700;
+              border-top: 2px solid black;
+              border-bottom: 2px solid black;
+              font-weight: bold;
               text-transform: uppercase;
-              font-size: 8pt;
-              padding: 12px 10px;
+              font-size: 9pt;
+              padding: 8px 4px;
               text-align: left;
-              border-bottom: 2px solid #cbd5e1;
             }
             .report-table td {
-              padding: 10px;
-              border-bottom: 1px solid #f1f5f9;
-              font-size: 8.5pt;
-              vertical-align: middle;
+              padding: 6px 4px;
+              border-bottom: 1px dotted black;
+              font-size: 9pt;
             }
-            .report-table tr:nth-child(even) {
-              background: #f8fafc;
-            }
-            .col-codigo { width: 15%; font-family: monospace; font-size: 9pt; color: #1e293b; }
-            .col-desc { width: 45%; font-weight: 500; }
-            .col-medida { width: 15%; color: #64748b; }
-            .col-cant { width: 10%; text-align: right; font-weight: 800; font-size: 10pt; color: #004a99; }
+            .col-codigo { width: 110px; font-family: 'Courier New', Courier, monospace; }
+            .col-desc { width: auto; }
+            .col-medida { width: 60px; text-align: center; }
+            .col-cant { width: 60px; text-align: right; font-weight: bold; font-size: 10pt; }
             
+            .section-bultos {
+                margin-top: 15px;
+                border: 1.5px solid black;
+                padding: 10px;
+            }
+            .bultos-title {
+                font-weight: bold;
+                font-size: 9pt;
+                text-transform: uppercase;
+                margin-bottom: 6px;
+                border-bottom: 1px solid black;
+                display: inline-block;
+            }
+            .bultos-grid {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 15px;
+            }
+            .bulto-item {
+                font-size: 10pt;
+                font-weight: bold;
+            }
+
             .footer-signatures {
-              margin-top: 60px;
+              margin-top: 30px;
               display: grid;
               grid-template-columns: repeat(3, 1fr);
-              gap: 40px;
+              gap: 20px;
               text-align: center;
+              padding-bottom: 40px;
             }
             .sig-line {
-              border-top: 1.5px solid #1a202c;
-              padding-top: 10px;
-              font-size: 8pt;
-              font-weight: 700;
-              color: #4a5568;
+              border-top: 1px solid black;
+              padding-top: 5px;
+              font-size: 9pt;
+              font-weight: bold;
               text-transform: uppercase;
             }
-            .sig-subtext {
-              font-size: 7pt;
-              font-weight: 400;
-              color: #718096;
-              margin-top: 4px;
+            .sig-name {
+                font-size: 8pt;
             }
             .watermark {
-              position: absolute;
-              bottom: 20px;
-              left: 0;
-              right: 0;
               text-align: center;
-              font-size: 7.5pt;
-              color: #cbd5e1;
-              font-weight: 500;
+              font-size: 8pt;
+              color: black;
+              border-top: 1px dashed black;
+              padding-top: 5px;
+              margin-top: auto;
             }
           </style>
         </head>
@@ -413,8 +414,7 @@ export class PrinterService {
                 <span class="report-type">Transferencia de Mercadería</span>
               </div>
               <div class="doc-id-box">
-                <span class="doc-date">No. Documento</span>
-                <span class="doc-number">${solicitud}${orden}</span>
+                <span class="doc-date">No. Documento: <b>${solicitud}${orden}</b></span><br>
                 <span class="doc-date">Fecha: ${dateStr}</span>
               </div>
             </header>
@@ -423,14 +423,20 @@ export class PrinterService {
               <div class="info-group">
                 <span class="info-label">Usuario Emisor</span>
                 <span class="info-value">${extra.usuario}</span>
-                <span class="info-label" style="margin-top:5px">Fecha/Hora Proceso</span>
-                <span class="info-value" style="font-size:8pt">${fullDateStr}</span>
+                <span class="info-label">Fecha/Hora Proceso</span>
+                <span class="info-value">${fullDateStr}</span>
               </div>
               <div class="info-group">
                 <span class="info-label">Destino / Movimiento</span>
                 <span class="info-value">${solicitud}-${orden} | ${extra.sucursal}</span>
-                <span class="info-label" style="margin-top:5px">Digitador</span>
+                <span class="info-label">Digitador</span>
                 <span class="info-value">${extra.digitador}</span>
+              </div>
+              <div class="info-group">
+                <span class="info-label">Bodega Origen</span>
+                <span class="info-value">${extra.bodegaOrigen || 'Origen N/A'}</span>
+                <span class="info-label">Bodega Destino</span>
+                <span class="info-value">${extra.bodegaDestino || extra.sucursal}</span>
               </div>
             </section>
 
@@ -457,18 +463,29 @@ export class PrinterService {
               </table>
             </div>
 
+            ${extra.bultos && extra.bultos.length > 0 ? `
+            <section class="section-bultos">
+                <div class="bultos-title">Resumen de Despacho (Bultos)</div>
+                <div class="bultos-grid">
+                    ${extra.bultos.map(b => `
+                        <div class="bulto-item">${b.nombreTipoBulto}: ${b.cantidad}</div>
+                    `).join('')}
+                </div>
+            </section>
+            ` : ''}
+
             <footer class="footer-signatures">
               <div class="info-group">
                 <div class="sig-line">Elaborado por</div>
-                <div class="sig-subtext">${extra.usuario}</div>
+                <div class="sig-name">${extra.usuario}</div>
               </div>
               <div class="info-group">
                 <div class="sig-line">Revisado por</div>
-                <div class="sig-subtext">Control de Bodega</div>
+                <div class="sig-name">Control de Bodega</div>
               </div>
               <div class="info-group">
                 <div class="sig-line">Despachado por</div>
-                <div class="sig-subtext">Logística / Despacho</div>
+                <div class="sig-name">Logística / Despacho</div>
               </div>
             </footer>
 

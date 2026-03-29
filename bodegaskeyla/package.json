@@ -1,12 +1,12 @@
 {
     "name": "bodegaskeyla",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "author": "Neu360",
     "main": "main.js",
     "scripts": {
         "ng": "ng",
         "start": "ng serve",
-        "build": "ng build",
+        "build": "ng build --base-href ./",
         "watch": "ng build --watch --configuration development",
         "test": "ng test",
         "serve:ssr:bodegaskeyla": "node dist/bodegaskeyla/server/server.mjs",
@@ -77,13 +77,13 @@
                 "nsis",
                 "portable"
             ],
-            "icon": "public/logo-keyla-icon.png"
+            "icon": "public/logo-keyla.ico"
         },
         "nsis": {
             "oneClick": false,
             "allowToChangeInstallationDirectory": true,
-            "installerIcon": "public/logo-keyla-icon.png",
-            "uninstallerIcon": "public/logo-keyla-icon.png",
+            "installerIcon": "public/logo-keyla.ico",
+            "uninstallerIcon": "public/logo-keyla.ico",
             "createDesktopShortcut": true,
             "shortcutName": "Bodegas Keyla"
         },

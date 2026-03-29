@@ -19,26 +19,33 @@ class EncryptionService {
      * Obtener la ruta correcta del JAR según el entorno
      */
     getJarPath() {
-        // v104.5: Standarized path resolution for Enterprise Production
         const { app } = require('electron');
         const isPackaged = app ? app.isPackaged : false;
 
-        // In production, resources are in process.resourcesPath (resources/ folder)
-        // In development, they are in __dirname (project root)
-        const resourcesPath = isPackaged ? process.resourcesPath : __dirname;
-        return path.join(resourcesPath, 'encrypter-xuit.jar');
+        const possiblePaths = [
+            path.join(process.cwd(), 'encrypter-xuit.jar'),
+            path.join(__dirname, 'encrypter-xuit.jar'),
+            path.join(process.resourcesPath, 'encrypter-xuit.jar'),
+            path.join(process.resourcesPath, 'app', 'encrypter-xuit.jar')
+        ];
+
+        let finalPath = possiblePaths.find(p => require('fs').existsSync(p));
+        return finalPath || path.join(__dirname, 'encrypter-xuit.jar');
     }
 
     /**
-     * Verificar si Java está instalado
+     * Verificar si Java está instalado (solo una vez)
      */
     async checkJavaInstalled() {
+        if (this._javaChecked !== undefined) return this._javaChecked;
+        
         try {
-            const { stdout } = await execPromise('java -version');
-            console.log('[Electron:Encryption] ✅ Java detectado:', stdout.split('\n')[0]);
+            await execPromise('java -version');
+            this._javaChecked = true;
             return true;
         } catch (error) {
-            console.error('[Electron:Encryption] ❌ Java no está instalado o no está en PATH');
+            console.error('[Electron:Encryption] ❌ Java no detectado');
+            this._javaChecked = false;
             return false;
         }
     }

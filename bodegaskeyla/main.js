@@ -3,6 +3,21 @@ const { app, BrowserWindow } = electron;
 const path = require('path');
 const { ipcMain } = electron;
 
+// v150.0: Optimización para equipos antiguos (Bajos recursos)
+app.commandLine.appendSwitch('disable-gpu');
+app.commandLine.appendSwitch('disable-software-rasterizer');
+app.commandLine.appendSwitch('disable-gpu-compositing');
+app.commandLine.appendSwitch('disable-gpu-rasterization');
+app.commandLine.appendSwitch('disable-accelerated-video-decode');
+app.commandLine.appendSwitch('no-sandbox');
+app.commandLine.appendSwitch('disable-dev-shm-usage');
+app.commandLine.appendSwitch('disable-background-timer-throttling');
+app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('js-flags', '--max-old-space-size=512'); // Limite de memoria para evitar saturar RAM antigua
+app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+app.commandLine.appendSwitch('disable-breakpad'); // Desactivar reporte de errores para ahorrar CPU
+app.commandLine.appendSwitch('disable-component-update');
+
 let encryptionService;
 let printerService;
 let win; // v130.0: Definición explícita de la ventana principal para evitar errores de scope
@@ -91,21 +106,56 @@ function setupIpcHandlers() {
 
     ipcMain.handle('print-labels', async (event, { html, printerName, options, preview }) => {
         console.log('[Electron:Main] 📨 IPC Receive: print-labels (Preview:', !!preview, ')');
-        let printWindow = new BrowserWindow({
-            show: !!preview,
-            width: 800,
-            height: 900,
+        
+        const winConfig = {
+            show: false,
+            width: 900,
+            height: 950,
             title: 'Vista Previa de Reporte',
             webPreferences: {
                 nodeIntegration: false,
-                contextIsolation: true
+                contextIsolation: true,
+                plugins: true // v120.0: Habilita el visor de PDF nativo (Chrome PDF)
             }
-        });
+        };
 
-        try {
-            await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+        if (preview) {
+            // v120.1: Para vista previa generamos un PDF real del HTML.
+            // Esto permite usar los controles nativos del navegador (Imprimir, Descargar)
+            let printWindow = new BrowserWindow(winConfig);
             
-            if (!preview) {
+            try {
+                // Paso 1: Generar el PDF en una ventana oculta
+                let tempWin = new BrowserWindow({ show: false });
+                await tempWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+                
+                const pdfData = await tempWin.webContents.printToPDF({
+                    pageSize: options?.pageSize || 'A4',
+                    printBackground: true,
+                    margins: { marginType: 'none' }
+                });
+                
+                tempWin.close();
+
+                // Paso 2: Cargar el PDF como Data URI en la ventana principal
+                const pdfBase64 = pdfData.toString('base64');
+                await printWindow.loadURL(`data:application/pdf;base64,${pdfBase64}`);
+                
+                printWindow.setMenu(null);
+                printWindow.show();
+                printWindow.focus();
+                
+                return { success: true };
+            } catch (error) {
+                console.error('[Electron:Main] ❌ Error generando PDF para vista previa:', error.message);
+                if (printWindow) printWindow.close();
+                return { success: false, error: error.message };
+            }
+        } else {
+            // Impresión directa y silenciosa
+            let printWindow = new BrowserWindow({ show: false });
+            try {
+                await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
                 const printOptions = {
                     silent: true,
                     deviceName: printerName || '',
@@ -116,16 +166,11 @@ function setupIpcHandlers() {
                 };
                 await printWindow.webContents.print(printOptions);
                 printWindow.close();
-            } else {
-                // Si es vista previa, dejamos la ventana abierta
-                // para que el usuario pueda usar Ctrl+P u otros
-                printWindow.setMenu(null);
-                printWindow.focus();
+                return { success: true };
+            } catch (error) {
+                if (printWindow) printWindow.close();
+                return { success: false, error: error.message };
             }
-            return { success: true };
-        } catch (error) {
-            if (printWindow) printWindow.close();
-            return { success: false, error: error.message };
         }
     });
 
@@ -154,14 +199,15 @@ function createWindow() {
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
+            devTools: true, // v150.1: Habilitar consola para depuración
             preload: path.join(__dirname, 'preload.js')
         }
     });
     // Apunta al archivo index.html generado por Angular después de hacer 'ng build'
     win.loadFile(path.join(__dirname, 'dist/bodegaskeyla/browser/index.html'));
 
-    // v110.0: Abrir las herramientas de desarrollo automáticamente por solicitud de usuario
-    win.webContents.openDevTools();
+    // v110.0: Abrir las herramientas de desarrollo automáticamente
+    win.webContents.openDevTools(); // v110.0: Habilitar para depuración
 
     win.setMenu(null);
     win.on('closed', () => {

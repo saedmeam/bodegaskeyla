@@ -45,10 +45,11 @@ module.exports = {
 
                 // Definir posibles rutas para el JAR (Dev y Prod)
                 const possiblepaths = [
-                    path.join(process.cwd(), "PrintVeris.jar"), // Dev / Root
-                    path.join(process.resourcesPath, "PrintVeris.jar"), // Electron Prod (resources folder)
-                    path.join(path.dirname(process.execPath), "PrintVeris.jar"), // Next to executable
-                    path.join(__dirname, "PrintVeris.jar") // Local fallback
+                    path.join(process.cwd(), "PrintVeris.jar"), // Dev Root
+                    path.join(__dirname, "PrintVeris.jar"), // App Root
+                    path.join(process.resourcesPath, "PrintVeris.jar"), // Electron Prod folder
+                    path.join(process.resourcesPath, "app", "PrintVeris.jar"), // Alternate Prod folder
+                    path.join(path.dirname(process.execPath), "PrintVeris.jar") // Next to EXE
                 ];
 
                 let executeJar = possiblepaths.find(p => fs.existsSync(p));

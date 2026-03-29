@@ -120,7 +120,7 @@
                                 </span>
                             </td>
                             <td>
-                                <button class="btn-process" (click)="procesar(order)">PROCESAR</button>
+                                <button class="btn-process" [disabled]="order.codigoEstado === 'DP' || order.codigoEstado === 'DT'" (click)="procesar(order)">PROCESAR</button>
                             </td>
                         </tr>
                         } @empty {
