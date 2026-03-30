@@ -1,0 +1,61 @@
+<div class="setup-container">
+    <div class="setup-card animate__animated animate__fadeIn">
+        <div class="setup-header">
+            <span class="icon">🖨️</span>
+            <h2>Configuración de Impresora térmica</h2>
+        </div>
+
+        <div class="setup-body">
+            <p class="description">
+                Seleccione o escriba el nombre de la impresora de etiquetas (Zebra, Epson, etc.) 
+                para la impresión de bultos y tirillas.
+            </p>
+
+            <div class="form-group-v2">
+                <label>Nombre de la Impresora en el Sistema</label>
+                <div class="input-wrapper">
+                    <input type="text" 
+                           [ngModel]="printerNameSelected()"
+                           (ngModelChange)="printerNameSelected.set($event)"
+                           placeholder="Ej: Zebra ZD230"
+                           class="input-v2 full-width">
+                </div>
+            </div>
+
+            @if (availablePrinters().length > 0) {
+            <div class="printers-list-container">
+                <label class="list-label">Impresoras detectadas en este equipo:</label>
+                <div class="printers-grid">
+                    @for (p of availablePrinters(); track p.name) {
+                    <div class="printer-chip" 
+                         [class.selected]="printerNameSelected() === p.name"
+                         (click)="selectPrinter(p.name)">
+                        <div class="p-icon-container">
+                            <span class="p-icon">{{ p.isDefault ? '⭐' : '📄' }}</span>
+                        </div>
+                        <div class="p-details">
+                            <span class="p-name">{{ p.name }}</span>
+                            <span class="p-status">{{ p.status === 0 ? 'LISTA' : 'CONECTADA' }}</span>
+                        </div>
+                    </div>
+                    }
+                </div>
+            </div>
+            } @else {
+            <div class="no-printers-alert">
+                <span class="alert-icon">⚠️</span>
+                <span>No se detectaron impresoras activas. Asegúrese de que el equipo esté conectado y encendido.</span>
+            </div>
+            }
+        </div>
+
+        <div class="setup-footer">
+            <button class="btn-v2 btn-dark" (click)="cancel()">
+                <span class="icon">❌</span> CANCELAR
+            </button>
+            <button class="btn-v2 btn-primary" (click)="save()">
+                <span class="icon">💾</span> GUARDAR CONFIGURACIÓN
+            </button>
+        </div>
+    </div>
+</div>

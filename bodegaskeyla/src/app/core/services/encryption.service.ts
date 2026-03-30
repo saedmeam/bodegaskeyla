@@ -7,6 +7,10 @@ declare global {
             decryptText: (text: string) => Promise<{ success: boolean; data?: string; error?: string }>;
             checkJava: () => Promise<{ success: boolean; data?: boolean; error?: string }>;
             getAppConfig: () => Promise<{ success: boolean; data?: any; error?: string }>;
+            saveAppConfig: (config: any) => Promise<{ success: boolean; error?: string }>;
+            printText: (text: string, printerName?: string) => Promise<{ success: boolean; data?: string; error?: string }>;
+            getPrinters: () => Promise<{ success: boolean; data?: any[]; error?: string }>;
+            printLabels: (payload: any) => Promise<{ success: boolean; error?: string }>;
             closeApp: () => void;
         };
     }

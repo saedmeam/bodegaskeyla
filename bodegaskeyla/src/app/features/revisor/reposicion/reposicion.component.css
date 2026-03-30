@@ -512,7 +512,7 @@
     overflow: hidden;
     margin-bottom: 4px;
     transition: background 0.2s ease;
-    min-height: 65px;
+    min-height: 85px; /* v160.16: Increased to accommodate long names and metadata */
     cursor: pointer;
 }
 
@@ -567,39 +567,46 @@
     flex: 1;
     min-width: 0;
     margin-right: 12px;
-    /* Espacio para no chocar con el círculo de cantidad */
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* v160.16 */
+    gap: 2px;
 }
 
 .c-title {
-    display: block;
+    display: -webkit-box;
+    -webkit-line-clamp: 2; /* v160.16: Max 2 lines to prevent layout break */
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
     font-size: 0.75rem;
     font-weight: 800;
     color: #1a202c;
     line-height: 1.1;
-    margin-bottom: 2px;
+    margin-bottom: 0;
     word-break: break-word;
+}
+.c-meta-detailed {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 2px 0;
 }
 
 .c-meta {
     display: block;
-    font-size: 0.7rem;
-    color: #1a202c; /* v160.3: High contrast for validation */
+    font-size: 0.65rem; /* v160.16: Slightly smaller */
+    color: #1e293b;
     font-weight: 800;
-    margin-top: 5px;
-    background: rgba(255, 255, 255, 0.5);
-    padding: 2px 4px;
+    margin-top: 2px;
+    background: rgba(255, 255, 255, 0.4);
+    padding: 1px 4px;
     border-radius: 4px;
-}
-
-.c-lote {
-    display: block;
-    font-size: 0.75rem;
-    color: #718096;
-}
-
-.c-lote {
-    font-size: 0.6rem;
-    color: #a0aec0;
+    border: 1px solid rgba(0,0,0,0.03);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .c-qty-circle {

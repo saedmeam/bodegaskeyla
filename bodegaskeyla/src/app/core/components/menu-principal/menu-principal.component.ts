@@ -54,4 +54,11 @@ export class MenuPrincipalComponent {
         { name: 'Cargos', icon: 'assets/icons/cargos.png' },
         { name: 'Salir', icon: 'assets/icons/salir.png' }
     ];
+
+    salir() {
+        this.navService.closeMenu();
+        if (window.electronAPI) {
+            window.electronAPI.closeApp();
+        }
+    }
 }

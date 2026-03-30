@@ -5,23 +5,14 @@
         <span class="close-x" (click)="navService.closeMenu()">×</span>
     </div>
     <ul class="menu-list-v2">
-        <li class="menu-item-v2" routerLink="/revisor" (click)="navService.closeMenu()">
-            <span class="icon">📦</span> Reposición de Mercadería
+        <li class="menu-item-v2" routerLink="/despacho-lista" (click)="navService.closeMenu()">
+            <span class="icon">📋</span> Mantenimiento de Órdenes
         </li>
-        <li class="menu-item-v2" routerLink="/transferencias" (click)="navService.closeMenu()">
-            <span class="icon">🚚</span> Transferencia entre Sucursales
-        </li>
-        <li class="menu-item-v2" routerLink="/pedidos" (click)="navService.closeMenu()">
-            <span class="icon">🛒</span> Creación de Pedidos (Farmacia)
-        </li>
-        <li class="menu-item-v2" routerLink="/bodega-central" (click)="navService.closeMenu()">
-            <span class="icon">🏭</span> Bodega Central (Procesamiento)
-        </li>
-        <li class="menu-item-v2" routerLink="/tablas-validacion" (click)="navService.closeMenu()">
-            <span class="icon">⚙️</span> Mantenimiento de Tablas
+        <li class="menu-item-v2" routerLink="/config-impresora" (click)="navService.closeMenu()">
+            <span class="icon">🖨️</span> Configurar Impresora
         </li>
         <li class="menu-item-v2 divider"></li>
-        <li class="menu-item-v2 logout" (click)="navService.closeMenu()">
+        <li class="menu-item-v2 logout" (click)="salir()">
             <span class="icon">🚪</span> Salir del Sistema
         </li>
     </ul>

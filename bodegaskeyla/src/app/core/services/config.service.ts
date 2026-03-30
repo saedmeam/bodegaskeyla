@@ -58,4 +58,26 @@ export class ConfigService {
         }
         return config?.auth || { user: 'wsxpos', pass: 'n3UE60@s3Rv1c10@Xp0s' };
     }
+
+    /**
+     * v160.18: Guarda la configuración persistente en el disco.
+     */
+    async saveConfig(newConfig: any): Promise<boolean> {
+        if (window.electronAPI) {
+            const result = await window.electronAPI.saveAppConfig(newConfig);
+            if (result.success) {
+                this.configSubject.next(newConfig); // Actualizamos estado local
+                return true;
+            }
+            console.error('Error al guardar config:', result.error);
+        }
+        return false;
+    }
+
+    /**
+     * v160.17: Retorna el nombre de la impresora de etiquetas térmica configurada.
+     */
+    getPrinterName(): string {
+        return this.getConfig()?.IMPRESORA_TICKET || '';
+    }
 }

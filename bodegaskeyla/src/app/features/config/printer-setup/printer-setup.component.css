@@ -1,0 +1,220 @@
+.setup-container {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f1f2f6;
+    padding: 30px 20px;
+    overflow-y: auto; /* v160.19: Allow scroll if card is tall */
+}
+
+.setup-card {
+    background: white;
+    width: 100%;
+    max-width: 650px;
+    max-height: 90vh; /* v160.19: Prevent clipping */
+    display: flex;
+    flex-direction: column;
+    border-radius: 12px;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+    overflow: hidden;
+    border: 1px solid #cbd5e0;
+}
+
+.setup-header {
+    background: #1a252f;
+    padding: 20px 25px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    color: white;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.setup-header h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.setup-header .icon {
+    font-size: 1.5rem;
+}
+
+.setup-body {
+    padding: 25px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow-y: auto; /* v160.19: Internal scroll for long lists */
+    flex: 1;
+}
+
+.description {
+    font-size: 0.85rem;
+    color: #64748b;
+    line-height: 1.5;
+    margin: 0;
+    font-weight: 600;
+}
+
+.input-wrapper {
+    position: relative;
+    margin-top: 5px;
+}
+
+.full-width {
+    width: 100%;
+}
+
+.input-v2 {
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px 15px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1e293b;
+    transition: all 0.3s ease;
+}
+
+.input-v2:focus {
+    border-color: #008080;
+    outline: none;
+    background: #fdfdfd;
+}
+
+.printers-list-container {
+    margin-top: 10px;
+}
+
+.list-label {
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: #94a3b8;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    display: block;
+    letter-spacing: 0.5px;
+}
+
+.printers-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+    overflow-x: hidden; /* v160.19 */
+    padding: 4px;
+    border: 1px solid #edf2f7;
+    border-radius: 8px;
+    background: #fdfdfd;
+}
+
+/* Custom Scrollbar for Printers Grid */
+.printers-grid::-webkit-scrollbar {
+    width: 6px;
+}
+.printers-grid::-webkit-scrollbar-track {
+    background: transparent;
+}
+.printers-grid::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
+.printers-grid::-webkit-scrollbar-thumb:hover {
+    background: #94a3af;
+}
+
+.printer-chip {
+    background: white;
+    border: 1px solid #edf2f7;
+    padding: 12px 15px;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    transition: all 0.2s ease;
+}
+
+.printer-chip:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    transform: translateX(4px);
+}
+
+.printer-chip.selected {
+    background: #edfdfa;
+    border-color: #008080;
+    box-shadow: 0 0 0 1px #008080;
+}
+
+.p-icon-container {
+    font-size: 1.2rem;
+    width: 40px;
+    height: 40px;
+    background: #f1f5f9;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.p-details {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.p-name {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #334155;
+    word-break: break-all;
+}
+
+.p-status {
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: #64748b;
+    text-transform: uppercase;
+}
+
+.no-printers-alert {
+    padding: 15px;
+    background: #fff5f5;
+    border: 1px solid #fed7d7;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #c53030;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.setup-footer {
+    padding: 20px 25px;
+    background: #f8fafc;
+    border-top: 1px solid #edf2f7;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.btn-primary {
+    background: #008080 !important;
+    color: white !important;
+    box-shadow: 0 4px 10px rgba(0, 128, 128, 0.2) !important;
+}
+
+.btn-dark {
+    background: #2c3e50 !important;
+    color: white !important;
+}
+
+.btn-v2 .icon {
+    margin-right: 5px;
+}

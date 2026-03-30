@@ -148,10 +148,11 @@
                     @for (prod of ordenProductos(); track prod.item) {
                     @let status = getScannedProduct(prod.item);
                     <div class="comparativo-item clickable" (dblclick)="onProductDblClick(prod)"
+                        [title]="prod.nombre"
                         [ngClass]="'c-bg-' + (status ? (status?.color || 'naranja') : 'naranja')">
                         <div class="c-indicator" [class]="status ? (status?.color || 'naranja') : 'naranja'"></div>
                         <div class="c-info">
-                            <strong class="c-title">{{ prod.nombre }}</strong>
+                            <strong class="c-title" [title]="prod.nombre">{{ prod.nombre }}</strong>
                             <div class="c-meta-detailed">
                                 <span class="c-tag presentation">{{ prod.tipoPresentacion }}</span>
                             </div>

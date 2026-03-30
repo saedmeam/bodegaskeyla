@@ -189,6 +189,23 @@ function setupIpcHandlers() {
             return { success: false, error: error.message };
         }
     });
+
+    ipcMain.handle('save-app-config', async (event, newConfig) => {
+        console.log('[Electron:Main] 📨 IPC Receive: save-app-config');
+        const fs = require('fs');
+        const isPackaged = app.isPackaged;
+        const resourcesPath = isPackaged ? process.resourcesPath : __dirname;
+        const configPath = path.join(resourcesPath, 'config.json');
+
+        try {
+            // v160.18: Guardado persistente de configuración
+            fs.writeFileSync(configPath, JSON.stringify(newConfig, null, 4), 'utf8');
+            return { success: true };
+        } catch (e) {
+            console.error('[Electron:Main] ❌ Error guardando config:', e.message);
+            return { success: false, error: e.message };
+        }
+    });
 }
 
 function createWindow() {

@@ -40,6 +40,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getAppConfig: () => ipcRenderer.invoke('get-app-config'),
 
     /**
+     * Guardar configuración local (v160.18)
+     */
+    saveAppConfig: (config) => ipcRenderer.invoke('save-app-config', config),
+
+    /**
      * Imprimir texto plano
      * @param {string} text - Texto a imprimir
      * @param {string} [printerName] - Nombre de la impresora opcional

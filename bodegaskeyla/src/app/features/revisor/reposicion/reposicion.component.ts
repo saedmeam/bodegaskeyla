@@ -10,6 +10,7 @@ import { NotificationService } from '../../../core/services/notification.service
 import { PrinterService } from '../../../core/services/printer.service';
 import { BultoType } from '../../../shared/models/product.model';
 import { DataService } from '../../../core/services/data.service';
+import { ConfigService } from '../../../core/services/config.service';
 
 @Component({
     selector: 'app-reposicion',
@@ -27,6 +28,7 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
     private router = inject(Router);
     private printerService = inject(PrinterService);
     private dataService = inject(DataService);
+    private configService = inject(ConfigService);
 
     @ViewChild('scannerInput') scannerInput!: ElementRef<HTMLInputElement>;
     @ViewChild('modalActionBtn') modalActionBtn!: ElementRef<HTMLButtonElement>;
@@ -661,7 +663,11 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
             const bultosLabels = bultosParaEnviar.map(b => ({ label: b.nombreTipoBulto, value: b.cantidad }));
             const labelsTxt = this.printerService.generateLabelsText(this.orderNumber, bultosLabels, extraData);
 
-            this.printerService.printLabelsText(labelsTxt).catch(err => {
+            // v160.17: Recuperamos el nombre de la impresora física desde el archivo de configuración
+            const printerName = this.configService.getPrinterName();
+            console.log(`[ReposicionComponent] Enviando a impresora: ${printerName || 'DEFAULT_SYSTEM'}`);
+
+            this.printerService.printLabelsText(labelsTxt, printerName).catch(err => {
                 this.showToast("Error al imprimir etiquetas físicas. Verifique impresora y Java.", true);
             });
         }
