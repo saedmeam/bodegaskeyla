@@ -159,6 +159,7 @@ function setupIpcHandlers() {
                 const pdfOptions = {
                     printBackground: true,
                     pageSize: options?.pageSize || 'A4',
+                    landscape: options?.landscape || false,
                     margins: { marginType: 'none' } // v160.36: Modern API logic
                 };
 

@@ -748,7 +748,7 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
             const bultosLabelsMapped = [{ label: 'IMPRESIÓN DE ETIQUETAS', value: cantidadAPrint }];
             const labelsHtml = this.printerService.generateLabelsHtml(this.orderNumber, bultosLabelsMapped, extraData);
 
-            this.printerService.printLabels(labelsHtml, undefined, { pageSize: 'A4' }, true);
+            this.printerService.printLabels(labelsHtml, undefined, { pageSize: 'A4', landscape: true }, true);
         } else {
             console.log('[ReposicionComponent] ⏭️ Saltando etiquetas físicas (Bulto 999 es 0)');
         }

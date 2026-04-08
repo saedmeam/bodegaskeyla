@@ -243,12 +243,12 @@ export class OrdenesDespachoListComponent implements OnInit {
             // 3. Generar y Enviar Etiquetas
             const bultosLabelsMapped = bultosParaImprimir.map(b => ({ label: b.nombreTipoBulto, value: b.cantidad }));
             const labelsHtml = this.printerService.generateLabelsHtml(ordenFullId, bultosLabelsMapped, extraData);
-            await this.printerService.printLabels(labelsHtml, undefined, { pageSize: 'A4' }, true);
+            await this.printerService.printLabels(labelsHtml, undefined, { pageSize: 'A4', landscape: true }, true);
             
             // 4. Generar y Enviar Reporte de Transferencia (A4)
             setTimeout(async () => {
                 const reportHtml = this.printerService.generateTransferReportHtml(ordenFullId, products, extraData);
-                await this.printerService.printLabels(reportHtml, undefined, { pageSize: 'A4' }, true);
+                await this.printerService.printLabels(reportHtml, undefined, { pageSize: 'A4', landscape: true }, true);
                 this.notificationService.show("Reimpresión generada satisfactoriamente.", false, "ÉXITO");
             }, 800);
 

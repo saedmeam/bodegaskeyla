@@ -83,6 +83,16 @@ export class RevisorService {
     }
 
     private loadOrder(orderNumber: string, fechaDesde?: string, fechaHasta?: string, forceRefresh: boolean = false): Observable<boolean> {
+        // v200.1: BLINDAJE DE MEMORIA - Detectar cambio de orden para purgar estado previo
+        const isDifferentOrder = this.currentOrderNumber && String(this.currentOrderNumber) !== String(orderNumber);
+        
+        if (isDifferentOrder) {
+            console.log(`[RevisorService] 🧹 Detectado cambio de orden (${this.currentOrderNumber} -> ${orderNumber}). Limpiando memoria.`);
+            this.escaneados.set([]);
+            this.ordenProductos.set([]);
+            this.orderMetadata.set(null);
+        }
+
         this.currentOrderNumber = orderNumber;
         const storageKey = `REVISION_SESSION_${orderNumber}`;
         const savedSession = this.storage.loadLocal<any>(storageKey);
@@ -100,8 +110,8 @@ export class RevisorService {
         this.loadingService.show();
         this.isLoading = true; // Bloqueamos autoguardado reactivo durante el fetch
 
-        // Preservamos escaneados previos si estamos forzando refresh (v160.11)
-        const previousEscaneados = forceRefresh ? [...this.escaneados()] : [];
+        // Preservamos escaneados previos si estamos forzando refresh de la MISMA orden (v160.11 / v200.1)
+        const previousEscaneados = (forceRefresh && !isDifferentOrder) ? [...this.escaneados()] : [];
 
         // 2. Si es forzado o no hay sesión, consultamos la API Real
         return this.dataService.login()
