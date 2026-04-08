@@ -55,98 +55,35 @@ export class PrinterService {
 
   /**
    * Genera el HTML para las etiquetas basadas en los bultos seleccionados
-   * v2.6: Formato específico 10.5cm x 5.1cm según solicitud usuario
+   * v2.7: Formato robusto con estilos en línea para evitar PDF en Blanco
    */
   generateLabelsHtml(orderNumber: string, bultos: any[], extra: { sucursal: string, digitador: string, fecha?: string }): string {
     const dateStr = extra.fecha || new Date().toLocaleDateString('es-EC');
     const digitador = extra.digitador || 'SISTEMA';
     const sucursal = extra.sucursal || '---';
-    const [solicitud, orden] = orderNumber.split('-');
 
     let html = `
       <html>
         <head>
           <style>
             @page { 
-              size: 10.5cm 5.1cm;
+              size: A4; 
               margin: 0; 
             }
             body { 
               margin: 0; 
-              padding: 0;
-              width: 10.5cm;
-              height: 5.1cm;
-              background: white;
-              overflow: hidden;
+              padding: 0; 
+              background: white; 
+              font-family: Arial, sans-serif;
+              color: black;
             }
-            .label-page {
+            .page-label {
               width: 10.5cm;
               height: 5.1cm;
               page-break-after: always;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-            }
-            .inner-border {
-              width: 10.2cm;
-              height: 4.8cm;
-              border: 3px solid black;
-              padding: 8px 15px;
-              box-sizing: border-box;
-              font-family: 'Arial Narrow', Arial, sans-serif;
-              display: flex;
-              flex-direction: column;
-              text-align: left;
-            }
-            .header-corp {
-              font-weight: bold;
-              font-size: 13pt;
-              margin-bottom: 0px;
-              color: #444;
-            }
-            .sucursal-title {
-              font-weight: 800;
-              font-size: 17pt;
-              margin-bottom: 4px;
-              text-transform: uppercase;
-            }
-            .direccion-line {
-              font-size: 9pt;
-              margin-bottom: 5px;
-              color: #666;
-            }
-            .info-row {
-              display: flex;
-              margin-bottom: 4px;
-              align-items: center;
-            }
-            .info-label {
-              font-weight: bold;
-              font-size: 10pt;
-              width: 155px;
-              text-transform: uppercase;
-            }
-            .info-value {
-              font-size: 11pt;
-              font-weight: normal;
-            }
-            .box-outline {
-              border: 2px solid black;
-              padding: 1px 12px;
-              font-weight: 900;
-              font-size: 15pt;
-              display: inline-block;
-              min-width: 80px;
-              text-align: center;
-            }
-            .footer-warning {
-              margin-top: auto;
-              text-align: center;
-              font-weight: bold;
-              font-size: 9pt;
-              text-transform: uppercase;
-              border-top: 1px solid #ccc;
-              padding-top: 4px;
+              position: relative;
+              overflow: hidden;
+              /* v160.40: Borde de guía opcional */
             }
           </style>
         </head>
@@ -154,38 +91,40 @@ export class PrinterService {
     `;
 
     bultos.forEach((b) => {
-      if (b.value > 0) {
-        for (let i = 1; i <= b.value; i++) {
+      const totalBultos = Number(b.value) || 0;
+      if (totalBultos > 0) {
+        for (let i = 1; i <= totalBultos; i++) {
           html += `
-            <div class="label-page">
-              <div class="inner-border">
-                <div class="header-corp">CENTRO DE DISTRIBUCIÓN FARMAKEYLA</div>
-                <div class="sucursal-title">SUCURSAL : ${sucursal}</div>
+            <div class="page-label" style="padding: 0; font-weight: 900;">
+              <div style="width: 9.8cm; height: 4.5cm; border: 2.5px solid black; margin: 0.1cm auto; padding: 3px; box-sizing: border-box; line-height: 1.1; font-weight: 900;">
+                <div style="font-weight: 900; font-size: 13px; text-align: left;">CENTRO DE DISTRIBUCIÓN FARMAKEYLA</div>
+                <div style="font-weight: 900; font-size: 16px; text-align: left; margin-top: 1px;">SUCURSAL :${sucursal}</div>
                 
-                <div class="direccion-line">Dirección : </div>
+                <div style="font-size: 10px; margin-top: 2px; font-weight: 900;">Dirección :</div>
                 
-                <div class="info-row">
-                  <span class="info-label">FECHA DE DESPACHO</span>
-                  <span class="info-value">${dateStr}</span>
+                <div style="font-weight: 900; font-size: 12px; margin-top: 3px;">
+                  FECHA DE DESPACHO <span style="margin-left: 10px; font-weight: 900;">${dateStr}</span>
                 </div>
                 
-                <div class="info-row">
-                  <span class="info-label">Número de Bulto #</span>
-                  <span class="box-outline">${i}</span>
-                  <span style="font-size: 8pt; margin-left: 5px;">(de ${b.value} ${b.label})</span>
+                <div style="margin-top: 5px; font-size: 13px; display: flex; align-items: center; font-weight: 900;">
+                  <b style="width: 140px; display: inline-block; font-weight: 900;">Número de Bulto # :</b>
+                  <span style="font-size: 22px; border: 2px solid black; padding: 0 8px; font-weight: 900;">${i}</span>
+                  <span style="font-size: 10px; margin-left: 5px; font-weight: 900;">(de ${totalBultos} ${b.label})</span>
                 </div>
                 
-                <div class="info-row">
-                  <span class="info-label">Número de Pedido #</span>
-                  <span class="box-outline">${solicitud}-${orden}</span>
+                <div style="margin-top: 5px; font-size: 13px; font-weight: 900;">
+                  <b style="width: 140px; display: inline-block; font-weight: 900;">Número de Pedido # :</b>
+                  <span style="font-size: 17px; border: 2px solid black; padding: 1px 6px; font-weight: 900;">${orderNumber}</span>
                 </div>
                 
-                <div class="info-row" style="margin-top: 2px;">
-                  <span class="info-label" style="font-size: 9pt;">Digitador :</span>
-                  <span class="info-value" style="font-size: 10pt;">${digitador}</span>
+                <div style="margin-top: 5px; font-size: 11px; font-weight: 900;">
+                  <b style="width: 70px; display: inline-block; font-weight: 900;">Digitador :</b>
+                  <span style="font-weight: 900;">${digitador}</span>
                 </div>
                 
-                <div class="footer-warning">SI ESTE SELLO VIOLADO NO ACEPTE LA CAJA</div>
+                <div style="width: 100%; text-align: center; font-weight: 900; font-size: 10px; text-transform: uppercase; margin-top: 6px; border-top: 1px dashed black; padding-top: 2px;">
+                  SI ESTE SELLO VIOLADO NO ACEPTE LA CAJA
+                </div>
               </div>
             </div>
           `;
@@ -258,12 +197,13 @@ export class PrinterService {
             }
             body { 
               font-family: Arial, Helvetica, sans-serif;
-              font-size: 10pt;
+              font-size: 11pt; 
               margin: 0;
               padding: 0;
               color: black;
-              line-height: 1.2;
+              line-height: 1.1;
               background: white;
+              font-weight: 900 !important; /* v160.41: TODO EN NEGRITA MÁXIMA */
             }
             .page-container {
               width: 100%;
@@ -271,13 +211,14 @@ export class PrinterService {
               position: relative;
               display: flex;
               flex-direction: column;
+              font-weight: 900 !important;
             }
             .header-main {
               display: flex;
               justify-content: space-between;
               align-items: flex-start;
-              margin-bottom: 15px;
-              border-bottom: 2px solid black;
+              margin-bottom: 20px;
+              border-bottom: 4px solid black; 
               padding-bottom: 10px;
             }
             .branding {
@@ -285,49 +226,51 @@ export class PrinterService {
               flex-direction: column;
             }
             .brand-name {
-              font-size: 16pt;
-              font-weight: bold;
+              font-size: 18pt;
+              font-weight: 900;
               margin: 0;
             }
             .report-type {
-              font-size: 11pt;
-              font-weight: bold;
+              font-size: 14pt;
+              font-weight: 900;
               text-transform: uppercase;
               text-decoration: underline;
             }
             .doc-id-box {
               text-align: right;
-              padding: 5px;
-              border: 1px solid black;
+              padding: 8px;
+              border: 3px solid black;
             }
             .doc-number {
-              font-size: 12pt;
-              font-weight: bold;
+              font-size: 14pt;
+              font-weight: 900;
               display: block;
             }
             .doc-date {
-              font-size: 9pt;
+              font-size: 11pt;
+              font-weight: 900;
             }
             .info-section {
               display: grid;
               grid-template-columns: 1fr 1.2fr 1fr;
-              gap: 10px;
-              margin-bottom: 15px;
-              border: 1px solid black;
-              padding: 10px;
+              gap: 15px;
+              margin-bottom: 20px;
+              border: 3px solid black;
+              padding: 12px;
             }
             .info-group {
               display: flex;
               flex-direction: column;
             }
             .info-label {
-              font-size: 8pt;
-              font-weight: bold;
+              font-size: 10pt;
+              font-weight: 900;
               text-transform: uppercase;
             }
             .info-value {
-              font-size: 9pt;
-              margin-bottom: 4px;
+              font-size: 11pt;
+              margin-bottom: 6px;
+              font-weight: 900;
             }
             .table-container {
               flex-grow: 1;
@@ -335,74 +278,86 @@ export class PrinterService {
             .report-table {
               width: 100%;
               border-collapse: collapse;
+              border: 2px solid black; 
             }
             .report-table th {
-              border-top: 2px solid black;
-              border-bottom: 2px solid black;
-              font-weight: bold;
+              border-top: 4px solid black;
+              border-bottom: 4px solid black;
+              border-left: 1px solid black;
+              border-right: 1px solid black;
+              font-weight: 900;
               text-transform: uppercase;
-              font-size: 9pt;
-              padding: 8px 4px;
+              font-size: 11pt;
+              padding: 10px 6px;
               text-align: left;
+              background: white;
             }
             .report-table td {
-              padding: 6px 4px;
-              border-bottom: 1px dotted black;
-              font-size: 9pt;
+              padding: 8px 6px;
+              border-bottom: 2px solid black; 
+              border-left: 1px solid black;
+              border-right: 1px solid black;
+              font-size: 11pt;
+              font-weight: 900 !important;
             }
-            .col-codigo { width: 110px; font-family: 'Courier New', Courier, monospace; }
-            .col-desc { width: auto; }
-            .col-medida { width: 60px; text-align: center; }
-            .col-cant { width: 60px; text-align: right; font-weight: bold; font-size: 10pt; }
+            .col-codigo { width: 140px; font-family: 'Courier New', Courier, monospace; font-size: 13pt !important; font-weight: 900; } 
+            .col-desc { width: auto; font-size: 11pt; font-weight: 900; }
+            .col-medida { width: 80px; text-align: center; font-weight: 900; }
+            .col-cant { width: 80px; text-align: right; font-weight: 900; font-size: 14pt; }
             
             .section-bultos {
-                margin-top: 15px;
-                border: 1.5px solid black;
-                padding: 10px;
+                margin-top: 20px;
+                border: 3px solid black;
+                padding: 15px;
             }
             .bultos-title {
-                font-weight: bold;
-                font-size: 9pt;
+                font-weight: 900;
+                font-size: 12pt;
                 text-transform: uppercase;
-                margin-bottom: 6px;
-                border-bottom: 1px solid black;
+                margin-bottom: 10px;
+                border-bottom: 2px solid black;
                 display: inline-block;
             }
             .bultos-grid {
                 display: flex;
                 flex-wrap: wrap;
-                gap: 15px;
+                gap: 20px;
             }
             .bulto-item {
-                font-size: 10pt;
-                font-weight: bold;
+                font-size: 13pt;
+                font-weight: 900;
             }
-
+            .report-footer {
+              margin-top: auto; 
+              padding-top: 80px; 
+              page-break-inside: avoid;
+            }
             .footer-signatures {
-              margin-top: 30px;
               display: grid;
               grid-template-columns: repeat(3, 1fr);
               gap: 20px;
               text-align: center;
-              padding-bottom: 40px;
+              margin-bottom: 25px;
             }
             .sig-line {
-              border-top: 1px solid black;
+              border-top: 2px solid black;
               padding-top: 5px;
-              font-size: 9pt;
-              font-weight: bold;
+              font-size: 10pt;
+              font-weight: 900;
               text-transform: uppercase;
             }
             .sig-name {
-                font-size: 8pt;
+                font-size: 9pt;
+                margin-top: 2px;
+                font-weight: 900;
             }
             .watermark {
               text-align: center;
-              font-size: 8pt;
+              font-size: 9pt;
               color: black;
               border-top: 1px dashed black;
-              padding-top: 5px;
-              margin-top: auto;
+              padding-top: 8px;
+              font-weight: 900;
             }
           </style>
         </head>
@@ -414,31 +369,33 @@ export class PrinterService {
                 <span class="report-type">Transferencia de Mercadería</span>
               </div>
               <div class="doc-id-box">
-                <span class="doc-date">No. Documento: <b>${solicitud}${orden}</b></span><br>
-                <span class="doc-date">Fecha: ${dateStr}</span>
+                No. Documento: <b>${solicitud}${orden}</b><br>
+                Fecha: ${dateStr}
               </div>
             </header>
 
-            <section class="info-section">
-              <div class="info-group">
-                <span class="info-label">Usuario Emisor</span>
-                <span class="info-value">${extra.usuario}</span>
-                <span class="info-label">Fecha/Hora Proceso</span>
-                <span class="info-value">${fullDateStr}</span>
-              </div>
-              <div class="info-group">
-                <span class="info-label">Destino / Movimiento</span>
-                <span class="info-value">${solicitud}-${orden} | ${extra.sucursal}</span>
-                <span class="info-label">Digitador</span>
-                <span class="info-value">${extra.digitador}</span>
-              </div>
-              <div class="info-group">
-                <span class="info-label">Bodega Origen</span>
-                <span class="info-value">${extra.bodegaOrigen || 'Origen N/A'}</span>
-                <span class="info-label">Bodega Destino</span>
-                <span class="info-value">${extra.bodegaDestino || extra.sucursal}</span>
-              </div>
-            </section>
+            <table style="width:100%; border:2px solid black; padding:10px; margin-bottom:20px; border-collapse:collapse;">
+              <tr>
+                <td style="width:33%; vertical-align:top;">
+                  <span class="info-label">Usuario Emisor</span><br>
+                  <span class="info-value">${extra.usuario}</span><br>
+                  <span class="info-label">Fecha/Hora Proceso</span><br>
+                  <span class="info-value">${fullDateStr}</span>
+                </td>
+                <td style="width:33%; vertical-align:top;">
+                   <span class="info-label">Destino / Movimiento</span><br>
+                   <span class="info-value">${solicitud}-${orden} | ${extra.sucursal}</span><br>
+                   <span class="info-label">Digitador</span><br>
+                   <span class="info-value">${extra.digitador}</span>
+                </td>
+                <td style="width:33%; vertical-align:top;">
+                   <span class="info-label">Bodega Origen</span><br>
+                   <span class="info-value">${extra.bodegaOrigen || 'Origen N/A'}</span><br>
+                   <span class="info-label">Bodega Destino</span><br>
+                   <span class="info-value">${extra.bodegaDestino || extra.sucursal}</span>
+                </td>
+              </tr>
+            </table>
 
             <div class="table-container">
               <table class="report-table">
@@ -474,23 +431,25 @@ export class PrinterService {
             </section>
             ` : ''}
 
-            <footer class="footer-signatures">
-              <div class="info-group">
-                <div class="sig-line">Elaborado por</div>
-                <div class="sig-name">${extra.usuario}</div>
-              </div>
-              <div class="info-group">
-                <div class="sig-line">Revisado por</div>
-                <div class="sig-name">Control de Bodega</div>
-              </div>
-              <div class="info-group">
-                <div class="sig-line">Despachado por</div>
-                <div class="sig-name">Logística / Despacho</div>
-              </div>
-            </footer>
+            <div class="report-footer">
+              <footer class="footer-signatures">
+                <div class="info-group">
+                  <div class="sig-line">Elaborado por</div>
+                  <div class="sig-name">${extra.usuario}</div>
+                </div>
+                <div class="info-group">
+                  <div class="sig-line">Revisado por</div>
+                  <div class="sig-name">Control de Bodega</div>
+                </div>
+                <div class="info-group">
+                  <div class="sig-line">Despachado por</div>
+                  <div class="sig-name">Logística / Despacho</div>
+                </div>
+              </footer>
 
-            <div class="watermark">
-              Documento Interno - Farmacias Keyla S.A - Generado por Sistema Revisor Bodega
+              <div class="watermark">
+                Documento Interno - Farmacias Keyla S.A - Generado por Sistema Revisor Bodega
+              </div>
             </div>
           </div>
         </body>

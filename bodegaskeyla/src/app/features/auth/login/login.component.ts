@@ -108,6 +108,17 @@ export class LoginComponent implements OnInit {
                     this.step = 2;
                     this.error = '';
                     this.cdr.detectChanges();
+
+                    /* v160.30: Comentado temporalmente por solicitud usuario para pruebas manuales
+                    // v160.26: Auto-selección si solo hay una empresa disponible
+                    if (this.empresas.length === 1) {
+                        setTimeout(() => {
+                            console.log('[LoginComponent] 🤖 Auto-seleccionando única empresa:', this.empresas[0].nombreEmpresa);
+                            this.selectEmpresa(this.empresas[0]);
+                            this.goToStep3(); // Avanzar al siguiente paso automáticamente
+                        }, 500);
+                    }
+                    */
                 });
             } else {
                 console.warn('[LoginComponent] ❌ Falló inicio de sesión:', loginRes.mensaje);
@@ -200,6 +211,25 @@ export class LoginComponent implements OnInit {
                 this.selectedSucursal = null;
                 this.searchTermSucursal = '';
                 this.cdr.detectChanges();
+
+                // v160.26: Lógica de selección por defecto y auto-avance
+                // 1. Seteo por defecto de sucursal 176 (Centro de Distribución) si existe
+                const cdBranch = this.sucursales.find(s => s.codigoSucursal === 176 || s.codigoSucursal.toString() === '176');
+                if (cdBranch) {
+                    console.log('[LoginComponent] 🤖 Seteando sucursal 176 por defecto:', cdBranch.nombreSucursal);
+                    this.selectSucursal(cdBranch);
+                }
+
+                /* v160.30: Comentado temporalmente por solicitud usuario para pruebas manuales
+                // 2. Auto-selección si solo hay una sucursal disponible (independiente de si es la 176 o no)
+                if (this.sucursales.length === 1) {
+                    setTimeout(() => {
+                        console.log('[LoginComponent] 🤖 Auto-seleccionando única sucursal:', this.sucursales[0].nombreSucursal);
+                        this.selectSucursal(this.sucursales[0]);
+                        this.finishLoginWithoutCaja(); // Finalizar login automáticamente
+                    }, 500);
+                }
+                */
             });
         } catch (e: any) {
             console.error('[LoginComponent] ❌ Error al cargar datos de sucursales:', e);

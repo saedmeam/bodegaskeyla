@@ -39,6 +39,7 @@
         "@angular/ssr": "^21.1.2",
         "express": "^5.1.0",
         "rxjs": "~7.8.0",
+        "tmp-promise": "^3.0.3",
         "tslib": "^2.3.0"
     },
     "devDependencies": {

@@ -84,23 +84,30 @@ export class DataService {
             }),
             map(response => {
                 const detalles = response?.detalles || [];
-                return detalles.map((d: any) => ({
-                    item: d.codigoBarras?.toString() || '',
-                    codigoExistencia: d.codigoExistencia?.toString() || '',
-                    codigoBarras: d.codigoBarras?.toString() || '',
-                    nombre: d.nombreExistencia || 'SIN NOMBRE',
-                    unidad: 'UND',
-                    invBod: 0,
-                    vtas: 0,
-                    sLocal: 0,
-                    suger: 0,
-                    solicita: d.cantidad || 0,
-                    despachado: 0,
-                    color: 'naranja',
-                    bulto: d.unidadesXCaja || 1,
-                    lote: d.lote || '',
-                    caducidad: d.caducidad || ''
-                }));
+                return detalles.map((d: any) => {
+                    // v170.0: Priorizar el código de barras dentro del arreglo sciExistenciasXCodBarras[0]
+                    const barcode = d.sciExistenciasXCodBarras?.[0]?.codigoBarras?.toString() 
+                                    || d.codigoBarras?.toString() 
+                                    || '';
+                    
+                    return {
+                        item: barcode,
+                        codigoExistencia: d.codigoExistencia?.toString() || '',
+                        codigoBarras: barcode,
+                        nombre: d.nombreExistencia || 'SIN NOMBRE',
+                        unidad: d.tipoMedida || 'UND', // v170.1: Usar tipoMedida del API
+                        invBod: d.stock || 0,
+                        vtas: 0,
+                        sLocal: 0,
+                        suger: 0,
+                        solicita: d.cantidad || 0,
+                        despachado: 0,
+                        color: 'naranja',
+                        bulto: d.unidadesXCaja || 1,
+                        lote: d.lote || '',
+                        caducidad: d.caducidad || ''
+                    };
+                });
             }),
             tap(data => {
                 if (data.length > 0) {

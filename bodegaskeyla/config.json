@@ -16,8 +16,8 @@
             }
         }
     },
-    "DEV_TOOLS": 1,
-    "IMPRESORA_TICKET": "",
+    "DEV_TOOLS": 0,
+    "IMPRESORA_TICKET": "ZDesigner ZD230-203dpi ZPL",
     "endpoints": {
         "LOGIN": "/XPos/login",
         "USUARIOS_SISTEMA": "/XPosConsultas/usuariosSistema",

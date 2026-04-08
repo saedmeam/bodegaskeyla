@@ -201,7 +201,13 @@ export class RevisorService {
                             esActivo: d.esActivo || 'S',
                             vtas: 0,
                             sLocal: 0,
-                            suger: 0
+                            suger: 0,
+                            // v170.2: Mocking batches for testing as requested
+                            lotes: [
+                                { lote: 'L001', caducidad: '2026-04-15', stock: 4, despachado: 0 },
+                                { lote: 'L002', caducidad: '2026-05-10', stock: 8, despachado: 0 },
+                                { lote: 'L003', caducidad: '2026-08-01', stock: 20, despachado: 0 }
+                            ]
                         };
 
                         // v160.11: Si estamos forzando refresh, re-aplicamos el estado del producto si ya estaba escaneado

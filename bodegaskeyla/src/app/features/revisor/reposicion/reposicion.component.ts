@@ -8,7 +8,7 @@ import { firstValueFrom } from 'rxjs';
 import { LoadingService } from '../../../core/services/loading.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { PrinterService } from '../../../core/services/printer.service';
-import { BultoType } from '../../../shared/models/product.model';
+import { BultoType, Product, Batch } from '../../../shared/models/product.model';
 import { DataService } from '../../../core/services/data.service';
 import { ConfigService } from '../../../core/services/config.service';
 
@@ -71,6 +71,11 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
     // Estados de Modal Bultos (v107.2: Dinámico por API)
     bultoModalVisible = signal(false);
     bultoTypes = signal<BultoType[]>([]);
+
+    // Estados de Modal Lotes (v170.2: Asignación múltiple)
+    loteModalVisible = signal(false);
+    selectedProductForLote = signal<Product | null>(null);
+    loteWorkingList = signal<any[]>([]);
 
     // Proyecciones del servicio orquestador
     ordenProductos = this.revisorService.ordenProductos;
@@ -274,20 +279,28 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
             });
 
             if (result) {
-                // Evaluamos si el escaneo acaba de generar un excedente para notificar (v160.8)
-                const req = this.getOriginalRequested(result.product.item);
-                const scannedItem = this.getScannedProduct(result.product.item);
+                const p = result.product;
+                
+                // v170.2: Lógica de detección automática de multi-lote
+                if (p.lotes && p.lotes.length > 1) {
+                    this.showToast(`DETECTADOS ${p.lotes.length} LOTES: Se requiere asignación manual.`, false, "MULTI-LOTE");
+                    this.onLoteModify(p);
+                } else {
+                    // Evaluamos si el escaneo acaba de generar un excedente para notificar (v160.8)
+                    const req = this.getOriginalRequested(p.item);
+                    const scannedItem = this.getScannedProduct(p.item);
 
-                if (req && scannedItem) {
-                    if (Number(scannedItem.despachado) > Number(req.invBod || 0)) {
-                        this.showToast(`⚠️ STOCK INSUFICIENTE: ${result.product.nombre} (Stock: ${req.invBod})`, true);
-                    } else if (Number(scannedItem.despachado) > Number(req.solicita)) {
-                        this.showToast(`🚨 PRODUCTO EXCEDIDO: ${result.product.nombre} (Soli: ${req.solicita})`, true);
-                    } else {
-                        if (result.isAccumulated) {
-                            this.showToast(`OK: [${result.product.item}] Ya existe, se sumó a lo despachado.`, false, "REGISTRO EXISTENTE");
+                    if (req && scannedItem) {
+                        if (Number(scannedItem.despachado) > Number(req.invBod || 0)) {
+                            this.showToast(`⚠️ STOCK INSUFICIENTE: ${p.nombre} (Stock: ${req.invBod})`, true);
+                        } else if (Number(scannedItem.despachado) > Number(req.solicita)) {
+                            this.showToast(`🚨 PRODUCTO EXCEDIDO: ${p.nombre} (Soli: ${req.solicita})`, true);
                         } else {
-                            this.showToast(`OK: [${result.product.item}] Registrado con éxito.`, false, "REGISTRO EXITOSO");
+                            if (result.isAccumulated) {
+                                this.showToast(`OK: [${p.item}] Ya existe, se sumó a lo despachado.`, false, "REGISTRO EXISTENTE");
+                            } else {
+                                this.showToast(`OK: [${p.item}] Registrado con éxito.`, false, "REGISTRO EXITOSO");
+                            }
                         }
                     }
                 }
@@ -439,6 +452,71 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
                 }
             });
         }
+    }
+
+    /**
+     * v170.2: Abre el modal de asignación de lotes para un producto.
+     */
+    onLoteModify(product: Product) {
+        this.selectedProductForLote.set(product);
+        // Clonar para edición segura
+        const working = (product.lotes || []).map(l => ({ ...l }));
+        
+        // v170.3: Si no tiene lotes, mostrar "Sin lote asociado" según requerimiento
+        if (working.length === 0) {
+            working.push({ lote: 'SIN LOTE ASOCIADO', caducidad: 'N/A', stock: product.invBod || 0, despachado: product.despachado || 0 });
+        }
+        
+        this.loteWorkingList.set(working);
+        this.loteModalVisible.set(true);
+    }
+
+    /**
+     * v170.2: Guarda la asignación de lotes y actualiza la cantidad total del producto.
+     */
+    saveLoteSelection() {
+        const prod = this.selectedProductForLote();
+        if (!prod) return;
+
+        const working = this.loteWorkingList();
+        
+        // 1. Validaciones de Stock por Lote
+        for (const l of working) {
+            if (l.despachado > l.stock) {
+                this.showToast(`ERROR: El lote ${l.lote} solo tiene ${l.stock} unidades.`, true, "EXCESO DE LOTE");
+                return;
+            }
+        }
+
+        // 2. Calcular Nuevo Total Despachado
+        const newTotal = working.reduce((sum: number, l: any) => sum + (Number(l.despachado) || 0), 0);
+        
+        // 3. Aplicar Cambios al Producto en el RevisorService
+        this.revisorService.executeProcess('UPDATE_QTY', { item: prod.item, qty: newTotal });
+        
+        // Sincronizar los lotes en el Signal del servicio
+        this.revisorService.escaneados.update(list => {
+            const idx = list.findIndex(p => p.item === prod.item);
+            if (idx !== -1) {
+                list[idx].lotes = working;
+                list[idx].despachado = newTotal;
+            }
+            return [...list];
+        });
+
+        this.loteModalVisible.set(false);
+        this.selectedProductForLote.set(null);
+        this.showToast(`OK: Lotes actualizados para ${prod.nombre}.`, false, "LOTES GUARDADOS");
+    }
+
+    /**
+     * v170.2: Retorna los nombres de los lotes concatenados para la grilla.
+     */
+    getLotesConcat(product: Product): string {
+        if (!product.lotes || product.lotes.length === 0) return 'S/L';
+        const despachados = product.lotes.filter((l: any) => l.despachado > 0);
+        if (despachados.length === 0) return product.lotes[0].lote || 'PEND';
+        return despachados.map((l: any) => l.lote).join(', ');
     }
 
     /**
@@ -644,13 +722,10 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
         });
     }
 
-    /**
-     * v120.0: Centraliza la lógica de impresión de reportes y etiquetas.
-     */
     private imprimirReportesFinales(bultosParaEnviar?: any[]) {
-        // 1. v115.0: Impresión de etiquetas mediante Puente Java (Texto Plano)
+        // 1. v160.25: Impresión de etiquetas ahora vía HTML/PDF para vista previa según solicitud
         if (bultosParaEnviar && bultosParaEnviar.length > 0) {
-            console.log('[ReposicionComponent] Generando etiquetas TXT para puente Java:', bultosParaEnviar);
+            console.log('[ReposicionComponent] Generando etiquetas HTML para vista previa PDF:', bultosParaEnviar);
             const metadata = this.revisorService.orderMetadata();
             const user = this.authService.getStoredUser();
 
@@ -661,15 +736,12 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
             };
 
             const bultosLabels = bultosParaEnviar.map(b => ({ label: b.nombreTipoBulto, value: b.cantidad }));
-            const labelsTxt = this.printerService.generateLabelsText(this.orderNumber, bultosLabels, extraData);
+            const labelsHtml = this.printerService.generateLabelsHtml(this.orderNumber, bultosLabels, extraData);
 
-            // v160.17: Recuperamos el nombre de la impresora física desde el archivo de configuración
-            const printerName = this.configService.getPrinterName();
-            console.log(`[ReposicionComponent] Enviando a impresora: ${printerName || 'DEFAULT_SYSTEM'}`);
-
-            this.printerService.printLabelsText(labelsTxt, printerName).catch(err => {
-                this.showToast("Error al imprimir etiquetas físicas. Verifique impresora y Java.", true);
-            });
+            // v160.25: Se abre la vista previa del PDF con las etiquetas (formato exacto 10.5x5.1cm)
+            this.printerService.printLabels(labelsHtml, undefined, { 
+                pageSize: { width: 105000, height: 51000 } 
+            }, true);
         }
 
         // 2. v2.7: Reporte de Transferencia de Mercadería (Formato A4 - Se mantiene HTML)

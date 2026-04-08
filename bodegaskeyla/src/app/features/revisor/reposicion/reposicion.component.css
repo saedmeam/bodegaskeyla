@@ -1141,3 +1141,128 @@
     background: #2ecc71 !important;
     box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4) !important;
 }
+
+/* v170.2: Batch Management Premium Styles */
+.col-lotes { width: 110px; text-align: center; }
+.cell-lotes { font-weight: 700; color: #475569; }
+
+.lotes-badge-wrapper {
+    display: flex;
+    justify-content: center;
+}
+
+.lotes-concat {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.6rem;
+    font-weight: 800;
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+}
+
+.action-btn-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
+}
+
+.btn-lote-modify {
+    background: #3498db;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+}
+
+.btn-lote-modify:hover {
+    background: #2980b9;
+    transform: scale(1.1);
+}
+
+.lote-modal {
+    max-width: 600px !important;
+    border: 3px solid #008080 !important;
+}
+
+.batch-management-wrapper {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+}
+
+.batch-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.batch-table th {
+    background: #f8fafc;
+    padding: 10px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: #64748b;
+    text-transform: uppercase;
+    text-align: left;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.batch-table td {
+    padding: 10px;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.8rem;
+    color: #334155;
+    vertical-align: middle;
+}
+
+.batch-code {
+    background: #e0f2f1;
+    color: #00796b;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-weight: 700;
+}
+
+.batch-stock {
+    font-weight: 800;
+    color: #2c3e50;
+}
+
+.batch-qty-input {
+    width: 100% !important;
+    text-align: center;
+    font-size: 0.9rem !important;
+    border: 2px solid #cbd5e1 !important;
+}
+
+.batch-qty-input:focus {
+    border-color: #008080 !important;
+    outline: none;
+}
+
+.btn-teal-premium {
+    background: #008080 !important;
+    color: white !important;
+    padding: 10px 40px !important;
+    font-weight: 800 !important;
+    box-shadow: 0 4px 10px rgba(0, 128, 128, 0.2) !important;
+}
+
+.btn-teal-premium:hover {
+    background: #006666 !important;
+}

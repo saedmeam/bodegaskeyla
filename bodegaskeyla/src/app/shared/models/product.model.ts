@@ -1,3 +1,10 @@
+export interface Batch {
+    lote: string;
+    caducidad: string;
+    stock: number;
+    despachado: number;
+}
+
 export interface Product {
     item: string;
     nombre: string;
@@ -29,6 +36,8 @@ export interface Product {
     cantidadBaseEquivalente?: number;
     observacion?: string;
     esActivo?: string;
+    // v170.2: Sophisticated multi-batch support
+    lotes?: Batch[];
 }
 
 export interface DispatchOrder {

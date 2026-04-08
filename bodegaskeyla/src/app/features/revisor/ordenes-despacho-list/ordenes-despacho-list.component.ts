@@ -8,8 +8,11 @@ import { CajaService } from '../../../core/services/caja.service';
 import { Sucursal } from '../../../shared/models/auth.model';
 import { LoadingService } from '../../../core/services/loading.service';
 import { NotificationService } from '../../../core/services/notification.service';
-import { DispatchOrder } from '../../../shared/models/product.model';
+import { DispatchOrder, Product } from '../../../shared/models/product.model';
 import { firstValueFrom } from 'rxjs';
+import { PrinterService } from '../../../core/services/printer.service';
+import { ConfigService } from '../../../core/services/config.service';
+import { DataService } from '../../../core/services/data.service';
 
 @Component({
     selector: 'app-ordenes-despacho-list',
@@ -26,6 +29,9 @@ export class OrdenesDespachoListComponent implements OnInit {
     private notificationService = inject(NotificationService);
     private router = inject(Router);
     private cajaService = inject(CajaService);
+    private printerService = inject(PrinterService);
+    private configService = inject(ConfigService);
+    private dataService = inject(DataService);
 
     // Filters
     // Filters (v2.9)
@@ -253,6 +259,80 @@ export class OrdenesDespachoListComponent implements OnInit {
                 fh: this.fechaHasta
             }
         });
+    }
+
+    /**
+     * v160.27: Impresión directa desde el mantenimiento de órdenes.
+     * Genera etiquetas (1 de cada tipo de bulto) y el reporte de transferencia A4.
+     */
+    async imprimirOrdenDirecto(orden: DispatchOrder) {
+        console.log('[Revisor:Mantenimiento] 🖨️ Solicitud de impresión directa para:', orden.solicitudOrden);
+        this.loadingService.show();
+
+        try {
+            // 1. Obtener detalles de la orden y tipos de bultos en paralelo
+            const [detRes, bultosRes] = await Promise.all([
+                firstValueFrom(this.dataService.getDetallesOrdenDespacho(orden.numeroSolicitud, orden.numeroOrdenDespacho)),
+                firstValueFrom(this.revisorService.getTiposBultos())
+            ]);
+
+            if (detRes?.isError || !detRes?.detalles) {
+                throw new Error(detRes?.mensaje || 'No se pudieron obtener los detalles de la orden');
+            }
+
+            // 2. Mapear productos para el reporte (usamos la lógica de RevisorService simplificada)
+            const products: Product[] = detRes.detalles.map((d: any) => ({
+                item: d.sciExistenciasXCodBarras?.[0]?.codigoBarras?.toString() || d.codigoBarras?.toString() || '',
+                nombre: d.nombreExistencia || 'SIN NOMBRE',
+                unidad: d.tipoMedida || 'U/C',
+                solicita: d.cantidad || 0,
+                despachado: d.cantidad || 0, // En reimpresión asumimos lo solicitado como despachado
+                lote: d.lote || '',
+                caducidad: d.caducidad || '',
+                codigoBarras: d.codigoBarras || '',
+                vtas: 0, sLocal: 0, suger: 0, bulto: 0, invBod: 0, color: 'negro'
+            }));
+
+            // 3. v160.31: Generar bultos de prueba (2 de cada tipo por solicitud de usuario)
+            const tiposBultosRaw = bultosRes?.tiposBultos || bultosRes || [];
+            const bultosParaImprimir = tiposBultosRaw.map((tb: any) => ({
+                codigoTipoBulto: tb.codigoTipoBulto,
+                nombreTipoBulto: tb.nombreTipoBulto || tb.descripcionTipoBulto,
+                cantidad: 2 // Generamos 2 de cada tipo (1/2, 2/2)
+            }));
+
+            const user = this.authService.getStoredUser();
+            const extraData = {
+                sucursal: orden.nombreSucursalDestino || '---',
+                usuario: user?.username || 'SISTEMA',
+                digitador: user?.username || 'SISTEMA',
+                fecha: new Date().toLocaleDateString('es-EC'),
+                bodegaOrigen: orden.nombreSucursalOrigen,
+                bodegaDestino: orden.nombreSucursalDestino,
+                bultos: bultosParaImprimir
+            };
+
+            // 4. Disparar Impresiones (PDF Preview)
+            // A. Etiquetas de Bultos
+            const bultosLabels = bultosParaImprimir.map((b: any) => ({ label: b.nombreTipoBulto, value: b.cantidad }));
+            const labelsHtml = this.printerService.generateLabelsHtml(`${orden.numeroSolicitud}-${orden.numeroOrdenDespacho}`, bultosLabels, extraData);
+            // v160.40: Usamos 'A4' porque es lo único que el motor de PDF renderiza sin quedar en blanco (0% zoom)
+            // El contenido interno ya está limitado a 10.5x5.1cm para la etiquetadora.
+            await this.printerService.printLabels(labelsHtml, undefined, { pageSize: 'A4' }, true);
+            
+            // v160.32: Pequeño delay de cortesía para no saturar procesos de PDF
+            setTimeout(async () => {
+                const reportHtml = this.printerService.generateTransferReportHtml(`${orden.numeroSolicitud}-${orden.numeroOrdenDespacho}`, products, extraData);
+                await this.printerService.printLabels(reportHtml, undefined, { pageSize: 'A4' }, true);
+                this.notificationService.show("Impresiones generadas correctamente.", false, "ÉXITO");
+            }, 1000);
+
+        } catch (e: any) {
+            console.error('[Revisor:Mantenimiento] ❌ Error en reimpresión:', e);
+            this.error.set(`IMPRESIÓN: ${e.message}`);
+        } finally {
+            this.loadingService.hide();
+        }
     }
 
     getStatusLabel(code: string): string {

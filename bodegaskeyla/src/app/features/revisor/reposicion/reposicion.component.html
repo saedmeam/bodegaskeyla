@@ -70,6 +70,7 @@
                             <thead>
                                 <tr>
                                     <th class="col-code-name">Producto / Código</th>
+                                    <th class="col-lotes">Lotes Asociados</th>
                                     <th class="col-bulto">Bulto</th>
                                     <th class="col-u">U/C</th>
                                     <th class="col-stock">Stock</th>
@@ -77,7 +78,7 @@
                                     <th class="col-qty">Desp.</th>
                                     <th class="col-qty">Pend.</th>
                                     <th class="col-status">Estado</th>
-                                    <th class="col-actions"></th>
+                                    <th class="col-actions">Accion</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -92,6 +93,10 @@
                                                 <span class="meta-tag dark">{{ item.tipoPresentacion }}</span>
                                             </div>
                                         </div>
+                                    <td class="cell-lotes">
+                                        <div class="lotes-badge-wrapper">
+                                            <span class="lotes-concat">{{ getLotesConcat(item) }}</span>
+                                        </div>
                                     </td>
                                     <td><input type="text" [value]="item.bulto || 1"
                                             class="input-v2 w-tiny text-center"></td>
@@ -100,8 +105,11 @@
                                     <td><span class="qty-bubble-sol">{{ orig?.solicita || 0 }}</span></td>
                                     <td>
                                         <div class="input-composite">
+                                            <!-- v170.2: Si tiene múltiples lotes, el input es readonly y se modifica vía modal -->
                                             <input type="number" [ngModel]="item?.despachado || 0"
-                                                (ngModelChange)="updateQty(item.item, $event)" class="input-v2 w-tiny">
+                                                (ngModelChange)="updateQty(item.item, $event)" 
+                                                [readonly]="(item.lotes || []).length > 1"
+                                                class="input-v2 w-tiny" [class.readonly-field]="(item.lotes || []).length > 1">
                                         </div>
                                     </td>
                                     <td>
@@ -115,8 +123,13 @@
                                             {{ getStatusDisplay(item) }}
                                         </span>
                                     </td>
-                                    <td>
-                                        <button class="btn-delete-v2" (click)="eliminarItem(item.item)">×</button>
+                                    <td class="cell-action-buttons">
+                                        <div class="action-btn-group">
+                                            <button class="btn-lote-modify" (click)="onLoteModify(item)" title="Modificar Lotes">
+                                                <span class="icon">📦</span>
+                                            </button>
+                                            <button class="btn-delete-v2" (click)="eliminarItem(item.item)">×</button>
+                                        </div>
                                     </td>
                                 </tr>
                                 }
@@ -243,6 +256,52 @@
         <div class="modal-footer central">
             <button #bultoActionBtn class="btn-modal-action btn-green-premium" (click)="procesarBultos()">
                 Procesar
+            </button>
+        </div>
+    </div>
+</div>
+}
+
+@if (loteModalVisible()) {
+<div class="modal-overlay" (click)="loteModalVisible.set(false)">
+    <div class="glass-modal lote-modal animate-pop" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+            <span class="modal-icon">📦</span>
+            <h3>Asignar Lotes – {{ selectedProductForLote()?.nombre }}</h3>
+            <button class="btn-close-modal" (click)="loteModalVisible.set(false)">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="batch-management-wrapper">
+                <table class="batch-table">
+                    <thead>
+                        <tr>
+                            <th>Lote</th>
+                            <th>Fecha Caducidad</th>
+                            <th>Stock CD</th>
+                            <th>Cantidad a Despachar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (l of loteWorkingList(); track l.lote; let i = $index) {
+                        <tr>
+                            <td><span class="batch-code">{{ l.lote }}</span></td>
+                            <td>{{ l.caducidad }}</td>
+                            <td><span class="batch-stock">{{ l.stock }}</span></td>
+                            <td>
+                                <div class="batch-input-control">
+                                    <input type="number" [(ngModel)]="l.despachado" class="input-v2 batch-qty-input" min="0" [max]="l.stock">
+                                </div>
+                            </td>
+                        </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-modal-cancel" (click)="loteModalVisible.set(false)">Cancelar</button>
+            <button class="btn-modal-action btn-teal-premium" (click)="saveLoteSelection()">
+                Guardar
             </button>
         </div>
     </div>

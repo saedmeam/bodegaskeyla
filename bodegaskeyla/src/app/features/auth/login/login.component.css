@@ -498,19 +498,26 @@
 
 /* Footer & Copyright */
 .auth-footer {
-    margin-top: 10px;
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.8);
+    margin-top: 25px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.7);
     text-align: center;
     font-weight: 500;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
-.auth-copyright {
-    position: absolute;
-    bottom: 20px;
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.6);
+.auth-copyright-v {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.5);
     text-align: center;
+    text-transform: uppercase;
+}
+
+/* v160.29: Removido posicionamiento absoluto que causaba solapamientos */
+.auth-copyright {
+    display: none;
 }
 
 /* Animations */

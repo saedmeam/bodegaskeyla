@@ -3,14 +3,13 @@
 ; Logic: Bundles the win-unpacked output from electron-builder into a professional Setup.exe
 
 #define AppName "BodegasKeyla"
-#define AppVersion "1.1.0"
+#define AppVersion "1.2.0"
 #define AppPublisher "Neu360"
 #define AppURL "https://www.keyla.com.ec"
 #define AppExeName "BodegasKeyla.exe"
 #define AppId "{{0C7AE8E9-1736-4C5D-8E1E-1798305F8C7A}"
 
 [Setup]
-; NOTE: The value of AppId uniquely identifies this application.
 AppId={#AppId}
 AppName={#AppName}
 AppVersion={#AppVersion}
@@ -23,14 +22,13 @@ DisableProgramGroupPage=yes
 DefaultGroupName={#AppName}
 SourceDir=.
 OutputDir=Output
-OutputBaseFilename=BodegasKeyla_Setup_v{#AppVersion}
+OutputBaseFilename=BodegasKeyla_Setup_V1.2
 SetupIconFile=public\logo-keyla.ico
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
 ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
-; Enterprise Standards: Require admin for Program Files
 PrivilegesRequired=admin
 CloseApplications=force
 
@@ -42,11 +40,9 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 ; 1. Base Electron Application (Result of electron-builder: win-unpacked)
-; v105.0: Using the dir output from the ps1 script
 Source: "release\win-unpacked\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; 2. Extra Core Resources for Enterprise Printing & Encryption
-; These are placed in process.resourcesPath as expected by the JS modules
 Source: "encrypter-xuit.jar"; DestDir: "{app}\resources"; Flags: ignoreversion
 Source: "PrintVeris.jar"; DestDir: "{app}\resources"; Flags: ignoreversion
 Source: "config.json"; DestDir: "{app}\resources"; Flags: ignoreversion
@@ -69,18 +65,16 @@ Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(
 Type: filesandordirs; Name: "{app}"
 
 [Code]
-// Verificar Java al inicio para informar al usuario
 function InitializeSetup(): Boolean;
 begin
   Result := True;
-  // Intento de detección simple de Java en el Registro
   if not RegKeyExists(HKLM, 'SOFTWARE\JavaSoft\Java Runtime Environment') and
      not RegKeyExists(HKLM, 'SOFTWARE\JavaSoft\JDK') and
      not RegKeyExists(HKLM64, 'SOFTWARE\JavaSoft\Java Runtime Environment') and
      not RegKeyExists(HKLM64, 'SOFTWARE\JavaSoft\JDK') then
   begin
     if MsgBox('Keyla requiere Java para funciones de encriptación.' + #13#10#13#10 +
-              'No se detectó Java automáticamente. ¿Desea continuar con la instalación? (Debe instalar Java manualmente si el sistema falla)',
+              'No se detectó Java automáticamente. ¿Desea continuar con la instalación?',
               mbConfirmation, MB_YESNO) = IDNO then
     begin
       Result := False;
