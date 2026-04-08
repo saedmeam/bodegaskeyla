@@ -122,9 +122,11 @@
                             <td class="actions-cell-v2">
                                 <div class="btn-group-v2">
                                     <button class="btn-process" [disabled]="order.codigoEstado === 'DP' || order.codigoEstado === 'DT'" (click)="procesar(order)">PROCESAR</button>
-                                    <button class="btn-direct-print" (click)="imprimirOrdenDirecto(order)" title="Reimprimir Etiquetas y Reporte">
-                                        <span class="icon">🖨️</span>
-                                    </button>
+                                    @if (order.codigoEstado === 'DP' || order.codigoEstado === 'DT') {
+                                        <button class="btn-direct-print" (click)="imprimirOrdenDirecto(order)" title="Reimprimir Etiquetas y Reporte">
+                                            <span class="icon">🖨️</span>
+                                        </button>
+                                    }
                                 </div>
                             </td>
                         </tr>

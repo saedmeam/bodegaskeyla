@@ -663,10 +663,12 @@ export class RevisorService {
         let bultosMapped: any[] = [];
         
         if (tipo === 'AGREGAR' && bultos) {
-            // v107.0: Mapear desde información dinámica del modal bultos
-            bultosMapped = bultos.map((b, index) => ({
+            // v160.45: FILTRAR Bultos Virtuales (Código 999 - Impresión de etiquetas) 
+            // Estos no se guardan en el servidor (Captura 2 error)
+            const realBultos = bultos.filter(b => b.codigoTipoBulto !== 999);
+            
+            bultosMapped = realBultos.map((b, index) => ({
                 lineaDetalle: index + 1, 
-                // v150.4: Asegurar que el código sea un número válido y mayor a cero para evitar 'parent key not found'
                 codigoTipoBulto: Number(b.codigoTipoBulto) || 1, 
                 cantidad: Number(b.cantidad) || 0
             }));

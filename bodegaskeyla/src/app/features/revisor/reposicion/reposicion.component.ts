@@ -178,13 +178,19 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
         try {
             const res = await firstValueFrom(this.revisorService.getTiposBultos());
             if (!res?.isError) {
-                const list = res?.tiposBultos || [];
-                this.bultoTypes.set(list.map((t: any) => ({
-                    // v150.3: Mapeo robusto de códigos para evitar 'parent key not found'
-                    codigoTipoBulto: t.codigoTipoBulto || t.codigo || t.id || 0,
-                    nombreTipoBulto: t.nombreTipoBulto || t.descripcion || t.nombre || 'Bulto',
-                    cantidad: 0
-                })));
+                const listFromApi = res?.tiposBultos || [];
+                // v160.42: Quemar la opción 'IMPRESIÓN DE ETIQUETAS' como prioridad al inicio
+                const list = [
+                    { codigoTipoBulto: 999, nombreTipoBulto: 'IMPRESIÓN DE ETIQUETAS', cantidad: 0 },
+                    ...listFromApi.map((t: any) => ({
+                        codigoTipoBulto: t.codigoTipoBulto || t.codigo || t.id || 0,
+                        nombreTipoBulto: t.nombreTipoBulto || t.descripcion || t.nombre || 'Bulto',
+                        cantidad: 0
+                    }))
+                ];
+                // Eliminar duplicados si el API ya lo mandaba
+                const uniqueList = list.filter((v, i, a) => a.findIndex(t => t.nombreTipoBulto === v.nombreTipoBulto) === i);
+                this.bultoTypes.set(uniqueList);
             }
         } catch (e) {
             console.error('Error cargando tipos de bultos', e);
@@ -723,48 +729,49 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
     }
 
     private imprimirReportesFinales(bultosParaEnviar?: any[]) {
-        // 1. v160.25: Impresión de etiquetas ahora vía HTML/PDF para vista previa según solicitud
-        if (bultosParaEnviar && bultosParaEnviar.length > 0) {
-            console.log('[ReposicionComponent] Generando etiquetas HTML para vista previa PDF:', bultosParaEnviar);
-            const metadata = this.revisorService.orderMetadata();
-            const user = this.authService.getStoredUser();
+        const metadata = this.revisorService.orderMetadata();
+        const user = this.authService.getStoredUser();
+
+        // 1. REGLA MAESTRA (v160.50): Solo se imprimen etiquetas si el bulto 999 tiene cantidad > 0
+        const bulto999 = bultosParaEnviar?.find(b => b.codigoTipoBulto === 999);
+        const cantidadAPrint = bulto999 ? Number(bulto999.cantidad) : 0;
+
+        if (cantidadAPrint > 0) {
+            console.log(`[ReposicionComponent] 🖨️ Generando ${cantidadAPrint} etiquetas (Master 999)`);
 
             const extraData = {
-                sucursal: metadata?.sucursalDestino || '---',
+                sucursal: metadata?.nombreSucursalDestino || metadata?.sucursalDestino || '---',
                 digitador: user?.username || 'SISTEMA',
                 fecha: new Date().toLocaleDateString('es-EC')
             };
 
-            const bultosLabels = bultosParaEnviar.map(b => ({ label: b.nombreTipoBulto, value: b.cantidad }));
-            const labelsHtml = this.printerService.generateLabelsHtml(this.orderNumber, bultosLabels, extraData);
+            const bultosLabelsMapped = [{ label: 'IMPRESIÓN DE ETIQUETAS', value: cantidadAPrint }];
+            const labelsHtml = this.printerService.generateLabelsHtml(this.orderNumber, bultosLabelsMapped, extraData);
 
-            // v160.25: Se abre la vista previa del PDF con las etiquetas (formato exacto 10.5x5.1cm)
-            this.printerService.printLabels(labelsHtml, undefined, { 
-                pageSize: { width: 105000, height: 51000 } 
-            }, true);
+            this.printerService.printLabels(labelsHtml, undefined, { pageSize: 'A4' }, true);
+        } else {
+            console.log('[ReposicionComponent] ⏭️ Saltando etiquetas físicas (Bulto 999 es 0)');
         }
 
-        // 2. v2.7: Reporte de Transferencia de Mercadería (Formato A4 - Se mantiene HTML)
+        // 2. v2.7: Reporte de Transferencia de Mercadería (SIEMPRE se imprime si hay productos)
         const productsVerificados = this.escaneados().filter(p => p.despachado > 0);
         if (productsVerificados.length > 0) {
             console.log('[ReposicionComponent] Generando reporte de transferencia A4...');
-            const metadata = this.revisorService.orderMetadata();
-            const user = this.authService.getStoredUser();
 
             const extraReport = {
-                sucursal: metadata?.sucursalDestino || '---',
+                sucursal: metadata?.nombreSucursalDestino || metadata?.sucursalDestino || '---',
                 usuario: user?.username || 'SISTEMA',
                 digitador: user?.username || 'SISTEMA',
                 fecha: new Date().toLocaleDateString('es-EC'),
                 bodegaOrigen: metadata?.nombreSucursalOrigen,
-                bodegaDestino: metadata?.nombreSucursalDestino,
+                bodegaDestino: metadata?.nombreSucursalDestino || metadata?.sucursalDestino,
                 bultos: bultosParaEnviar
             };
 
             const reportHtml = this.printerService.generateTransferReportHtml(this.orderNumber, productsVerificados, extraReport);
             this.printerService.printLabels(reportHtml, undefined, { pageSize: 'A4' }, true);
 
-            this.showToast("Etiquetas enviadas al motor Java y Reporte abierto.", false, "IMPRESIÓN");
+            this.showToast("Reporte generado. Etiquetas omitidas o procesadas según Bulto 999.", false, "IMPRESIÓN");
         }
     }
 
