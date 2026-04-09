@@ -80,72 +80,55 @@ export class PrinterService {
             }
             .page-label {
               width: 95%;
-              height: 88vh;
+              height: 90vh;
               page-break-after: always;
               position: relative;
               overflow: hidden;
               display: flex;
               flex-direction: column;
-              justify-content: space-between;
-              padding: 40px 20px 20px 20px;
-              margin: 5vh auto 0 auto;
+              padding: 20px;
+              margin: 3vh auto 0 auto;
               box-sizing: border-box;
-              border: 2px solid black;
+              border: 5px solid black;
+            }
+            .header-info {
+              border-bottom: 4px solid black;
+              margin-bottom: 15px;
+              padding-bottom: 5px;
             }
             .title {
-              font-size: 20px;
+              font-size: 26px;
               text-align: left;
               font-weight: 900;
-              margin-bottom: 2px;
+              margin: 0;
             }
             .sucursal-box {
-              font-size: 38px;
+              font-size: 44px;
               text-align: left;
-              margin-bottom: 10px;
-              padding-bottom: 5px;
-              font-weight: 900;
-              text-transform: uppercase;
-              border-bottom: 2px solid black;
-            }
-            .label-text {
-              font-size: 26px !important;
-              font-weight: 900 !important;
-              text-transform: uppercase;
-            }
-            .id-box {
-              padding: 5px 30px;
-              font-size: 90px !important;
-              font-weight: 900 !important;
-              text-align: center;
-              display: inline-block;
-              min-width: 120px;
-              border: 2px solid black;
-            }
-            .pedido-box {
-              font-size: 55px !important;
-              font-weight: 900 !important;
-              text-align: right;
-              display: inline-block;
-              min-width: 200px;
-            }
-            table { width: 100%; border-collapse: collapse; line-height: 1.1; }
-            td { vertical-align: middle; padding: 5px 0; }
-            .footer {
-              font-size: 18px;
-              padding-top: 5px;
-              font-weight: 900;
-              border-top: 2px solid black;
-            }
-            .seal-msg {
-              width: 100%;
-              text-align: center;
-              font-size: 16px;
-              text-transform: uppercase;
               margin-top: 5px;
-              padding-top: 5px;
               font-weight: 900;
-              border-top: 2px dashed black;
+              text-transform: uppercase;
             }
+            .info-line {
+              font-size: 28px;
+              font-weight: 900;
+              margin-bottom: 8px;
+              display: flex;
+              gap: 10px;
+            }
+            .info-label {
+                min-width: 320px;
+            }
+            .footer-msg {
+              margin-top: auto;
+              border-top: 4px solid black;
+              padding-top: 10px;
+              text-align: center;
+              font-size: 22px;
+              font-weight: 900;
+              text-transform: uppercase;
+            }
+            .bold { font-weight: 900; }
           </style>
         </head>
         <body>
@@ -157,37 +140,37 @@ export class PrinterService {
                 for (let i = 1; i <= totalBultos; i++) {
                     html += `
             <div class="page-label">
-                <div class="title">CENTRO DE DISTRIBUCIÓN FARMAKEYLA</div>
-                <div class="sucursal-box">
-                    SUCURSAL: ${sucursal}
+                <div class="header-info">
+                    <div class="title">CENTRO DE DISTRIBUCIÓN FARMAKEYLA</div>
+                    <div class="sucursal-box">SUCURSAL : ${sucursal}</div>
                 </div>
 
-                <table style="margin-top: 10px;">
-                  <tr>
-                    <td class="label-text" style="width: 65%;">
-                      DIR: GUAYAS - EL EMPALME<br>
-                      FECHA DESPACHO: ${dateStr}
-                    </td>
-                    <td style="width: 35%; text-align: right;">
-                        <span style="font-size: 28px;">BULTO #</span>
-                        <div class="id-box">${i}</div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="label-text">
-                      NÚMERO DE PEDIDO:
-                    </td>
-                    <td style="text-align: right;">
-                        <div class="pedido-box">${orderNumber}</div>
-                    </td>
-                  </tr>
-                </table>
-
-                <div class="footer">
-                  DIGITADOR: ${digitador}
+                <div class="info-line">
+                    <span class="info-label">Dirección :</span>
+                    <span>Provincia: GUAYAS Canton: GUAYAQUIL</span>
                 </div>
 
-                <div class="seal-msg">
+                <div class="info-line">
+                    <span class="info-label">FECHA DE DESPACHO :</span>
+                    <span>${dateStr}</span>
+                </div>
+
+                <div class="info-line">
+                    <span class="info-label">Número de Bulto # :</span>
+                    <span>${i} (de ${totalBultos})</span>
+                </div>
+
+                <div class="info-line">
+                    <span class="info-label">Número de Pedido # :</span>
+                    <span>${orderNumber}</span>
+                </div>
+
+                <div class="info-line">
+                    <span class="info-label">Digitador :</span>
+                    <span>${digitador}</span>
+                </div>
+
+                <div class="footer-msg">
                   SI ESTE SELLO VIOLADO NO ACEPTE LA CAJA
                 </div>
             </div>
@@ -348,7 +331,9 @@ export class PrinterService {
                 text-align: center;
             }
             .sig-line-compact {
-                margin-top: 30px;
+                margin-top: 60px;
+                border-top: 1px solid black;
+                padding-top: 5px;
                 font-size: 9pt;
                 font-weight: 900 !important;
                 text-transform: uppercase;
@@ -356,7 +341,7 @@ export class PrinterService {
 
             .report-footer {
               margin-top: auto;
-              padding-top: 30px;
+              padding-top: 60px;
             }
             .footer-signatures {
               display: grid;
@@ -365,6 +350,7 @@ export class PrinterService {
               text-align: center;
             }
             .sig-line {
+              border-top: 1px solid black;
               padding-top: 5px;
               font-weight: 900 !important;
               text-transform: uppercase;

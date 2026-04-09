@@ -59,6 +59,11 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
     }
     showComparativo = signal(true);
 
+    // v2.0: Product Autocomplete State
+    productosFiltrados = signal<Product[]>([]);
+    showProductDropdown = signal(false);
+    selectedIndexProd = signal<number>(-1);
+
     // Estados de Modal Custom (v35.0)
     modalVisible = signal(false);
     modalTitle = signal("");
@@ -227,9 +232,16 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
 
 
     simularEscaneo(): boolean {
-        if (!this.barcodeInput) {
-            this.focusScanner();
-            return false;
+        if (!this.barcodeInput.trim()) return false;
+        
+        // v2.0: Soporte para Autocompletado - Si hay uno seleccionado en el dropdown, usar su item
+        if (this.selectedIndexProd() >= 0 && this.productosFiltrados().length > 0) {
+            const selected = this.productosFiltrados()[this.selectedIndexProd()];
+            this.barcodeInput = selected.item;
+            this.productosFiltrados.set([]);
+            this.showProductDropdown.set(false);
+            this.selectedIndexProd.set(-1);
+            // Continúa el flujo normal con el item seleccionado
         }
 
         // REGLA DE NEGOCIO: No permitir pistoleo si no hay orden cargada
@@ -699,6 +711,51 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
         setTimeout(() => this.focusScanner(), 300); // v2.8: Volver al scanner tras procesar bultos
     }
 
+
+
+    // v2.0: Autocomplete Methods
+    filtrarProductos(event: any) {
+        const val = event.target.value.toLowerCase().trim();
+        if (!val || val.length < 2) {
+            this.productosFiltrados.set([]);
+            this.showProductDropdown.set(false);
+            return;
+        }
+
+        const filtered = this.ordenProductos().filter(p => 
+            p.nombre.toLowerCase().includes(val) || 
+            p.item.toLowerCase().includes(val)
+        ).slice(0, 10); // Limit to 10 for performance
+
+        this.productosFiltrados.set(filtered);
+        this.showProductDropdown.set(filtered.length > 0);
+        this.selectedIndexProd.set(filtered.length > 0 ? 0 : -1);
+    }
+
+    seleccionarProducto(prod: Product) {
+        this.barcodeInput = prod.item;
+        this.productosFiltrados.set([]);
+        this.showProductDropdown.set(false);
+        this.selectedIndexProd.set(-1);
+        
+        // Ejecutar escaneo inmediatamente
+        this.simularEscaneo();
+    }
+
+    onScannerKeydown(event: KeyboardEvent) {
+        if (!this.showProductDropdown()) return;
+
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            this.selectedIndexProd.update(i => (i + 1) % this.productosFiltrados().length);
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            this.selectedIndexProd.update(i => (i - 1 + this.productosFiltrados().length) % this.productosFiltrados().length);
+        } else if (event.key === 'Escape') {
+            this.showProductDropdown.set(false);
+        }
+    }
+
     /**
      * Ejecuta el cierre definitivo y envío de datos (AGREGAR).
      */
@@ -787,20 +844,5 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
      */
     getOriginalRequested(itemCode: string) {
         return this.ordenProductos().find(p => p.item === itemCode);
-    }
-
-    /**
-     * Determina el texto del estado visual (v42.0).
-     */
-    getStatusDisplay(status: any): string {
-        if (!status) return 'INCOMPLETO';
-
-        switch (status.color) {
-            case 'negro': return 'COMPLETO';
-            case 'verde': return 'EXCEDIDO';
-            case 'azul': return 'INCOMPLETO'; // v160.12: Cambio de label sol. por usuario
-            case 'naranja': return 'INCOMPLETO';
-            default: return 'INCOMPLETO';
-        }
     }
 }

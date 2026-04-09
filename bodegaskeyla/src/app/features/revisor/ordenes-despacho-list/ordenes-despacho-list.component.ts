@@ -35,8 +35,13 @@ export class OrdenesDespachoListComponent implements OnInit {
 
     // Filters
     diaEmbarque: string = 'TODOS';
-    fechaDesde: string = new Date().toISOString().split('T')[0];
-    fechaHasta: string = new Date().toISOString().split('T')[0];
+    fechaDesde: string = this.getLocalDateString();
+    fechaHasta: string = this.getLocalDateString();
+
+    private getLocalDateString(): string {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
     estado: string = 'DP';
     numeroPedido: string = '';
     selectedSucursal: Sucursal | null = null;
@@ -103,7 +108,8 @@ export class OrdenesDespachoListComponent implements OnInit {
         const user = this.authService.getStoredUser();
         if (user && user.sucursal) {
             this.selectedSucursal = user.sucursal;
-            this.searchTermSucursal = user.sucursal.nombreSucursal;
+            // v4.3: searchTermSucursal debe estar vacío para no filtrar el dropdown al abrirlo
+            this.searchTermSucursal = ''; 
         }
         this.cargarSucursales();
         this.buscar(0);
@@ -116,16 +122,29 @@ export class OrdenesDespachoListComponent implements OnInit {
             const empresa = user.empresa?.codigoEmpresa;
             if (!empresa) return;
             const token = user.token || this.authService.getStoredToken() || '';
-            const authorizedRaw = await firstValueFrom(this.cajaService.getSucursalesAutorizadas(empresa, token));
-            const myBranches = authorizedRaw.filter((a: any) =>
-                a.codigoUsuario.toUpperCase() === user.username.toUpperCase() && a.esActivo === 'S'
+
+            // v4.3: Cargamos ambos para tener nombres maestros pero sin perder sucursales por desincronización
+            const [masterBranches, authorizedRaw] = await Promise.all([
+                firstValueFrom(this.cajaService.getSucursales(empresa, token)),
+                firstValueFrom(this.cajaService.getSucursalesAutorizadas(empresa, token))
+            ]);
+
+            // 1. Sucursales autorizadas por permisos
+            const myPermissions = authorizedRaw.filter((p: any) => 
+                p.codigoUsuario?.toUpperCase() === user.username.toUpperCase() && p.esActivo === 'S'
             );
-            this.sucursales = myBranches.map((b: any) => ({
-                codigoSucursal: b.codigoSucursal,
-                nombreSucursal: b.identificacionSucursal || `Sucursal ${b.codigoSucursal}`,
-                codigoEmpresa: b.codigoEmpresa,
-                esActivo: 'S'
-            }));
+
+            // 2. Enriquecer con nombres del catálogo maestro
+            this.sucursales = myPermissions.map((p: any) => {
+                const master = masterBranches.find((m: any) => Number(m.codigoSucursal) === Number(p.codigoSucursal));
+                return {
+                    codigoSucursal: p.codigoSucursal,
+                    nombreSucursal: master?.nombreSucursal || p.identificacionSucursal || `Sucursal ${p.codigoSucursal}`,
+                    codigoEmpresa: p.codigoEmpresa,
+                    esActivo: 'S'
+                };
+            });
+
             this.sucursalesFiltradas = [...this.sucursales];
         } catch (e) {
             console.error('Error al cargar sucursales', e);
@@ -267,7 +286,13 @@ export class OrdenesDespachoListComponent implements OnInit {
 
     getStatusClass(code: string): string { return `status-${code.toLowerCase()}`; }
 
-    toggleSucursalDropdown() { this.showSucursalDropdown = !this.showSucursalDropdown; }
+    toggleSucursalDropdown() { 
+        this.showSucursalDropdown = !this.showSucursalDropdown; 
+        if (this.showSucursalDropdown) {
+            this.searchTermSucursal = ''; // Limpiar búsqueda para ver todas las opciones al abrir
+            this.filterSucursales();
+        }
+    }
     selectSucursal(suc: Sucursal) { this.selectedSucursal = suc; this.searchTermSucursal = suc.nombreSucursal; this.showSucursalDropdown = false; this.buscar(); }
     filterSucursales() {
         const term = this.searchTermSucursal.toLowerCase().trim();
