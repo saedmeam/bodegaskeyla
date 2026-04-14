@@ -195,8 +195,10 @@
 }
 
 .w-tiny {
-    width: 60px;
+    width: 40px;
     text-align: center;
+    padding: 2px 4px !important;
+    font-size: 0.65rem !important;
 }
 
 .flex-grow {
@@ -360,22 +362,21 @@
 .neu-table-v2 {
     width: 100%;
     border-collapse: collapse;
-    table-layout: auto;
-    min-width: 850px;
+    table-layout: fixed; /* v160.20: Fixed to prevent horizontal overflow */
 }
 
-.col-code-name { min-width: 280px; text-align: left; padding-left: 15px; }
-.col-bulto { width: 75px; text-align: center; }
-.col-u { width: 65px; text-align: center; }
-.col-stock { width: 75px; text-align: center; }
-.col-qty { width: 60px; text-align: center; }
-
-.col-actions { width: 35px; text-align: center; }
+.col-code-name { width: 30%; text-align: left; padding-left: 10px; }
+.col-lotes { width: 14%; text-align: center; }
+.col-bulto { width: 45px; text-align: center; }
+.col-u { width: 45px; text-align: center; }
+.col-stock { width: 55px; text-align: center; }
+.col-qty { width: 42px; text-align: center; }
+.col-actions { width: 40px; text-align: center; }
 
 .neu-table-v2 th {
     background: #f8fafc;
-    padding: 8px 10px;
-    font-size: 0.65rem;
+    padding: 6px 4px;
+    font-size: 0.58rem;
     font-weight: 800;
     color: #94a3b8;
     text-transform: uppercase;
@@ -388,9 +389,9 @@
 }
 
 .neu-table-v2 td {
-    padding: 6px 8px; /* v2.0: Slightly more vertical space for design, but better alignment */
+    padding: 3px 4px; /* v160.20: Ultra compact padding */
     border-bottom: 1px solid #f1f5f9;
-    font-size: 0.7rem;
+    font-size: 0.62rem;
     vertical-align: middle;
     text-align: center;
 }
@@ -1042,8 +1043,8 @@
 .product-name-main {
     font-weight: 700;
     color: #1a202c;
-    font-size: 0.72rem;
-    line-height: 1.2;
+    font-size: 0.65rem;
+    line-height: 1.1;
 }
 
 .product-metadata-secondary {
@@ -1089,7 +1090,7 @@
     font-weight: 900;
     color: #1e293b;
     background: rgba(0, 0, 0, 0.04);
-    font-size: 0.8rem;
+    font-size: 0.7rem;
 }
 
 .meta-tag.barcode {
@@ -1202,11 +1203,11 @@
     background: #f1f5f9;
     color: #475569;
     border: 1px solid #cbd5e1;
-    padding: 2px 6px;
+    padding: 1px 4px;
     border-radius: 4px;
-    font-size: 0.6rem;
+    font-size: 0.52rem;
     font-weight: 800;
-    max-width: 90px;
+    max-width: 75px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

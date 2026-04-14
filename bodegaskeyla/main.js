@@ -209,6 +209,28 @@ function setupIpcHandlers() {
     /**
      * v2.0: Manejador para impresión de texto plano vía Java (PrintVeris.jar)
      */
+    ipcMain.handle('print-jasper', async (event, { printerName, reportFileName, jsonData, preview }) => {
+        console.log(`[Electron:Main] 📨 IPC Receive: print-jasper (Preview: ${preview})`);
+        const svc = getPrinterService();
+        if (!svc) return { success: false, error: 'Servicio de impresión no disponible' };
+        try {
+            const result = await svc.imprimirJasper(printerName, reportFileName, jsonData, preview);
+            
+            if (preview && result && result.endsWith('.pdf')) {
+                console.log(`[Electron:Main] 📂 Abriendo vista previa nativa: ${result}`);
+                // v3.5: Usar el comando nativo del sistema para abrir el archivo
+                const { shell } = require('electron');
+                await shell.openPath(result);
+                return { success: true, preview: true };
+            }
+
+            return { success: true, data: result };
+        } catch (error) {
+            console.error('[Electron:Main] ❌ Error en print-jasper:', error.message);
+            return { success: false, error: error.message };
+        }
+    });
+
     ipcMain.handle('print-text', async (event, { text, printerName }) => {
         console.log('[Electron:Main] 📨 IPC Receive: print-text');
         const svc = getPrinterService();

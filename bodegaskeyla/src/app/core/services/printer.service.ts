@@ -18,11 +18,88 @@ export class PrinterService {
     }
 
     async printLabels(html: string, printerName?: string, options?: any, preview: boolean = false): Promise<boolean> {
+        // Legado: Sigue funcionando para HTML si es necesario
         if ((window as any).electronAPI) {
-            const result = await (window as any).electronAPI.printLabels({ html, printerName, options, preview });
+            let finalOptions = { ...options };
+            if (html.includes('page-label')) {
+                finalOptions.pageSize = 'A4';
+                finalOptions.landscape = true;
+                finalOptions.margins = { marginType: 'custom', top: 0, bottom: 0, left: 0, right: 0 };
+            }
+            const result = await (window as any).electronAPI.printLabels({ html, printerName, options: finalOptions, preview });
             return result.success;
         }
         return false;
+    }
+
+    /**
+     * v3.0: Impresión Profesional vía JasperReports
+     */
+    async imprimirJasper(reportFileName: string, jsonData: any, printerName?: string, preview: boolean = true): Promise<boolean> {
+        if ((window as any).electronAPI && (window as any).electronAPI.printJasper) {
+            console.log(`📡 [PrinterService] Solicitando impresión Jasper: ${reportFileName} (Vista Previa: ${preview})`);
+            const result = await (window as any).electronAPI.printJasper({ 
+                printerName: printerName || '', 
+                reportFileName, 
+                jsonData,
+                preview
+            });
+            return result.success;
+        }
+        console.error('❌ [PrinterService] Electron API for Jasper not available');
+        return false;
+    }
+
+    /**
+     * Prepara los datos JSON para el reporte de transferencia Jasper
+     */
+    async imprimirReporteTransferenciaJasper(orderFullId: string, products: any[], extra: any, printerName?: string) {
+        // ... (data mapping remains same)
+        const resumenBultos = extra.bultos 
+            ? extra.bultos.map((b: any) => `${b.nombreTipoBulto || b.label}: ${b.cantidad || b.value}`).join(", ") 
+            : "S/N";
+
+        const data = products.map(p => ({
+            sucursalRecibe: extra.sucursal || '---',
+            numeroDoc: orderFullId,
+            fechaEmision: extra.fecha || new Date().toLocaleString(),
+            usuarioEmisor: extra.usuario || 'SISTEMA',
+            bodegaOrigen: extra.bodegaOrigen || '---',
+            bodegaDestino: extra.bodegaDestino || '---',
+            digitador: extra.digitador || 'SISTEMA',
+            resumenBultos: resumenBultos,
+            codigo: p.item || p.codigoBarras || '',
+            nombre: p.nombre || '',
+            medida: p.unidad || '',
+            cantidad: p.despachado?.toString() || '0'
+        }));
+
+        return this.imprimirJasper('transferencia.jrxml', data, printerName, true);
+    }
+
+    /**
+     * Prepara los datos JSON para etiquetas térmicas Jasper (Soporta múltiples etiquetas)
+     */
+    async imprimirEtiquetaJasper(orderFullId: string, bulto: any, extra: any, printerName?: string) {
+        const totalEtiquetas = 1; // v5.1: Forzado a 1 sola etiqueta para pruebas (evitar desperdicio)
+        const data = [];
+
+        // v3.8: Generamos un registro por cada etiqueta para que Jasper cree un reporte multi-página
+        for (let i = 1; i <= totalEtiquetas; i++) {
+            data.push({
+                sucursal: extra.sucursal || '---',
+                direccion: extra.bodegaDestino || 'ESPECIFICO N/A',
+                fecha: extra.fecha || new Date().toLocaleDateString(),
+                pedido: orderFullId,
+                bulto: `${bulto.label}: ${i} / ${totalEtiquetas}`,
+                digitador: extra.digitador || 'SISTEMA',
+                nro: i,
+                total: totalEtiquetas
+            });
+        }
+
+        console.log(`[PrinterService] 🏷️ Generando lote de ${totalEtiquetas} etiquetas para: ${bulto.label}`);
+        return this.imprimirJasper('etiqueta.jrxml', data, printerName, true);
     }
 
     /**
@@ -67,71 +144,73 @@ export class PrinterService {
         <head>
           <style>
             @page {
-              size: landscape;
+              size: 104mm 50.8mm landscape;
               margin: 0;
             }
-            body {
-              margin: 0;
-              padding: 0;
-              background: white;
+            body { 
+              margin: 0; 
+              padding: 0; 
+              width: 100%; 
+              height: 100%;
               font-family: Arial, sans-serif;
-              color: black;
-              font-weight: 900 !important;
             }
             .page-label {
-              width: 95%;
-              height: 90vh;
+              width: 100%;
+              height: 50.8mm;
               page-break-after: always;
-              position: relative;
-              overflow: hidden;
               display: flex;
               flex-direction: column;
-              padding: 20px;
-              margin: 3vh auto 0 auto;
+              padding: 2mm 6mm;
               box-sizing: border-box;
-              border: 5px solid black;
+              overflow: hidden;
+              justify-content: space-around;
             }
             .header-info {
-              border-bottom: 4px solid black;
-              margin-bottom: 15px;
-              padding-bottom: 5px;
+              text-align: center;
+              border-bottom: 2pt solid black;
+              padding-bottom: 1pt;
+              margin-bottom: 2pt;
             }
             .title {
-              font-size: 26px;
-              text-align: left;
-              font-weight: 900;
+              font-size: 10pt;
               margin: 0;
+              font-weight: 900 !important;
+              text-transform: uppercase;
             }
             .sucursal-box {
-              font-size: 44px;
-              text-align: left;
-              margin-top: 5px;
-              font-weight: 900;
+              font-size: 34pt;
+              margin: 0;
+              font-weight: 900 !important;
               text-transform: uppercase;
+              line-height: 1.0;
             }
             .info-line {
-              font-size: 28px;
-              font-weight: 900;
-              margin-bottom: 8px;
+              font-size: 15pt;
               display: flex;
-              gap: 10px;
+              flex-direction: row;
+              gap: 8pt;
+              margin-bottom: 0;
+              font-weight: 900 !important;
+              line-height: 1.0;
             }
             .info-label {
-                min-width: 320px;
+                font-size: 13pt;
+                text-transform: uppercase;
+                font-weight: 900 !important;
+                min-width: 150pt;
             }
             .footer-msg {
-              margin-top: auto;
-              border-top: 4px solid black;
-              padding-top: 10px;
+              border-top: 1.5pt solid black;
+              padding-top: 3pt;
               text-align: center;
-              font-size: 22px;
-              font-weight: 900;
+              font-size: 11pt;
+              font-weight: 900 !important;
               text-transform: uppercase;
             }
-            .bold { font-weight: 900; }
+            .bold { font-weight: bold !important; }
           </style>
         </head>
-        <body>
+        <body style="margin:0; padding:0; font-family: 'Arial Black', sans-serif;">
     `;
 
         bultos.forEach((b) => {
@@ -146,8 +225,8 @@ export class PrinterService {
                 </div>
 
                 <div class="info-line">
-                    <span class="info-label">Dirección :</span>
-                    <span>Provincia: GUAYAS Canton: GUAYAQUIL</span>
+                    <span class="info-label">DIRECCION :</span>
+                    <span>GUAYAQUIL</span>
                 </div>
 
                 <div class="info-line">
@@ -156,17 +235,17 @@ export class PrinterService {
                 </div>
 
                 <div class="info-line">
-                    <span class="info-label">Número de Bulto # :</span>
-                    <span>${i} (de ${totalBultos})</span>
+                    <span class="info-label">BULTO # :</span>
+                    <span>${b.label}: ${i} DE ${totalBultos}</span>
                 </div>
 
                 <div class="info-line">
-                    <span class="info-label">Número de Pedido # :</span>
+                    <span class="info-label">PEDIDO # :</span>
                     <span>${orderNumber}</span>
                 </div>
 
                 <div class="info-line">
-                    <span class="info-label">Digitador :</span>
+                    <span class="info-label">DIGITADOR :</span>
                     <span>${digitador}</span>
                 </div>
 
@@ -240,21 +319,21 @@ export class PrinterService {
           <style>
             @page { 
               size: A4;
-              margin: 0.5cm; 
+              margin: 10mm; 
             }
             body { 
-              font-family: Arial, Helvetica, sans-serif;
-              font-size: 10pt; 
+              font-family: 'Arial Black', Gadget, sans-serif;
+              font-size: 11pt; 
               margin: 0;
               padding: 0;
               color: black;
-              line-height: 1.1;
+              line-height: 1.0;
               background: white;
               font-weight: 900 !important;
+              text-transform: uppercase;
             }
             .page-container {
               width: 100%;
-              min-height: 25cm;
               position: relative;
               display: flex;
               flex-direction: column;
@@ -263,54 +342,53 @@ export class PrinterService {
               display: flex;
               justify-content: space-between;
               align-items: flex-start;
-              margin-bottom: 10px;
-              padding-bottom: 5px;
+              margin-bottom: 5pt;
             }
-            .brand-name {
-              font-size: 18pt;
-              font-weight: 900 !important;
-              margin: 0;
+            .brand-name { 
+              font-size: 16pt; 
             }
-            .report-type {
-              font-size: 14pt;
-              font-weight: 900 !important;
-              text-transform: uppercase;
+            .report-type { 
+              font-size: 11pt; 
+              margin-top: 5pt; 
             }
             .doc-id-box {
               text-align: right;
-              padding: 5px;
+              font-size: 10pt;
             }
             .info-label {
               font-size: 9pt;
-              font-weight: 700;
+              font-weight: bold !important;
               text-transform: uppercase;
             }
             .info-value {
-              font-size: 11pt;
-              font-weight: 900 !important;
+              font-size: 10pt;
+              font-weight: normal !important;
             }
             .report-table {
               width: 100%;
               border-collapse: collapse;
+              margin-top: 20pt;
             }
             .report-table th {
               font-weight: 900 !important;
               text-transform: uppercase;
-              font-size: 11pt;
-              padding: 8px 5px;
-              background: white;
+              font-size: 10pt;
+              padding: 4pt 5pt;
+              border: none;
+              text-align: left;
             }
             .report-table td {
-              padding: 6px 5px;
-              font-size: 10pt;
+              padding: 1pt 5pt;
+              font-size: 9pt;
               font-weight: 900 !important;
+              border: none;
             }
             .col-codigo { 
-                width: 150px; 
-                text-align: center;
+                width: 120px; 
+                text-align: left;
             } 
             .col-desc { font-weight: 900 !important; }
-            .col-cant { font-size: 12pt !important; text-align: right; }
+            .col-cant { font-size: 10pt !important; text-align: right; }
 
             .section-bultos {
                 margin-top: 15px;
@@ -331,30 +409,34 @@ export class PrinterService {
                 text-align: center;
             }
             .sig-line-compact {
-                margin-top: 60px;
                 border-top: 1px solid black;
                 padding-top: 5px;
-                font-size: 9pt;
-                font-weight: 900 !important;
+                font-size: 8pt;
+                font-weight: bold !important;
                 text-transform: uppercase;
             }
 
             .report-footer {
-              margin-top: auto;
-              padding-top: 60px;
+              margin-top: 40pt;
             }
             .footer-signatures {
-              display: grid;
-              grid-template-columns: repeat(3, 1fr);
-              gap: 15px;
-              text-align: center;
+              width: 100%;
+              margin-top: 30pt;
+              border-collapse: collapse;
+            }
+            .footer-signatures td {
+                width: 25%;
+                padding: 0 5pt;
+                vertical-align: top;
+                text-align: center;
             }
             .sig-line {
-              border-top: 1px solid black;
-              padding-top: 5px;
+              border-top: 1.5pt solid black;
+              padding-top: 5pt;
               font-weight: 900 !important;
               text-transform: uppercase;
-              font-size: 10pt;
+              font-size: 9pt;
+              line-height: 1.1;
             }
           </style>
         </head>
@@ -363,32 +445,32 @@ export class PrinterService {
             <header class="header-main">
               <div class="branding">
                 <h1 class="brand-name">FARMACIAS KEYLA S.A</h1>
-                <span class="report-type">TRANSFERENCIA DE MERCADERÍA</span>
+                <span class="report-type">TRANSFERENCIA DE MERCADERIA</span>
               </div>
               <div class="doc-id-box">
-                <b>No. Documento: ${solicitud}${orden}</b><br>
-                <b>Fecha: ${dateStr}</b>
+                <b>NO. DOCUMENTO: ${solicitud}${orden}</b><br>
+                <b>FECHA: ${dateStr}</b>
               </div>
             </header>
 
-            <table style="width:100%; padding:8px; margin-bottom:15px; border-collapse:collapse;">
+            <table style="width:100%; border-collapse:collapse;">
               <tr>
                 <td style="width:33%; vertical-align:top;">
-                  <span class="info-label">Usuario Emisor:</span><br>
+                  <span class="info-label">USUARIO EMISOR:</span><br>
                   <span class="info-value">${extra.usuario}</span><br>
-                  <span class="info-label">Fecha/Hora Proceso:</span><br>
+                  <span class="info-label">FECHA/HORA PROCESO:</span><br>
                   <span class="info-value">${fullDateStr}</span>
                 </td>
                 <td style="width:34%; vertical-align:top;">
-                   <span class="info-label">Destino / Movimiento:</span><br>
-                   <span class="info-value">${solicitud}-${orden} | ${extra.sucursal}</span><br>
-                   <span class="info-label">Digitador:</span><br>
+                   <span class="info-label">DESTINO / MOVIMIENTO:</span><br>
+                   <span class="info-value" style="font-size: 10pt;">${solicitud}-${orden} | ${extra.sucursal}</span><br>
+                   <span class="info-label">DIGITADOR:</span><br>
                    <span class="info-value">${extra.digitador}</span>
                 </td>
                 <td style="width:33%; vertical-align:top;">
-                   <span class="info-label">Bodega Origen:</span><br>
+                   <span class="info-label">BODEGA ORIGEN:</span><br>
                    <span class="info-value">${extra.bodegaOrigen || 'CENTRO DE DISTRIBUCCION'}</span><br>
-                   <span class="info-label">Bodega Destino:</span><br>
+                   <span class="info-label">BODEGA DESTINO:</span><br>
                    <span class="info-value">${extra.bodegaDestino || extra.sucursal}</span>
                 </td>
               </tr>
@@ -398,19 +480,19 @@ export class PrinterService {
               <table class="report-table">
                 <thead>
                   <tr>
-                    <th class="col-codigo">CÓDIGO</th>
-                    <th class="col-desc">DESCRIPCIÓN PRODUCTO</th>
-                    <th class="col-medida">MEDIDA</th>
-                    <th class="col-cant">CANT.</th>
+                    <th class="col-codigo"><b>CODIGO</b></th>
+                    <th class="col-desc"><b>DESCRIPCION PRODUCTO</b></th>
+                    <th class="col-medida"><b>MEDIDA</b></th>
+                    <th class="col-cant" style="width: 50px;"><b>CANT.</b></th>
                   </tr>
                 </thead>
                 <tbody>
                   ${products.map(p => `
                     <tr>
-                      <td class="col-codigo"><b>${p.item}</b></td>
-                      <td class="col-desc"><b>${p.nombre}</b></td>
-                      <td class="col-medida"><b>${p.unidad}</b></td>
-                      <td class="col-cant"><b>${p.despachado}</b></td>
+                      <td class="col-codigo">${p.item}</td>
+                      <td class="col-desc">${p.nombre}</td>
+                      <td class="col-medida">${p.unidad}</td>
+                      <td class="col-cant">${p.despachado}</td>
                     </tr>
                   `).join('')}
                 </tbody>
@@ -418,31 +500,33 @@ export class PrinterService {
             </div>
 
             ${extra.bultos && extra.bultos.length > 0 ? `
-            <section class="section-bultos" style="min-height: 120px;">
+            <section class="section-bultos">
                 <div class="bultos-title">RESUMEN DE DESPACHO (BULTOS)</div>
                 <div style="display: flex; flex-direction: column; gap: 8px;">
                     ${extra.bultos.map(b => `
-                        <div style="font-size: 14pt; font-weight: 900 !important;"><b>${b.nombreTipoBulto}: ${b.cantidad}</b></div>
+                        <div style="font-size: 12pt; font-weight: normal !important;">${b.nombreTipoBulto}: ${b.cantidad}</div>
                     `).join('')}
-                </div>
-                <div class="signature-box-bultos">
-                    <div class="sig-line-compact">RECIBIDO POR (CONTEO BULTOS)</div>
                 </div>
             </section>
             ` : ''}
 
             <div class="report-footer">
-              <footer class="footer-signatures">
-                <div class="info-group">
-                  <div class="sig-line">ELABORADO POR ${extra.usuario}</div>
-                </div>
-                <div class="info-group">
-                  <div class="sig-line">REVISADO POR CONTROL DE BODEGA</div>
-                </div>
-                <div class="info-group">
-                  <div class="sig-line">RECIBIDO POR LOGÍSTICA / SUCURSAL</div>
-                </div>
-              </footer>
+              <table class="footer-signatures">
+                <tr>
+                  <td>
+                    <div class="sig-line">ELABORADO POR ${extra.usuario}</div>
+                  </td>
+                  <td>
+                    <div class="sig-line">REVISADO POR CONTROL DE BODEGA</div>
+                  </td>
+                  <td>
+                    <div class="sig-line">RECIBIDO POR (CONTEO BULTOS)</div>
+                  </td>
+                  <td>
+                    <div class="sig-line">RECIBIDO POR LOGISTICA SUCURSAL</div>
+                  </td>
+                </tr>
+              </table>
             </div>
           </div>
         </body>

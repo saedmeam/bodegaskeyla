@@ -57,6 +57,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
      * @returns {Promise<{success: boolean, data?: Array, error?: string}>}
      */
     printLabels: (payload) => ipcRenderer.invoke('print-labels', payload),
+    printJasper: (payload) => ipcRenderer.invoke('print-jasper', payload),
     getPrinters: () => ipcRenderer.invoke('get-printers'),
 
     // Otras APIs que puedas necesitar

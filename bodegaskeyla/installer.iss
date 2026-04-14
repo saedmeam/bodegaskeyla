@@ -3,7 +3,7 @@
 ; Logic: Bundles the win-unpacked output from electron-builder into a professional Setup.exe
 
 #define AppName "BodegasKeyla"
-#define AppVersion "0.1.3"
+#define AppVersion "0.1.4"
 #define AppPublisher "Neu360"
 #define AppURL "https://www.keyla.com.ec"
 #define AppExeName "BodegasKeyla.exe"
@@ -22,7 +22,7 @@ DisableProgramGroupPage=yes
 DefaultGroupName={#AppName}
 SourceDir=.
 OutputDir=Output
-OutputBaseFilename=BodegasKeyla_Setup_V0.1.3
+OutputBaseFilename=BodegasKeyla_Setup_V0.1.4
 SetupIconFile=public\logo-keyla.ico
 Compression=lzma
 SolidCompression=yes
@@ -46,6 +46,8 @@ Source: "release\win-unpacked\*"; DestDir: "{app}"; Flags: ignoreversion recurse
 Source: "encrypter-xuit.jar"; DestDir: "{app}\resources"; Flags: ignoreversion
 Source: "PrintVeris.jar"; DestDir: "{app}\resources"; Flags: ignoreversion
 Source: "config.json"; DestDir: "{app}\resources"; Flags: ignoreversion
+Source: "C:\Program Files (x86)\JasperStarter\*"; DestDir: "{app}\JasperStarter"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "src\assets\reports\*"; DestDir: "{app}\resources\reports"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "public\*"; DestDir: "{app}\public"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; 3. Core Entry Points (Ensuring they are in the root for direct launch)

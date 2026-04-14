@@ -96,11 +96,11 @@ export class DataService {
                         codigoBarras: barcode,
                         nombre: d.nombreExistencia || 'SIN NOMBRE',
                         unidad: d.tipoMedida || 'UND', // v170.1: Usar tipoMedida del API
-                        invBod: d.stock || 0,
+                        invBod: d.saldoActualEnCajas || d.stock || 0,
                         vtas: 0,
                         sLocal: 0,
                         suger: 0,
-                        solicita: d.cantidad || 0,
+                        solicita: d.cantidadCajas || d.cantidad || 0,
                         despachado: 0,
                         color: 'naranja',
                         bulto: d.unidadesXCaja || 1,
@@ -142,6 +142,8 @@ export class DataService {
                 return this.getOrdenesDespachoList(params.empresa, params.filtro, params.valor, params.pagina, params.fechaDesde, params.fechaHasta) as Observable<T>;
             case 'GET_TIPOS_BULTOS':
                 return this.getTiposBultos() as Observable<T>;
+            case 'GET_LOTES_EXISTENCIA_ORDEN':
+                return this.getLotesExistenciaOrdenDespacho(params.codigoExistencia, params.solicitud, params.orden) as Observable<T>;
             case 'IMPRIMIR_TIRILLA':
                 return this.imprimirTirilla(params.empresa, params.secuencia) as Observable<T>;
             default:
@@ -265,6 +267,27 @@ export class DataService {
                     errorMsg = `<strong>MENSAJE:</strong> ${errorMsg}<br/><br/><strong>DETALLE SISTEMA:</strong> ${errorBody.errorSistemas}`;
                 }
                 return of({ mensaje: errorMsg, isError: true, detalles: [] });
+            })
+        );
+    }
+
+    getLotesExistenciaOrdenDespacho(codigoExistencia: string, solicitud: number, orden: number): Observable<any> {
+        const params = {
+            arg0: this.getCurrentCompany(),
+            arg1: codigoExistencia,
+            arg2: solicitud,
+            arg3: orden
+        };
+        const headers = this.getHeaders();
+        return this.http.get(`${this.API_BASE}/XPosConsultas/lotesExistenciaOrdenDespacho`, { params, headers }).pipe(
+            catchError(err => {
+                console.error('[DataService] Error consultando lotesExistenciaOrdenDespacho', err);
+                const errorBody = err.error;
+                let errorMsg = errorBody?.mensaje || errorBody?.causa || err.message || 'Error consultando lotes';
+                if (errorBody?.errorSistemas) {
+                    errorMsg = `<strong>MENSAJE:</strong> ${errorMsg}<br/><br/><strong>DETALLE SISTEMA:</strong> ${errorBody.errorSistemas}`;
+                }
+                return of({ mensaje: errorMsg, isError: true, lotes: [] });
             })
         );
     }

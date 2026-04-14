@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="transferencia" pageWidth="612" pageHeight="792" columnWidth="572" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20">
+	<property name="ireport.zoom" value="1.5"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<field name="sucursal" class="java.lang.String"/>
+	<field name="sucursalDestino" class="java.lang.String"/>
+	<field name="numeroDoc" class="java.lang.String"/>
+	<field name="fechaEmision" class="java.lang.String"/>
+	<field name="usuarioEmisor" class="java.lang.String"/>
+	<field name="bodegaOrigen" class="java.lang.String"/>
+	<field name="bodegaDestino" class="java.lang.String"/>
+	<field name="digitador" class="java.lang.String"/>
+	<field name="codigo" class="java.lang.String"/>
+	<field name="nombre" class="java.lang.String"/>
+	<field name="laboratorio" class="java.lang.String"/>
+	<field name="medida" class="java.lang.String"/>
+	<field name="cantidad" class="java.lang.String"/>
+	<field name="resumenBultos" class="java.lang.String"/>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band height="140" splitType="Stretch">
+			<staticText>
+				<reportElement x="0" y="0" width="350" height="30"/>
+				<textElement><font fontName="SansSerif" size="20" isBold="true"/></textElement>
+				<text><![CDATA[FARMACIAS KEYLA S.A]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="372" y="0" width="200" height="25"/>
+				<textElement textAlignment="Right"><font fontName="SansSerif" size="14" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA["No: " + ($F{numeroDoc} != null ? $F{numeroDoc} : "")]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="0" y="30" width="572" height="22"/>
+				<textElement textAlignment="Center"><font fontName="SansSerif" size="14" isBold="true" isUnderline="true"/></textElement>
+				<text><![CDATA[TRANSFERENCIA DE MERCADERIA]]></text>
+			</staticText>
+			
+			<staticText>
+				<reportElement x="0" y="60" width="100" height="15"/>
+				<textElement><font fontName="SansSerif" size="10" isBold="true"/></textElement>
+				<text><![CDATA[EMISOR:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="105" y="60" width="160" height="15"/>
+				<textElement><font fontName="SansSerif" size="10" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$F{usuarioEmisor}]]></textFieldExpression>
+			</textField>
+			
+			<staticText>
+				<reportElement x="285" y="60" width="90" height="15"/>
+				<textElement><font fontName="SansSerif" size="10" isBold="true"/></textElement>
+				<text><![CDATA[DESTINO/MOV:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="380" y="60" width="192" height="15"/>
+				<textElement textAlignment="Right"><font fontName="SansSerif" size="10" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$F{sucursalDestino} != null ? $F{sucursalDestino} : $F{sucursal}]]></textFieldExpression>
+			</textField>
+			
+			<staticText>
+				<reportElement x="0" y="75" width="100" height="15"/>
+				<textElement><font fontName="SansSerif" size="10" isBold="true"/></textElement>
+				<text><![CDATA[BODEGA ORIG:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="105" y="75" width="160" height="15"/>
+				<textElement><font fontName="SansSerif" size="10" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$F{bodegaOrigen}]]></textFieldExpression>
+			</textField>
+			
+			<staticText>
+				<reportElement x="285" y="75" width="90" height="15"/>
+				<textElement><font fontName="SansSerif" size="10" isBold="true"/></textElement>
+				<text><![CDATA[BODEGA DEST:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="380" y="75" width="192" height="15"/>
+				<textElement textAlignment="Right"><font fontName="SansSerif" size="10" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$F{bodegaDestino}]]></textFieldExpression>
+			</textField>
+			
+			<staticText>
+				<reportElement x="0" y="90" width="100" height="15"/>
+				<textElement><font fontName="SansSerif" size="10" isBold="true"/></textElement>
+				<text><![CDATA[FECHA/HORA:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="105" y="90" width="160" height="15"/>
+				<textElement><font fontName="SansSerif" size="10" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$F{fechaEmision}]]></textFieldExpression>
+			</textField>
+			
+			<staticText>
+				<reportElement x="285" y="90" width="90" height="15"/>
+				<textElement><font fontName="SansSerif" size="10" isBold="true"/></textElement>
+				<text><![CDATA[DIGITADOR:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="380" y="90" width="192" height="15"/>
+				<textElement textAlignment="Right"><font fontName="SansSerif" size="10" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$F{digitador}]]></textFieldExpression>
+			</textField>
+		</band>
+	</title>
+	<columnHeader>
+		<band height="25" splitType="Stretch">
+			<staticText>
+				<reportElement x="0" y="0" width="95" height="20"/>
+				<box><bottomPen lineWidth="1.0"/></box>
+				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="11" isBold="true"/></textElement>
+				<text><![CDATA[CODIGO]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="100" y="0" width="250" height="20"/>
+				<box><bottomPen lineWidth="1.0"/></box>
+				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="11" isBold="true"/></textElement>
+				<text><![CDATA[DESCRIPCION]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="355" y="0" width="110" height="20"/>
+				<box><bottomPen lineWidth="1.0"/></box>
+				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="11" isBold="true"/></textElement>
+				<text><![CDATA[LABORATORIO]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="470" y="0" width="45" height="20"/>
+				<box><bottomPen lineWidth="1.0"/></box>
+				<textElement textAlignment="Center" verticalAlignment="Middle"><font fontName="SansSerif" size="11" isBold="true"/></textElement>
+				<text><![CDATA[MED]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="520" y="0" width="52" height="20"/>
+				<box><bottomPen lineWidth="1.0"/></box>
+				<textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="11" isBold="true"/></textElement>
+				<text><![CDATA[CANT]]></text>
+			</staticText>
+		</band>
+	</columnHeader>
+	<detail>
+		<band height="18" splitType="Stretch">
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="1" width="95" height="16"/>
+				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="11" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$F{codigo}]]></textFieldExpression>
+			</textField>
+			<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+				<reportElement x="100" y="1" width="250" height="16"/>
+				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="10" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$F{nombre}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="355" y="1" width="110" height="16"/>
+				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="10" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$F{laboratorio}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="470" y="1" width="45" height="16"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle"><font fontName="SansSerif" size="10" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$F{medida}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="520" y="1" width="52" height="16"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="11" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$F{cantidad}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<summary>
+		<band height="100" splitType="Stretch">
+			<staticText>
+				<reportElement x="0" y="5" width="200" height="20"/>
+				<textElement><font fontName="SansSerif" size="12" isBold="true"/></textElement>
+				<text><![CDATA[RESUMEN DE BULTOS:]]></text>
+			</staticText>
+			<textField textAdjust="StretchHeight" isBlankWhenNull="true">
+				<reportElement x="0" y="25" width="572" height="20"/>
+				<textElement><font fontName="SansSerif" size="12" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$F{resumenBultos}]]></textFieldExpression>
+			</textField>
+			<line><reportElement x="0" y="70" width="120" height="1"/></line>
+			<staticText><reportElement x="0" y="75" width="120" height="15"/><textElement textAlignment="Center"><font fontName="SansSerif" size="8" isBold="true"/></textElement><text><![CDATA[ELABORADO]]></text></staticText>
+			<line><reportElement x="145" y="70" width="120" height="1"/></line>
+			<staticText><reportElement x="145" y="75" width="120" height="15"/><textElement textAlignment="Center"><font fontName="SansSerif" size="8" isBold="true"/></textElement><text><![CDATA[BODEGA]]></text></staticText>
+			<line><reportElement x="290" y="70" width="120" height="1"/></line>
+			<staticText><reportElement x="290" y="75" width="120" height="15"/><textElement textAlignment="Center"><font fontName="SansSerif" size="8" isBold="true"/></textElement><text><![CDATA[REC. BULTOS]]></text></staticText>
+			<line><reportElement x="435" y="70" width="120" height="1"/></line>
+			<staticText><reportElement x="435" y="75" width="120" height="15"/><textElement textAlignment="Center"><font fontName="SansSerif" size="8" isBold="true"/></textElement><text><![CDATA[REC. SUCURSAL]]></text></staticText>
+		</band>
+	</summary>
+</jasperReport>

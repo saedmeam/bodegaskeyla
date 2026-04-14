@@ -3,7 +3,7 @@ import { Product } from '../../../shared/models/product.model';
 import { DataService } from '../../../core/services/data.service';
 import { StorageService } from '../../../core/services/storage.service';
 import { switchMap, map, tap, catchError } from 'rxjs/operators';
-import { of, throwError, Observable } from 'rxjs';
+import { of, throwError, Observable, firstValueFrom } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
 import { LoadingService } from '../../../core/services/loading.service';
 
@@ -191,8 +191,8 @@ export class RevisorService {
                             codigoBarras: barcode,
                             nombre: d.nombreExistencia || 'SIN NOMBRE',
                             unidad: d.tipoMedida || 'U/C',
-                            solicita: d.cantidad || 0,
-                            invBod: d.stock !== undefined && d.stock !== null ? d.stock : (d.cantidadUnidadMedidaStockB || d.existencia || 0),
+                            solicita: d.cantidadCajas || d.cantidad || 0,
+                            invBod: d.saldoActualEnCajas || d.stock || 0,
                             despachado: 0,
                             color: 'naranja',
                             bulto: d.unidadesXCaja || 1,
@@ -212,12 +212,7 @@ export class RevisorService {
                             vtas: 0,
                             sLocal: 0,
                             suger: 0,
-                            // v170.2: Mocking batches for testing as requested
-                            lotes: [
-                                { lote: 'L001', caducidad: '2026-04-15', stock: 4, despachado: 0 },
-                                { lote: 'L002', caducidad: '2026-05-10', stock: 8, despachado: 0 },
-                                { lote: 'L003', caducidad: '2026-08-01', stock: 20, despachado: 0 }
-                            ]
+                            lotes: [] // v170.2: Inicializado vacío, se llenará al pistolear
                         };
 
                         // v160.11: Si estamos forzando refresh, re-aplicamos el estado del producto si ya estaba escaneado
@@ -280,7 +275,7 @@ export class RevisorService {
         this.storage.saveLocal(sessionKey, sessionState);
     }
 
-    private processBarcode(barcode: string, lote?: string, caducidad?: string): { product: Product, isAccumulated: boolean } | null {
+    private async processBarcode(barcode: string, lote?: string, caducidad?: string): Promise<{ product: Product, isAccumulated: boolean } | null> {
         if (!barcode) return null;
 
         // v160.14: AUDITORÍA PREVIA (Bloqueo por errores críticos pendientes)
@@ -321,18 +316,51 @@ export class RevisorService {
         );
 
         if (productIndex !== -1) {
-            const product = { ...this.ordenProductos()[productIndex] };
+            let product = { ...this.ordenProductos()[productIndex] };
             
             // v160.14: VALIDACIONES DE LÍMITE (Primer pistoleo)
             if (Number(product.invBod || 0) <= 0) {
                 throw new Error(`SIN STOCK: El producto ${product.nombre} tiene stock 0 en bodega. No se puede agregar.`);
             }
-            if (1 > product.solicita) { // Caso raro donde solicitan 0 (no debería estar en la orden)
+            if (1 > product.solicita) {
                 throw new Error(`NO SOLICITADO: Este item tiene cantidad solicitada 0.`);
+            }
+
+            // v2.1: CONSUMIR SERVICIO DE LOTES (Requerimiento Keyla)
+            const meta = this.orderMetadata();
+            try {
+                const lotesRes = await firstValueFrom(this.dataService.executeAction<any>('GET_LOTES_EXISTENCIA_ORDEN', {
+                    codigoExistencia: product.codigoExistencia,
+                    solicitud: meta.numeroSolicitud,
+                    orden: meta.numeroOrdenDespacho
+                }));
+
+                if (lotesRes && !lotesRes.isError && lotesRes.lotes) {
+                    // Mapear lotes según el nuevo servicio
+                    product.lotes = lotesRes.lotes.map((l: any) => ({
+                        lote: l.codigoLote || l.lote || 'S/L',
+                        caducidad: l.fechaCaducidad || l.caducidad || 'N/A',
+                        stock: l.saldoActualEnCajas || l.stock || 0,
+                        despachado: 0
+                    }));
+                }
+            } catch (err) {
+                console.error('[RevisorService] Error cargando lotes para el producto:', err);
             }
 
             product.despachado = 1;
             product.bulto = 1;
+            
+            // Asignación automática del primer lote si existe y tiene stock
+            if (product.lotes && product.lotes.length > 0) {
+                const firstWithStock = product.lotes.find(l => l.stock > 0);
+                if (firstWithStock) {
+                    firstWithStock.despachado = 1;
+                    product.lote = firstWithStock.lote;
+                    product.caducidad = firstWithStock.caducidad;
+                }
+            }
+
             this.updateColorLogic(product);
             this.updateState(product, productIndex);
             return { product, isAccumulated: false };
@@ -340,12 +368,7 @@ export class RevisorService {
 
         // 3. BÚSQUEDA EXTERNA (Si no está en la orden y el flag está activo)
         if (this.enableExternalLookup) {
-            /**
-             * TODO: Implementar llamada REST GET dinámica aquí.
-             * const extProduct = await this.dataService.fetchExternal(barcode);
-             */
             console.log(`[v30.0] Buscando código ${barcode} en servicio externo...`);
-            // Por ahora, simulamos que no lo encuentra hasta tener la info del servicio.
         }
 
         return null;

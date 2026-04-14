@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="etiqueta" pageWidth="295" pageHeight="144" orientation="Landscape" columnWidth="295" leftMargin="0" rightMargin="0" topMargin="0" bottomMargin="0">
+	<property name="ireport.zoom" value="2.0"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<field name="sucursal" class="java.lang.String"/>
+	<field name="direccion" class="java.lang.String"/>
+	<field name="fecha" class="java.lang.String"/>
+	<field name="pedido" class="java.lang.String"/>
+	<field name="bulto" class="java.lang.String"/>
+	<field name="digitador" class="java.lang.String"/>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<detail>
+		<band height="144" splitType="Stretch">
+			<!-- Formato Horizontal Nativo (104mm x 51mm) -->
+			<staticText>
+				<reportElement x="0" y="8" width="295" height="20"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="14" isBold="false"/>
+				</textElement>
+				<text><![CDATA[CENTRO DE DISTRIBUCION FARMACEUTICA]]></text>
+			</staticText>
+			
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="28" width="295" height="22"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="14" isBold="false"/>
+				</textElement>
+				<textFieldExpression><![CDATA["SUCURSAL: " + $F{sucursal}]]></textFieldExpression>
+			</textField>
+			
+			<line>
+				<reportElement x="15" y="55" width="265" height="1"/>
+				<graphicElement><pen lineWidth="0.5"/></graphicElement>
+			</line>
+			
+			<textField isBlankWhenNull="true">
+				<reportElement x="25" y="60" width="245" height="12"/>
+				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="false"/></textElement>
+				<textFieldExpression><![CDATA["ESPECIFICO: " + ($F{direccion} != null ? $F{direccion} : "")]]></textFieldExpression>
+			</textField>
+			
+			<textField isBlankWhenNull="true">
+				<reportElement x="25" y="72" width="245" height="12"/>
+				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="false"/></textElement>
+				<textFieldExpression><![CDATA["FECHA: " + ($F{fecha} != null ? $F{fecha} : "")]]></textFieldExpression>
+			</textField>
+			
+			<textField isBlankWhenNull="true">
+				<reportElement x="25" y="84" width="245" height="12"/>
+				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="false"/></textElement>
+				<textFieldExpression><![CDATA["PEDIDO: " + ($F{pedido} != null ? $F{pedido} : "")]]></textFieldExpression>
+			</textField>
+			
+			<textField isBlankWhenNull="true">
+				<reportElement x="25" y="96" width="245" height="12"/>
+				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="false"/></textElement>
+				<textFieldExpression><![CDATA["Bulto No.: " + ($F{bulto} != null ? $F{bulto}.replace("IMPRESIÓN DE ETIQUETAS: ", "") : "")]]></textFieldExpression>
+			</textField>
+			
+			<textField isBlankWhenNull="true">
+				<reportElement x="25" y="108" width="245" height="12"/>
+				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="false"/></textElement>
+				<textFieldExpression><![CDATA["DIGITADOR: " + ($F{digitador} != null ? $F{digitador} : "")]]></textFieldExpression>
+			</textField>
+			
+			<line>
+				<reportElement x="15" y="123" width="265" height="1"/>
+				<graphicElement><pen lineWidth="0.5"/></graphicElement>
+			</line>
+			
+			<staticText>
+				<reportElement x="0" y="126" width="295" height="12"/>
+				<textElement textAlignment="Center" verticalAlignment="Bottom">
+					<font fontName="SansSerif" size="7" isBold="false"/>
+				</textElement>
+				<text><![CDATA[SI ESTE SELLO VIOLADO O ROTO, REVISE EL CONTENIDO]]></text>
+			</staticText>
+		</band>
+	</detail>
+</jasperReport>

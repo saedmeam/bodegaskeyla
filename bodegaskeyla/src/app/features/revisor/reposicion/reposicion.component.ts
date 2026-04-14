@@ -225,13 +225,13 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
         }
     }
 
-    manualSelect(item: string) {
+    async manualSelect(item: string) {
         this.barcodeInput = item;
-        this.simularEscaneo();
+        await this.simularEscaneo();
     }
 
 
-    simularEscaneo(): boolean {
+    async simularEscaneo(): Promise<boolean> {
         if (!this.barcodeInput.trim()) return false;
         
         // v2.0: Soporte para Autocompletado - Si hay uno seleccionado en el dropdown, usar su item
@@ -290,7 +290,7 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
 
         // Uso del método orquestador con auditoría estricta (v160.15)
         try {
-            const result = this.revisorService.executeProcess('SCAN', {
+            const result = await this.revisorService.executeProcess('SCAN', {
                 barcode: this.barcodeInput,
                 lote: this.loteInput,
                 caducidad: this.caducidadInput
@@ -338,7 +338,7 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
         return false;
     }
 
-    onProductDblClick(prod: any) {
+    async onProductDblClick(prod: any) {
         if (!prod) return;
 
         // V160.12: Manual Scan via double click. Si no hay barcode, usamos el nombre exacto.
@@ -348,7 +348,7 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
         if (prod.lote) this.loteInput = prod.lote;
         if (prod.caducidad) this.caducidadInput = prod.caducidad;
 
-        const wasAdded = this.simularEscaneo();
+        const wasAdded = await this.simularEscaneo();
         if (wasAdded) {
             // Only show manual scan toast if it passed the filters inside simularEscaneo
             this.showToast(`CARGA MANUAL: [${prod.item}] cargado vía comparativo.`, false, "REGISTRO MANUAL");
@@ -732,14 +732,14 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
         this.selectedIndexProd.set(filtered.length > 0 ? 0 : -1);
     }
 
-    seleccionarProducto(prod: Product) {
+    async seleccionarProducto(prod: Product) {
         this.barcodeInput = prod.item;
         this.productosFiltrados.set([]);
         this.showProductDropdown.set(false);
         this.selectedIndexProd.set(-1);
         
         // Ejecutar escaneo inmediatamente
-        this.simularEscaneo();
+        await this.simularEscaneo();
     }
 
     onScannerKeydown(event: KeyboardEvent) {
@@ -794,27 +794,21 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
         const cantidadAPrint = bulto999 ? Number(bulto999.cantidad) : 0;
 
         if (cantidadAPrint > 0) {
-            console.log(`[ReposicionComponent] 🖨️ Generando ${cantidadAPrint} etiquetas (Master 999)`);
-
+            console.log(`[ReposicionComponent] 🖨️ Generando ${cantidadAPrint} etiquetas vía Jasper (Master 999)`);
             const extraData = {
                 sucursal: metadata?.nombreSucursalDestino || metadata?.sucursalDestino || '---',
                 digitador: user?.username || 'SISTEMA',
-                fecha: new Date().toLocaleDateString('es-EC')
+                fecha: new Date().toLocaleDateString('es-EC'),
+                bodegaDestino: metadata?.nombreSucursalDestino || metadata?.sucursalDestino
             };
-
-            const bultosLabelsMapped = [{ label: 'IMPRESIÓN DE ETIQUETAS', value: cantidadAPrint }];
-            const labelsHtml = this.printerService.generateLabelsHtml(this.orderNumber, bultosLabelsMapped, extraData);
-
-            this.printerService.printLabels(labelsHtml, undefined, { pageSize: 'A4', landscape: true }, true);
-        } else {
-            console.log('[ReposicionComponent] ⏭️ Saltando etiquetas físicas (Bulto 999 es 0)');
+            const bultoLabel = { label: 'IMPRESIÓN DE ETIQUETAS', value: cantidadAPrint };
+            this.printerService.imprimirEtiquetaJasper(this.orderNumber, bultoLabel, extraData);
         }
 
-        // 2. v2.7: Reporte de Transferencia de Mercadería (SIEMPRE se imprime si hay productos)
+        // 2. Reporte de Transferencia Jasper (SIEMPRE se imprime si hay productos)
         const productsVerificados = this.escaneados().filter(p => p.despachado > 0);
         if (productsVerificados.length > 0) {
-            console.log('[ReposicionComponent] Generando reporte de transferencia A4...');
-
+            console.log('[ReposicionComponent] Generando reporte de transferencia A4 vía Jasper...');
             const extraReport = {
                 sucursal: metadata?.nombreSucursalDestino || metadata?.sucursalDestino || '---',
                 usuario: user?.username || 'SISTEMA',
@@ -824,11 +818,8 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
                 bodegaDestino: metadata?.nombreSucursalDestino || metadata?.sucursalDestino,
                 bultos: bultosParaEnviar
             };
-
-            const reportHtml = this.printerService.generateTransferReportHtml(this.orderNumber, productsVerificados, extraReport);
-            this.printerService.printLabels(reportHtml, undefined, { pageSize: 'A4' }, true);
-
-            this.showToast("Reporte generado. Etiquetas omitidas o procesadas según Bulto 999.", false, "IMPRESIÓN");
+            this.printerService.imprimirReporteTransferenciaJasper(this.orderNumber, productsVerificados, extraReport);
+            this.showToast("Impresión Jasper generada.", false, "IMPRESIÓN");
         }
     }
 

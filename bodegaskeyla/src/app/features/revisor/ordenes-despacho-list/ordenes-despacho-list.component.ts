@@ -235,12 +235,12 @@ export class OrdenesDespachoListComponent implements OnInit {
                 item: d.sciExistenciasXCodBarras?.[0]?.codigoBarras?.toString() || d.codigoBarras?.toString() || '',
                 nombre: d.nombreExistencia || 'SIN NOMBRE',
                 unidad: d.tipoMedida || 'U/C',
-                solicita: d.cantidad || 0,
-                despachado: d.cantidad || 0,
+                solicita: d.cantidadCajas || d.cantidad || 0,
+                despachado: d.cantidadCajas || d.cantidad || 0,
                 lote: d.lote || '',
                 caducidad: d.caducidad || '',
                 codigoBarras: d.sciExistenciasXCodBarras?.[0]?.codigoBarras?.toString() || d.codigoBarras?.toString() || '',
-                vtas: 0, sLocal: 0, suger: 0, bulto: 0, invBod: 0, color: 'negro'
+                vtas: 0, sLocal: 0, suger: 0, bulto: 0, invBod: d.saldoActualEnCajas || d.stock || 0, color: 'negro'
             }));
 
             // 2. Definir bultos para la etiqueta (v160.48: Por defecto 2 etiquetas si es reimpresión rápida)
@@ -259,16 +259,16 @@ export class OrdenesDespachoListComponent implements OnInit {
                 bultos: bultosParaImprimir
             };
 
-            // 3. Generar y Enviar Etiquetas
+            // 3. Generar y Enviar Etiquetas Térmicas vía Jasper
             const bultosLabelsMapped = bultosParaImprimir.map(b => ({ label: b.nombreTipoBulto, value: b.cantidad }));
-            const labelsHtml = this.printerService.generateLabelsHtml(ordenFullId, bultosLabelsMapped, extraData);
-            await this.printerService.printLabels(labelsHtml, undefined, { pageSize: 'A4', landscape: true }, true);
+            for (const bulto of bultosLabelsMapped) {
+                await this.printerService.imprimirEtiquetaJasper(ordenFullId, bulto, extraData);
+            }
             
-            // 4. Generar y Enviar Reporte de Transferencia (A4)
+            // 4. Generar y Enviar Reporte de Transferencia (A4) vía Jasper
             setTimeout(async () => {
-                const reportHtml = this.printerService.generateTransferReportHtml(ordenFullId, products, extraData);
-                await this.printerService.printLabels(reportHtml, undefined, { pageSize: 'A4', landscape: true }, true);
-                this.notificationService.show("Reimpresión generada satisfactoriamente.", false, "ÉXITO");
+                await this.printerService.imprimirReporteTransferenciaJasper(ordenFullId, products, extraData);
+                this.notificationService.show("Reimpresión generada satisfactoriamente vía Jasper.", false, "ÉXITO");
             }, 800);
 
         } catch (e: any) {
