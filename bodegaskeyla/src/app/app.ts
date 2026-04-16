@@ -8,8 +8,10 @@ import { LoadingService } from './core/services/loading.service';
 import { NotificationService } from './core/services/notification.service';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { filter } from 'rxjs';
+import { filter, take } from 'rxjs';
 import { NavigationEnd } from '@angular/router';
+import { AuthService } from './core/services/auth.service';
+import { ConfigService } from './core/services/config.service';
 
 @Component({
     selector: 'app-root',
@@ -23,6 +25,8 @@ export class App {
     public navService = inject(NavigationService);
     public loadingService = inject(LoadingService);
     public notificationService = inject(NotificationService);
+    private authService = inject(AuthService);
+    private configService = inject(ConfigService);
     private router = inject(Router);
 
     constructor() {
@@ -33,6 +37,24 @@ export class App {
             const isLogin = event.urlAfterRedirects.includes('/login');
             this.navService.setShowNav(!isLogin);
         });
+
+        this.checkInitialSession();
+    }
+
+    private checkInitialSession() {
+        console.log('[App] 🚀 Verificando sesión inicial...');
+        const user = this.authService.getStoredUser();
+        const currentUrl = window.location.hash || window.location.pathname;
+
+        if (user && user.token) {
+            console.log('[App] ✅ Sesión válida detectada. Redirigiendo a despacho-lista...');
+            // Solo redirigimos si estamos en la raíz o login
+            if (currentUrl.includes('/login') || currentUrl === '/' || currentUrl === '') {
+                this.router.navigate(['/despacho-lista']);
+            }
+        } else {
+            console.log('[App] ℹ️ No hay sesión activa. Iniciando en Login.');
+        }
     }
 
     @HostListener('window:keydown', ['$event'])

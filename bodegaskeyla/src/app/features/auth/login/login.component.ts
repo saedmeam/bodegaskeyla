@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { EncryptionService } from '../../../core/services/encryption.service';
 import { CajaService } from '../../../core/services/caja.service';
+import { ConfigService } from '../../../core/services/config.service';
 import { Empresa, Sucursal, Caja, FinalUserData } from '../../../shared/models/auth.model';
 import { firstValueFrom } from 'rxjs';
 import { LoadingService } from '../../../core/services/loading.service';
@@ -24,6 +25,7 @@ export class LoginComponent implements OnInit {
     private loadingService = inject(LoadingService);
     private ngZone = inject(NgZone);
     private cdr = inject(ChangeDetectorRef);
+    private configService = inject(ConfigService);
 
     // Flow State
     step: number = 1;
@@ -109,7 +111,20 @@ export class LoginComponent implements OnInit {
                     this.error = '';
                     this.cdr.detectChanges();
 
-                    /* v160.30: Comentado temporalmente por solicitud usuario para pruebas manuales
+                    // =================================================================================
+                    // INTELIGENCIA DE LOGIN: AUTO-SELECCIÓN DE EMPRESA
+                    // =================================================================================
+                    const config = this.configService.getConfig();
+                    if (config?.CARGA_AUTOMATICO_EMPRESA_SUCURSAL === 1 && config?.EMPRESA_POR_DEFECTO) {
+                        const empresaDefecto = this.empresas.find(e => Number(e.codigoEmpresa) === Number(config.EMPRESA_POR_DEFECTO));
+                        if (empresaDefecto) {
+                            console.log(`[LoginComponent] 🤖 Auto-seleccionando empresa por defecto: ${empresaDefecto.nombreEmpresa}`);
+                            this.selectEmpresa(empresaDefecto);
+                            this.goToStep3(); // Avanzar automáticamente al siguiente paso
+                            return;
+                        }
+                    }
+
                     // v160.26: Auto-selección si solo hay una empresa disponible
                     if (this.empresas.length === 1) {
                         setTimeout(() => {
@@ -118,7 +133,6 @@ export class LoginComponent implements OnInit {
                             this.goToStep3(); // Avanzar al siguiente paso automáticamente
                         }, 500);
                     }
-                    */
                 });
             } else {
                 console.warn('[LoginComponent] ❌ Falló inicio de sesión:', loginRes.mensaje);
@@ -212,16 +226,24 @@ export class LoginComponent implements OnInit {
                 this.searchTermSucursal = '';
                 this.cdr.detectChanges();
 
-                // v160.26: Lógica de selección por defecto y auto-avance
-                // 1. Seteo por defecto de sucursal 176 (Centro de Distribución) si existe
-                const cdBranch = this.sucursales.find(s => s.codigoSucursal === 176 || s.codigoSucursal.toString() === '176');
-                if (cdBranch) {
-                    console.log('[LoginComponent] 🤖 Seteando sucursal 176 por defecto:', cdBranch.nombreSucursal);
-                    this.selectSucursal(cdBranch);
+                // =================================================================================
+                // INTELIGENCIA DE LOGIN: AUTO-SELECCIÓN DE SUCURSAL (BODEGA)
+                // =================================================================================
+                const config = this.configService.getConfig();
+                if (config?.CARGA_AUTOMATICO_EMPRESA_SUCURSAL === 1 && config?.SUCURSAL_POR_DEFECTO) {
+                    const sucursalDefecto = this.sucursales.find(s => Number(s.codigoSucursal) === Number(config.SUCURSAL_POR_DEFECTO));
+                    if (sucursalDefecto) {
+                        console.log(`[LoginComponent] 🤖 Auto-seleccionando sucursal por defecto: ${sucursalDefecto.nombreSucursal}`);
+                        this.selectSucursal(sucursalDefecto);
+                        
+                        // En Bodega no se manejan cajas, así que finalizamos login directamente
+                        console.log('[LoginComponent] 🤖 Bodega detectada (Sin Cajas). Finalizando login directo.');
+                        this.finishLoginWithoutCaja();
+                        return;
+                    }
                 }
 
-                /* v160.30: Comentado temporalmente por solicitud usuario para pruebas manuales
-                // 2. Auto-selección si solo hay una sucursal disponible (independiente de si es la 176 o no)
+                // 2. Auto-selección si solo hay una sucursal disponible
                 if (this.sucursales.length === 1) {
                     setTimeout(() => {
                         console.log('[LoginComponent] 🤖 Auto-seleccionando única sucursal:', this.sucursales[0].nombreSucursal);
@@ -229,7 +251,6 @@ export class LoginComponent implements OnInit {
                         this.finishLoginWithoutCaja(); // Finalizar login automáticamente
                     }, 500);
                 }
-                */
             });
         } catch (e: any) {
             console.error('[LoginComponent] ❌ Error al cargar datos de sucursales:', e);
