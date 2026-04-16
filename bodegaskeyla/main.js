@@ -78,13 +78,12 @@ function setupIpcHandlers() {
         console.log('[Electron:Main] 📨 IPC Receive: get-app-config');
         const fs = require('fs');
 
-        // v160.24: Ruta base (Solo lectura en Program Files)
         const isPackaged = app.isPackaged;
         const resourcesPath = isPackaged ? process.resourcesPath : __dirname;
         const baseConfigPath = path.join(resourcesPath, 'config.json');
 
-        // v160.24: Única ruta de usuario segura fuera de AppData y Program Files (Evita bloqueos)
-        const userConfigPath = 'C:\\FarmaciasKeyla_Config\\config.json';
+        // v160.25: Usamos la carpeta userData de Electron (SIEMPRE escribible por el usuario común)
+        const userConfigPath = path.join(app.getPath('userData'), 'user-config.json');
 
         let mergedConfig = {};
 
@@ -103,16 +102,17 @@ function setupIpcHandlers() {
             try {
                 const user = JSON.parse(fs.readFileSync(userConfigPath, 'utf8'));
                 mergedConfig = { ...mergedConfig, ...user };
-                console.log('[Electron:Main] Config de usuario cargada desde C:\\.');
+                console.log('[Electron:Main] Config de usuario cargada desde:', userConfigPath);
             } catch (e) {
-                console.error('Error reading user config from C:\\:', e.message);
+                // Es normal que no exista la primera vez
+                console.log('[Electron:Main] No hay config de usuario aún.');
             }
         }
 
         if (Object.keys(mergedConfig).length > 0) {
             return { success: true, data: mergedConfig };
         }
-        return { success: false, error: 'Config file not found in resources or C:\\' };
+        return { success: false, error: 'Config file not found' };
     });
 
     ipcMain.handle('get-printers', async () => {
@@ -248,22 +248,16 @@ function setupIpcHandlers() {
         console.log('[Electron:Main] 📨 IPC Receive: save-app-config');
         const fs = require('fs');
         
-        // v160.24: Ruta única en Disco C:\ fuera de AppData para acceso total sin bloqueos
-        const userConfigDir = 'C:\\FarmaciasKeyla_Config';
-        const userConfigPath = path.join(userConfigDir, 'config.json');
+        // v160.25: Usamos la ruta userData de libre acceso
+        const userConfigPath = path.join(app.getPath('userData'), 'user-config.json');
 
         try {
-            // Asegurar que la carpeta raíz en C:\ exista
-            if (!fs.existsSync(userConfigDir)) {
-                fs.mkdirSync(userConfigDir, { recursive: true });
-            }
-            
-            // Guardar configuración de usuario directamente en C:\
+            // Guardar configuración de usuario directamente (Electron asegura que la carpeta exista)
             fs.writeFileSync(userConfigPath, JSON.stringify(newConfig, null, 4), 'utf8');
-            console.log('[Electron:Main] ✅ Config guardada exitosamente en C:\\:', userConfigPath);
+            console.log('[Electron:Main] ✅ Config guardada exitosamente en:', userConfigPath);
             return { success: true };
         } catch (e) {
-            console.error('[Electron:Main] ❌ Error guardando config en C:\\:', e.message);
+            console.error('[Electron:Main] ❌ Error guardando config de usuario:', e.message);
             return { success: false, error: e.message };
         }
     });
