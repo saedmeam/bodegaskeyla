@@ -110,8 +110,15 @@ module.exports = {
                     pdfPath = path.join(pathCarpetaTemp, `view_${Date.now()}`);
                     args.push("-o", pdfPath);
                 } else {
-                    args.push("-p", printName || "");
+                    // v6.3: "Blindaje Total": Si no es vista previa, SIEMPRE indicamos una acción de impresión
+                    if (printName && printName.trim() !== "") {
+                        args.push("-P", printName);
+                    } else {
+                        args.push("-p"); // Disparador para impresora por defecto si no hay nombre
+                    }
                 }
+                
+                // Si preview es false y no hay printName, JasperStarter usará la impresora predeterminada del sistema.
 
                 // El archivo fuente (.jrxml) al final para compilación al vuelo
                 args.push(reportPath);

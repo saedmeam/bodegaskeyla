@@ -17,6 +17,28 @@ export class PrinterService {
         return [];
     }
 
+    async getAppConfig(): Promise<any> {
+        if ((window as any).electronAPI && (window as any).electronAPI.getAppConfig) {
+            const result = await (window as any).electronAPI.getAppConfig();
+            if (result.success) {
+                return result.data;
+            }
+        }
+        return null;
+    }
+
+    async savePrinterConfig(printerName: string): Promise<boolean> {
+        if ((window as any).electronAPI && (window as any).electronAPI.saveAppConfig) {
+            // Obtenemos la config actual para no borrar otros campos
+            const currentConfig = await this.getAppConfig() || {};
+            const newConfig = { ...currentConfig, IMPRESORA_TICKET: printerName };
+            
+            const result = await (window as any).electronAPI.saveAppConfig(newConfig);
+            return result.success;
+        }
+        return false;
+    }
+
     async printLabels(html: string, printerName?: string, options?: any, preview: boolean = false): Promise<boolean> {
         // Legado: Sigue funcionando para HTML si es necesario
         if ((window as any).electronAPI) {
@@ -38,9 +60,9 @@ export class PrinterService {
     async imprimirJasper(reportFileName: string, jsonData: any, printerName?: string, preview: boolean = true): Promise<boolean> {
         if ((window as any).electronAPI && (window as any).electronAPI.printJasper) {
             console.log(`📡 [PrinterService] Solicitando impresión Jasper: ${reportFileName} (Vista Previa: ${preview})`);
-            const result = await (window as any).electronAPI.printJasper({ 
-                printerName: printerName || '', 
-                reportFileName, 
+            const result = await (window as any).electronAPI.printJasper({
+                printerName: printerName || '',
+                reportFileName,
                 jsonData,
                 preview
             });
@@ -55,8 +77,8 @@ export class PrinterService {
      */
     async imprimirReporteTransferenciaJasper(orderFullId: string, products: any[], extra: any, printerName?: string) {
         // ... (data mapping remains same)
-        const resumenBultos = extra.bultos 
-            ? extra.bultos.map((b: any) => `${b.nombreTipoBulto || b.label}: ${b.cantidad || b.value}`).join(", ") 
+        const resumenBultos = extra.bultos
+            ? extra.bultos.map((b: any) => `${b.nombreTipoBulto || b.label}: ${b.cantidad || b.value}`).join(", ")
             : "S/N";
 
         const data = products.map(p => ({
@@ -79,9 +101,18 @@ export class PrinterService {
 
     /**
      * Prepara los datos JSON para etiquetas térmicas Jasper (Soporta múltiples etiquetas)
+     * v6.0: Impresión AUTOMÁTICA y LIBRE (Sin vista previa, directo a impresora configurada)
      */
-    async imprimirEtiquetaJasper(orderFullId: string, bulto: any, extra: any, printerName?: string) {
-        const totalEtiquetas = 1; // v5.1: Forzado a 1 sola etiqueta para pruebas (evitar desperdicio)
+    async imprimirEtiquetaJasper(orderFullId: string, bulto: any, extra: any) {
+        let printerName = '';
+        
+        // v6.1: Obtenemos la impresora desde la configuración del equipo de forma libre
+        if ((window as any).electronAPI && (window as any).electronAPI.getAppConfig) {
+            const config = await (window as any).electronAPI.getAppConfig();
+            printerName = config?.IMPRESORA_TICKET || '';
+        }
+
+        const totalEtiquetas = Number(bulto.value) || 1; 
         const data = [];
 
         // v3.8: Generamos un registro por cada etiqueta para que Jasper cree un reporte multi-página
@@ -98,8 +129,8 @@ export class PrinterService {
             });
         }
 
-        console.log(`[PrinterService] 🏷️ Generando lote de ${totalEtiquetas} etiquetas para: ${bulto.label}`);
-        return this.imprimirJasper('etiqueta.jrxml', data, printerName, true);
+        console.log(`[PrinterService] 🏷️ Enviando lote de ${totalEtiquetas} etiquetas a impresión DIRECTA (${printerName || 'Predeterminada'})`);
+        return this.imprimirJasper('etiqueta.jrxml', data, printerName, false);
     }
 
     /**
@@ -147,10 +178,10 @@ export class PrinterService {
               size: 104mm 50.8mm landscape;
               margin: 0;
             }
-            body { 
-              margin: 0; 
-              padding: 0; 
-              width: 100%; 
+            body {
+              margin: 0;
+              padding: 0;
+              width: 100%;
               height: 100%;
               font-family: Arial, sans-serif;
             }
@@ -303,27 +334,27 @@ export class PrinterService {
         return labels;
     }
 
-  /**
-   * Genera el HTML para el reporte de Transferencia de Mercadería
-   * v3.0: Inclusión de espacios para firmas y cuadre de bultos
-   */
-  generateTransferReportHtml(orderNumber: string, products: any[], extra: { sucursal: string, usuario: string, digitador: string, fecha?: string, bodegaOrigen?: string, bodegaDestino?: string, bultos?: any[] }): string {
-    const now = new Date();
-    const dateStr = extra.fecha || now.toLocaleDateString('es-EC');
-    const fullDateStr = `${dateStr} ${now.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
-    const [solicitud, orden] = orderNumber.split('-');
+    /**
+     * Genera el HTML para el reporte de Transferencia de Mercadería
+     * v3.0: Inclusión de espacios para firmas y cuadre de bultos
+     */
+    generateTransferReportHtml(orderNumber: string, products: any[], extra: { sucursal: string, usuario: string, digitador: string, fecha?: string, bodegaOrigen?: string, bodegaDestino?: string, bultos?: any[] }): string {
+        const now = new Date();
+        const dateStr = extra.fecha || now.toLocaleDateString('es-EC');
+        const fullDateStr = `${dateStr} ${now.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+        const [solicitud, orden] = orderNumber.split('-');
 
-    let html = `
+        let html = `
       <html>
         <head>
           <style>
-            @page { 
+            @page {
               size: A4;
-              margin: 10mm; 
+              margin: 10mm;
             }
-            body { 
+            body {
               font-family: 'Arial Black', Gadget, sans-serif;
-              font-size: 11pt; 
+              font-size: 11pt;
               margin: 0;
               padding: 0;
               color: black;
@@ -344,12 +375,12 @@ export class PrinterService {
               align-items: flex-start;
               margin-bottom: 5pt;
             }
-            .brand-name { 
-              font-size: 16pt; 
+            .brand-name {
+              font-size: 16pt;
             }
-            .report-type { 
-              font-size: 11pt; 
-              margin-top: 5pt; 
+            .report-type {
+              font-size: 11pt;
+              margin-top: 5pt;
             }
             .doc-id-box {
               text-align: right;
@@ -383,10 +414,10 @@ export class PrinterService {
               font-weight: 900 !important;
               border: none;
             }
-            .col-codigo { 
-                width: 120px; 
+            .col-codigo {
+                width: 120px;
                 text-align: left;
-            } 
+            }
             .col-desc { font-weight: 900 !important; }
             .col-cant { font-size: 10pt !important; text-align: right; }
 
@@ -533,6 +564,6 @@ export class PrinterService {
       </html>
     `;
 
-    return html;
-  }
+        return html;
+    }
 }
