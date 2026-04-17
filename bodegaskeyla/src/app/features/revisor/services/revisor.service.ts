@@ -85,7 +85,7 @@ export class RevisorService {
     private loadOrder(orderNumber: string, fechaDesde?: string, fechaHasta?: string, forceRefresh: boolean = false): Observable<boolean> {
         // v200.1: BLINDAJE DE MEMORIA - Detectar cambio de orden para purgar estado previo
         const isDifferentOrder = this.currentOrderNumber && String(this.currentOrderNumber) !== String(orderNumber);
-        
+
         if (isDifferentOrder) {
             console.log(`[RevisorService] 🧹 Detectado cambio de orden (${this.currentOrderNumber} -> ${orderNumber}). Limpiando memoria.`);
             this.escaneados.set([]);
@@ -132,7 +132,7 @@ export class RevisorService {
                     }
 
                     console.log('[RevisorService] 🔍 Consultando cabecera de orden en el servidor...');
-                    return this.dataService.executeAction<any>('GET_ORDEN_DESPACHO', { 
+                    return this.dataService.executeAction<any>('GET_ORDEN_DESPACHO', {
                         numero: orderNumber,
                         fechaDesde: fechaDesde,
                         fechaHasta: fechaHasta
@@ -182,16 +182,16 @@ export class RevisorService {
                     console.log(`[RevisorService] 📦 Productos obtenidos (${detRes?.detalles?.length || 0}). Mapeando lista...`);
                     const detalles = detRes?.detalles || [];
                     const newProducts = detalles.map((d: any) => {
-                        const barcode = d.sciExistenciasXCodBarras?.[0]?.codigoBarras?.toString() 
-                                        || d.codigoBarras?.toString() 
-                                        || '';
+                        const barcode = d.sciExistenciasXCodBarras?.[0]?.codigoBarras?.toString()
+                            || d.codigoBarras?.toString()
+                            || '';
                         const p: Product = {
                             item: barcode,
                             codigoExistencia: d.codigoExistencia?.toString() || '',
                             codigoBarras: barcode,
                             nombre: d.nombreExistencia || 'SIN NOMBRE',
                             unidad: d.tipoMedida || 'U/C',
-                            solicita: d.cantidadCajas || d.cantidad || 0,
+                            solicita: d.cantidad || d.cantidad || 0,
                             invBod: d.saldoActualEnCajas || d.stock || 0,
                             despachado: 0,
                             color: 'naranja',
@@ -201,7 +201,7 @@ export class RevisorService {
                             lineaDetalle: d.lineaDetalle,
                             estado: d.codigoEstado,
                             unidadesXCaja: d.unidadesXCaja || 0,
-                            cantidadCajas: d.cantidadCajas || 0,
+                            cantidad: d.cantidad || 0,
                             cantidadUnidades: d.cantidadUnidades || 0,
                             grupoUnidadMedidaStockBase: d.grupoUnidadMedidaStockBase || null,
                             unidadMedidaStockBase: d.unidadMedidaStockBase || null,
@@ -227,7 +227,7 @@ export class RevisorService {
                     });
 
                     this.ordenProductos.set(newProducts);
-                    
+
                     // PASO ADICIONAL (v2.7): Consultar lotes masivos para enriquecer la orden
                     const meta = this.orderMetadata();
                     console.log('[RevisorService] 🛠️ Iniciando secuencia de enriquecimiento de lotes...');
@@ -314,13 +314,13 @@ export class RevisorService {
         }
 
         // 2. Si no está en despachados, lo buscamos en la orden original
-        const productIndex = this.ordenProductos().findIndex(p => 
+        const productIndex = this.ordenProductos().findIndex(p =>
             p.item?.trim().toUpperCase() === searchText || p.nombre?.trim().toUpperCase() === searchText
         );
 
         if (productIndex !== -1) {
             let product = { ...this.ordenProductos()[productIndex] };
-            
+
             // v160.14: VALIDACIONES DE LÍMITE (Primer pistoleo)
             if (Number(product.invBod || 0) <= 0) {
                 throw new Error(`SIN STOCK: El producto ${product.nombre} tiene stock 0 en bodega. No se puede agregar.`);
@@ -358,7 +358,7 @@ export class RevisorService {
 
             product.despachado = 1;
             product.bulto = 1;
-            
+
             // v2.5 REGLA DE NEGOCIO MANEJADA POR BODEGA:
             const totalLotes = product.lotes?.length || 0;
 
@@ -678,7 +678,7 @@ export class RevisorService {
                 unidadesXCaja: p.unidadesXCaja || 1,
                 cantidadADespachar: p.despachado !== undefined ? p.despachado : 0, // v131.0: Default a 0 si no se escaneó
                 // v146.0: Technical fields for API consistency
-                cantidadCajas: p.cantidadCajas || 0,
+                cantidad: p.cantidad || 0,
                 cantidadUnidades: p.cantidadUnidades || 0,
                 grupoUnidadMedidaStockBase: (p.grupoUnidadMedidaStockBase === 0 || !p.grupoUnidadMedidaStockBase) ? null : p.grupoUnidadMedidaStockBase,
                 unidadMedidaStockBase: (p.unidadMedidaStockBase === 0 || !p.unidadMedidaStockBase) ? null : p.unidadMedidaStockBase,
@@ -712,22 +712,22 @@ export class RevisorService {
         console.log(`[RevisorService] Solicitando Acción [${tipo}] para Sol: ${metadata.numeroSolicitud} Ord: ${metadata.numeroOrdenDespacho}`);
 
         let bultosMapped: any[] = [];
-        
+
         if (tipo === 'AGREGAR' && bultos) {
-            // v160.45: FILTRAR Bultos Virtuales (Código 999 - Impresión de etiquetas) 
+            // v160.45: FILTRAR Bultos Virtuales (Código 999 - Impresión de etiquetas)
             // Estos no se guardan en el servidor (Captura 2 error)
             const realBultos = bultos.filter(b => b.codigoTipoBulto !== 999);
-            
+
             bultosMapped = realBultos.map((b, index) => ({
-                lineaDetalle: index + 1, 
-                codigoTipoBulto: Number(b.codigoTipoBulto) || 1, 
+                lineaDetalle: index + 1,
+                codigoTipoBulto: Number(b.codigoTipoBulto) || 1,
                 cantidad: Number(b.cantidad) || 0
             }));
         } else {
             // Modo retrocompatibilidad o actualización de detalle
             bultosMapped = this.escaneados().map((p, index) => ({
-                lineaDetalle: index + 1, 
-                codigoTipoBulto: p.bulto || 1, 
+                lineaDetalle: index + 1,
+                codigoTipoBulto: p.bulto || 1,
                 cantidad: p.despachado
             }));
         }
@@ -778,7 +778,7 @@ export class RevisorService {
      */
     private async fetchBatchesForAll(products: Product[], solicitud: number, orden: number) {
         console.log(`[RevisorService] ⏳ Consultando lotes globales para la orden Sol:${solicitud} Ord:${orden}...`);
-        
+
         try {
             // Un solo hit a la API para "pintar todo" (3 argumentos: empresa, solicitud, orden)
             const res = await firstValueFrom(this.dataService.executeAction<any>('GET_LOTES_EXISTENCIA_ORDEN', {
@@ -789,14 +789,14 @@ export class RevisorService {
             if (res && !res.isError && res.detalles) {
                 console.log(`[RevisorService] 📥 API Response Global Lotes:`, res);
                 console.log(`[RevisorService] 📥 Recibidos lotes para ${res.detalles.length} productos.`);
-                
+
                 // Distribución de lotes a los productos locales
                 products.forEach(p => {
-                    const match = res.detalles.find((d: any) => 
+                    const match = res.detalles.find((d: any) =>
                         (d.codigoExistencia?.toString() === p.codigoExistencia?.toString()) ||
                         (d.nombreExistencia?.trim().toUpperCase() === p.nombre?.trim().toUpperCase())
                     );
-                    
+
                     if (match && match.lotesXExistencia) {
                         console.log(`[RevisorService] 🔗 Vinculando ${match.lotesXExistencia.length} lotes a ${p.nombre}`);
                         p.lotes = match.lotesXExistencia.map((l: any) => ({

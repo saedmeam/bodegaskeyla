@@ -71,7 +71,7 @@ export class DataService {
 
     private getCurrentCompany(): number {
         const user = this.authService?.getStoredUser();
-        return user?.empresa?.codigoEmpresa || 0; 
+        return user?.empresa?.codigoEmpresa || 0;
     }
 
     getOrdenComparativo(numeroOrden: string): Observable<any[]> {
@@ -86,10 +86,10 @@ export class DataService {
                 const detalles = response?.detalles || [];
                 return detalles.map((d: any) => {
                     // v170.0: Priorizar el código de barras dentro del arreglo sciExistenciasXCodBarras[0]
-                    const barcode = d.sciExistenciasXCodBarras?.[0]?.codigoBarras?.toString() 
-                                    || d.codigoBarras?.toString() 
-                                    || '';
-                    
+                    const barcode = d.sciExistenciasXCodBarras?.[0]?.codigoBarras?.toString()
+                        || d.codigoBarras?.toString()
+                        || '';
+
                     return {
                         item: barcode,
                         codigoExistencia: d.codigoExistencia?.toString() || '',
@@ -100,7 +100,7 @@ export class DataService {
                         vtas: 0,
                         sLocal: 0,
                         suger: 0,
-                        solicita: d.cantidadCajas || d.cantidad || 0,
+                        solicita: d.cantidad || 0,
                         despachado: 0,
                         color: 'naranja',
                         bulto: d.unidadesXCaja || 1,

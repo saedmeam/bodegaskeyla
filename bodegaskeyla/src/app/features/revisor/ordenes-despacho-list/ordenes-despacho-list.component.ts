@@ -116,7 +116,7 @@ export class OrdenesDespachoListComponent implements OnInit {
         if (user && user.sucursal) {
             this.selectedSucursal = user.sucursal;
             // v4.3: searchTermSucursal debe estar vacío para no filtrar el dropdown al abrirlo
-            this.searchTermSucursal = ''; 
+            this.searchTermSucursal = '';
         }
         this.cargarSucursales();
         this.buscar(0);
@@ -137,7 +137,7 @@ export class OrdenesDespachoListComponent implements OnInit {
             ]);
 
             // 1. Sucursales autorizadas por permisos
-            const myPermissions = authorizedRaw.filter((p: any) => 
+            const myPermissions = authorizedRaw.filter((p: any) =>
                 p.codigoUsuario?.toUpperCase() === user.username.toUpperCase() && p.esActivo === 'S'
             );
 
@@ -242,8 +242,8 @@ export class OrdenesDespachoListComponent implements OnInit {
                 item: d.sciExistenciasXCodBarras?.[0]?.codigoBarras?.toString() || d.codigoBarras?.toString() || '',
                 nombre: d.nombreExistencia || 'SIN NOMBRE',
                 unidad: d.tipoMedida || 'U/C',
-                solicita: d.cantidadCajas || d.cantidad || 0,
-                despachado: d.cantidadCajas || d.cantidad || 0,
+                solicita: d.cantidad || d.cantidad || 0,
+                despachado: d.cantidad || d.cantidad || 0,
                 lote: d.lote || '',
                 caducidad: d.caducidad || '',
                 codigoBarras: d.sciExistenciasXCodBarras?.[0]?.codigoBarras?.toString() || d.codigoBarras?.toString() || '',
@@ -255,7 +255,7 @@ export class OrdenesDespachoListComponent implements OnInit {
             const bultosParaImprimir = [{ codigoTipoBulto: 999, nombreTipoBulto: 'IMPRESIÓN DE ETIQUETAS', cantidad: 2 }];
             const user = this.authService.getStoredUser();
             const ordenFullId = `${orden.numeroSolicitud}-${orden.numeroOrdenDespacho}`;
-            
+
             const extraData = {
                 sucursal: orden.nombreSucursalDestino || orden.nombreSucursal || '---',
                 usuario: user?.username || 'SISTEMA',
@@ -271,7 +271,7 @@ export class OrdenesDespachoListComponent implements OnInit {
             for (const bulto of bultosLabelsMapped) {
                 await this.printerService.imprimirEtiquetaJasper(ordenFullId, bulto, extraData);
             }
-            
+
             // 4. Generar y Enviar Reporte de Transferencia (A4) vía Jasper
             setTimeout(async () => {
                 await this.printerService.imprimirReporteTransferenciaJasper(ordenFullId, products, extraData);
@@ -293,8 +293,8 @@ export class OrdenesDespachoListComponent implements OnInit {
 
     getStatusClass(code: string): string { return `status-${code.toLowerCase()}`; }
 
-    toggleSucursalDropdown() { 
-        this.showSucursalDropdown = !this.showSucursalDropdown; 
+    toggleSucursalDropdown() {
+        this.showSucursalDropdown = !this.showSucursalDropdown;
         if (this.showSucursalDropdown) {
             this.searchTermSucursal = ''; // Limpiar búsqueda para ver todas las opciones al abrir
             this.filterSucursales();

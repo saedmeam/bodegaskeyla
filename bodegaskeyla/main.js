@@ -271,17 +271,20 @@ function createWindow() {
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
-            devTools: true, // v2.8: Habilitado para depuración de lotes
+            devTools: false, // v160.32: Deshabilitado por seguridad
             preload: path.join(__dirname, 'preload.js')
         }
     });
     // Apunta al archivo index.html generado por Angular después de hacer 'ng build'
     win.loadFile(path.join(__dirname, 'dist/bodegaskeyla/browser/index.html'));
 
-    // v160.29: Habilitado para depuración de lotes
-    win.webContents.openDevTools();
+    // v160.29: Habilitado para pase final
+    // win.webContents.openDevTools();
 
-    // v160.22: Listener eliminado para permitir inspección
+    // v160.22: Refuerzo para asegurar que las herramientas de desarrollo no se abran
+    win.webContents.on('devtools-opened', () => {
+        win.webContents.closeDevTools();
+    });
 
     /**
      * v160.22: Reinstalación de Menú Profesional para Pase a Producción
@@ -310,9 +313,7 @@ function createWindow() {
                 { label: 'Recargar', role: 'reload' },
                 { label: 'Forzar Recarga', role: 'forceReload' },
                 { type: 'separator' },
-                { label: 'Pantalla Completa', role: 'togglefullscreen' },
-                { type: 'separator' },
-                { label: 'Inspeccionar', role: 'toggleDevTools' }
+                { label: 'Pantalla Completa', role: 'togglefullscreen' }
             ]
         }
     ];
