@@ -18,65 +18,65 @@
 			<staticText>
 				<reportElement x="0" y="8" width="295" height="20"/>
 				<textElement textAlignment="Center" verticalAlignment="Middle">
-					<font fontName="SansSerif" size="14" isBold="false"/>
+					<font fontName="SansSerif" size="14" isBold="true"/>
 				</textElement>
-				<text><![CDATA[CENTRO DE DISTRIBUCION FARMACEUTICA]]></text>
+				<text><![CDATA[CENTRO DE DISTRIBUCION FARMAKEYLA]]></text>
 			</staticText>
 			
 			<textField isBlankWhenNull="true">
 				<reportElement x="0" y="28" width="295" height="22"/>
 				<textElement textAlignment="Center" verticalAlignment="Middle">
-					<font fontName="SansSerif" size="14" isBold="false"/>
+					<font fontName="SansSerif" size="16" isBold="true"/>
 				</textElement>
-				<textFieldExpression><![CDATA["SUCURSAL: " + $F{sucursal}]]></textFieldExpression>
+				<textFieldExpression><![CDATA["SUCURSAL :" + ($F{sucursal} != null ? $F{sucursal}.toUpperCase() : "")]]></textFieldExpression>
 			</textField>
 			
 			<line>
-				<reportElement x="15" y="55" width="265" height="1"/>
-				<graphicElement><pen lineWidth="0.5"/></graphicElement>
+				<reportElement x="15" y="52" width="265" height="1"/>
+				<graphicElement><pen lineWidth="1.0"/></graphicElement>
 			</line>
 			
 			<textField isBlankWhenNull="true">
-				<reportElement x="25" y="60" width="245" height="12"/>
-				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="false"/></textElement>
-				<textFieldExpression><![CDATA["ESPECIFICO: " + ($F{direccion} != null ? $F{direccion} : "")]]></textFieldExpression>
+				<reportElement x="25" y="58" width="245" height="12"/>
+				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA["Dirección :" + ($F{direccion} != null ? $F{direccion} : "")]]></textFieldExpression>
 			</textField>
 			
 			<textField isBlankWhenNull="true">
-				<reportElement x="25" y="72" width="245" height="12"/>
-				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="false"/></textElement>
-				<textFieldExpression><![CDATA["FECHA: " + ($F{fecha} != null ? $F{fecha} : "")]]></textFieldExpression>
+				<reportElement x="25" y="70" width="245" height="12"/>
+				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="10" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA["FECHA DE DESPACHO " + ($F{fecha} != null ? $F{fecha} : "")]]></textFieldExpression>
 			</textField>
 			
 			<textField isBlankWhenNull="true">
-				<reportElement x="25" y="84" width="245" height="12"/>
-				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="false"/></textElement>
-				<textFieldExpression><![CDATA["PEDIDO: " + ($F{pedido} != null ? $F{pedido} : "")]]></textFieldExpression>
+				<reportElement x="25" y="82" width="245" height="12"/>
+				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="11" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA["Número de Bulto #: " + ($F{bulto} != null ? $F{bulto} : "")]]></textFieldExpression>
 			</textField>
 			
 			<textField isBlankWhenNull="true">
-				<reportElement x="25" y="96" width="245" height="12"/>
-				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="false"/></textElement>
-				<textFieldExpression><![CDATA["Bulto No.: " + ($F{bulto} != null ? $F{bulto}.replace("IMPRESIÓN DE ETIQUETAS: ", "") : "")]]></textFieldExpression>
+				<reportElement x="25" y="94" width="245" height="12"/>
+				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="11" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA["Número de Pedido # " + ($F{pedido} != null ? $F{pedido} : "")]]></textFieldExpression>
 			</textField>
 			
 			<textField isBlankWhenNull="true">
-				<reportElement x="25" y="108" width="245" height="12"/>
-				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="false"/></textElement>
-				<textFieldExpression><![CDATA["DIGITADOR: " + ($F{digitador} != null ? $F{digitador} : "")]]></textFieldExpression>
+				<reportElement x="25" y="106" width="245" height="12"/>
+				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA["Digitador : " + ($F{digitador} != null ? $F{digitador} : "")]]></textFieldExpression>
 			</textField>
 			
 			<line>
 				<reportElement x="15" y="123" width="265" height="1"/>
-				<graphicElement><pen lineWidth="0.5"/></graphicElement>
+				<graphicElement><pen lineWidth="1.0"/></graphicElement>
 			</line>
 			
 			<staticText>
 				<reportElement x="0" y="126" width="295" height="12"/>
 				<textElement textAlignment="Center" verticalAlignment="Bottom">
-					<font fontName="SansSerif" size="7" isBold="false"/>
+					<font fontName="SansSerif" size="10" isBold="true"/>
 				</textElement>
-				<text><![CDATA[SI ESTE SELLO VIOLADO O ROTO, REVISE EL CONTENIDO]]></text>
+				<text><![CDATA[SI ESTE SELLO VIOLADO NO ACEPTE LA CAJA]]></text>
 			</staticText>
 		</band>
 	</detail>
