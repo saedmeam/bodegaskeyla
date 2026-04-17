@@ -28,6 +28,7 @@ export interface Product {
     codigoExistencia?: string;
     codigoBarras?: string;
     // v146.0: Fields for actualizarDetallesOrdenDespacho
+    cantidad?: number;
     cantidadCajas?: number;
     cantidadUnidades?: number;
     grupoUnidadMedidaStockBase?: number;
