@@ -98,23 +98,20 @@ module.exports = {
                 }
 
                 let args = [
-                    "process",
+                    preview ? "process" : "print",
                     "-t", "json",
                     "--data-file", jsonPath,
-                    "--json-query", "",
-                    "-f", "pdf"
+                    "--json-query", ""
                 ];
 
                 let pdfPath = "";
                 if (preview) {
                     pdfPath = path.join(pathCarpetaTemp, `view_${Date.now()}`);
-                    args.push("-o", pdfPath);
+                    args.push("-f", "pdf", "-o", pdfPath);
                 } else {
-                    // v6.3: "Blindaje Total": Si no es vista previa, SIEMPRE indicamos una acción de impresión
+                    // v6.5: Modo Impresión Directa (Subcomando print)
                     if (printName && printName.trim() !== "") {
-                        args.push("-P", printName);
-                    } else {
-                        args.push("-p"); // Disparador para impresora por defecto si no hay nombre
+                        args.push("-N", printName);
                     }
                 }
                 

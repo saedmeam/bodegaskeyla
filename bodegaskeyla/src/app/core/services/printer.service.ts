@@ -75,8 +75,7 @@ export class PrinterService {
     /**
      * Prepara los datos JSON para el reporte de transferencia Jasper
      */
-    async imprimirReporteTransferenciaJasper(orderFullId: string, products: any[], extra: any, printerName?: string) {
-        // ... (data mapping remains same)
+    async imprimirReporteTransferenciaJasper(orderFullId: string, products: any[], extra: any, printerName?: string, preview: boolean = true) {
         const resumenBultos = extra.bultos
             ? extra.bultos.map((b: any) => `${b.nombreTipoBulto || b.label}: ${b.cantidad || b.value}`).join(", ")
             : "S/N";
@@ -96,18 +95,15 @@ export class PrinterService {
             cantidad: p.despachado?.toString() || '0'
         }));
 
-        return this.imprimirJasper('transferencia.jrxml', data, printerName, true);
+        return this.imprimirJasper('transferencia.jrxml', data, printerName, preview);
     }
 
     /**
      * Prepara los datos JSON para etiquetas térmicas Jasper (Soporta múltiples etiquetas)
      * v6.0: Impresión AUTOMÁTICA y LIBRE (Sin vista previa, directo a impresora configurada)
      */
-    async imprimirEtiquetaJasper(orderFullId: string, bulto: any, extra: any) {
-        let printerName = '';
-        
-        // v6.1: Obtenemos la impresora desde la configuración del equipo de forma libre
-        if ((window as any).electronAPI && (window as any).electronAPI.getAppConfig) {
+    async imprimirEtiquetaJasper(orderFullId: string, bulto: any, extra: any, printerName?: string, preview: boolean = false) {
+        if (!printerName && (window as any).electronAPI && (window as any).electronAPI.getAppConfig) {
             const config = await (window as any).electronAPI.getAppConfig();
             printerName = config?.IMPRESORA_TICKET || '';
         }
@@ -129,8 +125,8 @@ export class PrinterService {
             });
         }
 
-        console.log(`[PrinterService] 🏷️ Enviando lote de ${totalEtiquetas} etiquetas a impresión DIRECTA (${printerName || 'Predeterminada'})`);
-        return this.imprimirJasper('etiqueta.jrxml', data, printerName, false);
+        console.log(`[PrinterService] 🏷️ Enviando lote de ${totalEtiquetas} etiquetas a impresión (${preview ? 'Vista Previa' : 'DIRECTA'}) (${printerName || 'Predeterminada'})`);
+        return this.imprimirJasper('etiqueta.jrxml', data, printerName, preview);
     }
 
     /**
