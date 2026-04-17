@@ -212,25 +212,28 @@ export class RevisorService {
                             vtas: 0,
                             sLocal: 0,
                             suger: 0,
-                            lotes: [] // v170.2: Inicializado vacío, se llenará al pistolear
+                            lotes: []
                         };
 
-                        // v160.11: Si estamos forzando refresh, re-aplicamos el estado del producto si ya estaba escaneado
+                        // Recalcular estado si es refresh
                         if (forceRefresh && previousEscaneados.length > 0) {
                             const prev = previousEscaneados.find(e => e.item === p.item);
                             if (prev) {
                                 p.despachado = prev.despachado;
-                                // Recalculamos el color con el nuevo stock/cantidades
                                 this.updateColorLogic(p);
-                                // No usamos p.color directamente de 'prev' por si cambió el stock
                             }
                         }
                         return p;
                     });
 
                     this.ordenProductos.set(newProducts);
+                    
+                    // PASO ADICIONAL (v2.7): Consultar lotes masivos para enriquecer la orden
+                    const meta = this.orderMetadata();
+                    console.log('[RevisorService] 🛠️ Iniciando secuencia de enriquecimiento de lotes...');
+                    this.fetchBatchesForAll(newProducts, meta?.numeroSolicitud, meta?.numeroOrdenDespacho);
+
                     if (forceRefresh) {
-                        // Sincronizamos escaneados por si algún campo técnico del API varió
                         const updatedEscaneados = previousEscaneados.map(esc => {
                             const matching = newProducts.find((np: Product) => np.item === esc.item);
                             return matching ? { ...matching, despachado: esc.despachado } : esc;
@@ -242,7 +245,7 @@ export class RevisorService {
 
                     this.isLoading = false;
                     this.loadingService.hide();
-                    this.persistCurrentState(); // Guardamos el nuevo estado refrescado
+                    this.persistCurrentState();
                     return true;
                 }),
                 catchError(err => {
@@ -326,39 +329,54 @@ export class RevisorService {
                 throw new Error(`NO SOLICITADO: Este item tiene cantidad solicitada 0.`);
             }
 
-            // v2.1: CONSUMIR SERVICIO DE LOTES (Requerimiento Keyla)
-            const meta = this.orderMetadata();
-            try {
-                const lotesRes = await firstValueFrom(this.dataService.executeAction<any>('GET_LOTES_EXISTENCIA_ORDEN', {
-                    codigoExistencia: product.codigoExistencia,
-                    solicitud: meta.numeroSolicitud,
-                    orden: meta.numeroOrdenDespacho
-                }));
-
-                if (lotesRes && !lotesRes.isError && lotesRes.lotes) {
-                    // Mapear lotes según el nuevo servicio
-                    product.lotes = lotesRes.lotes.map((l: any) => ({
-                        lote: l.codigoLote || l.lote || 'S/L',
-                        caducidad: l.fechaCaducidad || l.caducidad || 'N/A',
-                        stock: l.saldoActualEnCajas || l.stock || 0,
-                        despachado: 0
+            // v2.6: CONSULTA BAJO DEMANDA (Solo si no vinieron en el detalle)
+            if (!product.lotes || product.lotes.length === 0) {
+                const meta = this.orderMetadata();
+                console.log(`[RevisorService] 🔍 Lotes vacíos para ${product.nombre}. Consultando API específica...`);
+                try {
+                    const lotesRes = await firstValueFrom(this.dataService.executeAction<any>('GET_LOTES_EXISTENCIA_ORDEN', {
+                        solicitud: meta.numeroSolicitud,
+                        orden: meta.numeroOrdenDespacho
                     }));
+
+                    console.log(`[RevisorService] 📥 Respuesta API Lotes para ${product.item}:`, lotesRes);
+
+                    if (lotesRes && !lotesRes.isError) {
+                        const batchList = lotesRes.detalles?.[0]?.lotesXExistencia || lotesRes.lotesXExistencia || lotesRes.lotes || [];
+                        console.log(`[RevisorService] 📦 Lotes encontrados para ${product.item}: ${batchList.length}`);
+                        product.lotes = batchList.map((l: any) => ({
+                            lote: l.codigoLote || l.lote || 'S/L',
+                            caducidad: l.fechaCaducidad || l.caducidad || 'N/A',
+                            stock: l.saldoActualEnCajas || l.stock || 0,
+                            despachado: 0
+                        }));
+                    }
+                } catch (err) {
+                    console.error('[RevisorService] Error cargando lotes para el producto:', err);
                 }
-            } catch (err) {
-                console.error('[RevisorService] Error cargando lotes para el producto:', err);
             }
 
             product.despachado = 1;
             product.bulto = 1;
             
-            // Asignación automática del primer lote si existe y tiene stock
-            if (product.lotes && product.lotes.length > 0) {
-                const firstWithStock = product.lotes.find(l => l.stock > 0);
-                if (firstWithStock) {
-                    firstWithStock.despachado = 1;
-                    product.lote = firstWithStock.lote;
-                    product.caducidad = firstWithStock.caducidad;
-                }
+            // v2.5 REGLA DE NEGOCIO MANEJADA POR BODEGA:
+            const totalLotes = product.lotes?.length || 0;
+
+            if (totalLotes === 0) {
+                // Caso A: No hay lotes -> Asignamos 1 igualmente (Requerimiento Usuario)
+                product.despachado = 1;
+                product.lote = '';
+                product.caducidad = '';
+            } else if (totalLotes === 1) {
+                // Caso B: Solo hay 1 lote -> Asignamos automáticamente
+                const uniqueLote = product.lotes![0];
+                uniqueLote.despachado = 1;
+                product.lote = uniqueLote.lote;
+                product.caducidad = uniqueLote.caducidad;
+            } else {
+                // Caso C: Mas de 1 lote -> No asignamos cantidad aún (el componente debe abrir el modal)
+                product.despachado = 0; // Se resetea para obligar a asignar vía modal
+                product.lote = 'MULTI-LOTE';
             }
 
             this.updateColorLogic(product);
@@ -750,6 +768,54 @@ export class RevisorService {
                 return getWeight(a) - getWeight(b);
             });
         });
+        this.persistCurrentState();
+    }
+
+    /**
+     * v2.7: Carga masiva y EFICIENTE de lotes.
+     * Consulta una sola vez la API de lotes sin código de existencia para obtener toda la orden,
+     * y luego mapea los lotes a sus respectivos productos.
+     */
+    private async fetchBatchesForAll(products: Product[], solicitud: number, orden: number) {
+        console.log(`[RevisorService] ⏳ Consultando lotes globales para la orden Sol:${solicitud} Ord:${orden}...`);
+        
+        try {
+            // Un solo hit a la API para "pintar todo" (3 argumentos: empresa, solicitud, orden)
+            const res = await firstValueFrom(this.dataService.executeAction<any>('GET_LOTES_EXISTENCIA_ORDEN', {
+                solicitud,
+                orden
+            }));
+
+            if (res && !res.isError && res.detalles) {
+                console.log(`[RevisorService] 📥 API Response Global Lotes:`, res);
+                console.log(`[RevisorService] 📥 Recibidos lotes para ${res.detalles.length} productos.`);
+                
+                // Distribución de lotes a los productos locales
+                products.forEach(p => {
+                    const match = res.detalles.find((d: any) => 
+                        (d.codigoExistencia?.toString() === p.codigoExistencia?.toString()) ||
+                        (d.nombreExistencia?.trim().toUpperCase() === p.nombre?.trim().toUpperCase())
+                    );
+                    
+                    if (match && match.lotesXExistencia) {
+                        console.log(`[RevisorService] 🔗 Vinculando ${match.lotesXExistencia.length} lotes a ${p.nombre}`);
+                        p.lotes = match.lotesXExistencia.map((l: any) => ({
+                            lote: l.codigoLote || l.lote || 'S/L',
+                            caducidad: l.fechaCaducidad || l.caducidad || 'N/A',
+                            stock: l.saldoActualEnCajas || l.stock || 0,
+                            despachado: 0
+                        }));
+                    }
+                });
+            } else {
+                console.warn('[RevisorService] ⚠️ La API de lotes no devolvió detalles válidos o está vacía.', res);
+            }
+        } catch (e) {
+            console.error('[RevisorService] ❌ Error fatal en carga masiva de lotes:', e);
+        }
+
+        console.log('[RevisorService] ✅ Sincronización de lotes finalizada.');
+        this.ordenProductos.set([...products]);
         this.persistCurrentState();
     }
 }

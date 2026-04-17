@@ -143,7 +143,7 @@ export class DataService {
             case 'GET_TIPOS_BULTOS':
                 return this.getTiposBultos() as Observable<T>;
             case 'GET_LOTES_EXISTENCIA_ORDEN':
-                return this.getLotesExistenciaOrdenDespacho(params.codigoExistencia, params.solicitud, params.orden) as Observable<T>;
+                return this.getLotesExistenciaOrdenDespacho(params.solicitud, params.orden) as Observable<T>;
             case 'IMPRIMIR_TIRILLA':
                 return this.imprimirTirilla(params.empresa, params.secuencia) as Observable<T>;
             default:
@@ -271,17 +271,16 @@ export class DataService {
         );
     }
 
-    getLotesExistenciaOrdenDespacho(codigoExistencia: string, solicitud: number, orden: number): Observable<any> {
+    getLotesExistenciaOrdenDespacho(solicitud: number, orden: number): Observable<any> {
         const params = {
             arg0: this.getCurrentCompany(),
-            arg1: codigoExistencia,
-            arg2: solicitud,
-            arg3: orden
+            arg1: solicitud,
+            arg2: orden
         };
         const headers = this.getHeaders();
-        return this.http.get(`${this.API_BASE}/XPosConsultas/lotesExistenciaOrdenDespacho`, { params, headers }).pipe(
+        return this.http.get(`${this.API_BASE}/XPosConsultas/lotesExistenciaXOrdenDespacho`, { params, headers }).pipe(
             catchError(err => {
-                console.error('[DataService] Error consultando lotesExistenciaOrdenDespacho', err);
+                console.error('[DataService] Error consultando lotesExistenciaXOrdenDespacho', err);
                 const errorBody = err.error;
                 let errorMsg = errorBody?.mensaje || errorBody?.causa || err.message || 'Error consultando lotes';
                 if (errorBody?.errorSistemas) {
