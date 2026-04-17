@@ -206,7 +206,16 @@
 }
 
 .w-full {
-    grid-column: 1 / -1;
+    flex: 1 1 100%;
+}
+
+.textarea-v2 {
+    min-height: 45px;
+    max-height: 80px;
+    resize: none;
+    font-size: 0.75rem !important;
+    line-height: 1.2;
+    padding-top: 8px !important;
 }
 
 .input-composite {

@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal, HostListener } from '@angular/core';
+import { Component, OnInit, inject, signal, HostListener, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RevisorService } from '../services/revisor.service';
@@ -42,7 +42,7 @@ export class OrdenesDespachoListComponent implements OnInit {
         const d = new Date();
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
-    estado: string = 'DP';
+    estado: string = 'TODOS';
     numeroPedido: string = '';
     selectedSucursal: Sucursal | null = null;
 
@@ -64,12 +64,19 @@ export class OrdenesDespachoListComponent implements OnInit {
     showSucursalDropdown: boolean = false;
 
     // Data
-    public ordenes = signal<DispatchOrder[]>([]);
+    public allOrdenesBase = signal<DispatchOrder[]>([]);
     public loading = this.loadingService.isLoading;
     public error = signal<string>('');
     public currentPage = signal<number>(0);
     public pageInput: number = 1;
     public selectedIndex = signal<number>(0); // v2.4: Keyboard navigation
+
+    public ordenes = computed(() => {
+        const est = this.estado;
+        const list = this.allOrdenesBase();
+        if (est === 'TODOS') return list;
+        return list.filter(o => o.codigoEstado === est);
+    });
 
     @HostListener('window:keydown', ['$event'])
     handleKeyboardEvent(event: KeyboardEvent) {
@@ -186,15 +193,15 @@ export class OrdenesDespachoListComponent implements OnInit {
                     nombreUsuarioDespachador: o.usuarioIngreso || 'SISTEMA',
                     codigoEstado: o.codigoEstado || 'DP'
                 }));
-                this.ordenes.set(mappedOrders);
+                this.allOrdenesBase.set(mappedOrders);
                 this.pageInput = page + 1;
             } else {
                 this.error.set(`API: ${res?.mensaje || 'Error en el servicio'}`);
-                this.ordenes.set([]);
+                this.allOrdenesBase.set([]);
             }
         } catch (e: any) {
             this.error.set(`CONEXIÓN: ${e.message}`);
-            this.ordenes.set([]);
+            this.allOrdenesBase.set([]);
         } finally {
             this.loadingService.hide();
         }
