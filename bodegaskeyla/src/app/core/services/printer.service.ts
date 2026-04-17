@@ -119,11 +119,11 @@ export class PrinterService {
         for (let i = 1; i <= totalEtiquetas; i++) {
             data.push({
                 sucursal: extra.sucursal || '---',
-                direccion: extra.bodegaDestino || 'ESPECIFICO N/A',
-                fecha: extra.fecha || new Date().toLocaleDateString(),
+                direccion: 'Provincia: GUAYAS Canton: GUAYAQUIL', // v5.2: Fijo por requerimiento
+                fecha: extra.fecha || new Date().toLocaleDateString('es-EC'),
                 pedido: orderFullId,
-                bulto: `${bulto.label}: ${i} / ${totalEtiquetas}`,
-                digitador: extra.digitador || 'SISTEMA',
+                bulto: i.toString(), // v5.2: Solo el número del bulto
+                digitador: (extra.digitador || 'SISTEMA').toUpperCase(),
                 nro: i,
                 total: totalEtiquetas
             });

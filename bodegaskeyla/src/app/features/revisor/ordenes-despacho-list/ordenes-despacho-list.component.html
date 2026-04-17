@@ -32,7 +32,7 @@
             </div>
             <div class="filter-group-inline">
                 <label>Estado:</label>
-                <select [(ngModel)]="estado">
+                <select [ngModel]="estado()" (ngModelChange)="estado.set($event)">
                     <option value="TODOS">Todos</option>
                     <option value="ING">Ingresado</option>
                     <option value="DP">Despacho Parcial</option>

@@ -42,7 +42,7 @@ export class OrdenesDespachoListComponent implements OnInit {
         const d = new Date();
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
-    estado: string = 'TODOS';
+    estado = signal<string>('TODOS');
     numeroPedido: string = '';
     selectedSucursal: Sucursal | null = null;
 
@@ -72,7 +72,7 @@ export class OrdenesDespachoListComponent implements OnInit {
     public selectedIndex = signal<number>(0); // v2.4: Keyboard navigation
 
     public ordenes = computed(() => {
-        const est = this.estado;
+        const est = this.estado();
         const list = this.allOrdenesBase();
         if (est === 'TODOS') return list;
         return list.filter(o => o.codigoEstado === est);
