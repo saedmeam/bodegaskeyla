@@ -153,6 +153,22 @@ export class OrdenesDespachoListComponent implements OnInit {
             });
 
             this.sucursalesFiltradas = [...this.sucursales];
+
+            // v6.0: Selección Automática Robusta
+            const userSuc = this.authService.getStoredUser()?.sucursal;
+            if (this.sucursales.length > 0) {
+                // Prioridad 1: Match con la sucursal del usuario
+                const match = this.sucursales.find(s => s.codigoSucursal === userSuc?.codigoSucursal);
+                if (match) {
+                    this.selectedSucursal = match;
+                } else if (!this.selectedSucursal) {
+                    // Prioridad 2: Primera de la lista si no hay selección
+                    this.selectedSucursal = this.sucursales[0];
+                }
+                
+                // Forzar búsqueda inicial una vez cargadas las sucursales
+                this.buscar(0);
+            }
         } catch (e) {
             console.error('Error al cargar sucursales', e);
         }
