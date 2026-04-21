@@ -210,7 +210,8 @@ function setupIpcHandlers() {
      * v2.0: Manejador para impresión de texto plano vía Java (PrintVeris.jar)
      */
     ipcMain.handle('print-jasper', async (event, { printerName, reportFileName, jsonData, preview }) => {
-        console.log(`[Electron:Main] 📨 IPC Receive: print-jasper (Preview: ${preview})`);
+        console.log(`[Electron:Main] 📨 IPC Receive: print-jasper (Report: ${reportFileName}, Preview: ${preview})`);
+        
         const svc = getPrinterService();
         if (!svc) return { success: false, error: 'Servicio de impresión no disponible' };
         try {
@@ -218,7 +219,6 @@ function setupIpcHandlers() {
             
             if (preview && result && result.endsWith('.pdf')) {
                 console.log(`[Electron:Main] 📂 Abriendo vista previa nativa: ${result}`);
-                // v3.5: Usar el comando nativo del sistema para abrir el archivo
                 const { shell } = require('electron');
                 await shell.openPath(result);
                 return { success: true, preview: true };

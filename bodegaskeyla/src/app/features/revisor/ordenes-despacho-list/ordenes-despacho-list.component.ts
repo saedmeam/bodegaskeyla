@@ -282,16 +282,23 @@ export class OrdenesDespachoListComponent implements OnInit {
                 bultos: bultosParaImprimir
             };
 
-            // 3. Generar y Enviar Etiquetas Térmicas vía Jasper
+            // 3. Generar y Enviar Etiquetas Térmicas vía Jasper (AUTOMÁTICO para enviar a la cola de impresión seleccionada)
             const bultosLabelsMapped = bultosParaImprimir.map(b => ({ label: b.nombreTipoBulto, value: b.cantidad }));
             for (const bulto of bultosLabelsMapped) {
-                await this.printerService.imprimirEtiquetaJasper(ordenFullId, bulto, extraData);
+                const res = await this.printerService.imprimirEtiquetaJasper(ordenFullId, bulto, extraData);
+                if (!res.success) {
+                    this.notificationService.show(`Error etiqueta: ${res.error}`, true, "ERROR");
+                }
             }
-
-            // 4. Generar y Enviar Reporte de Transferencia (A4) vía Jasper
+ 
+            // 4. Generar y Enviar Reporte de Transferencia (A4) vía Jasper (Configurable)
             setTimeout(async () => {
-                await this.printerService.imprimirReporteTransferenciaJasper(ordenFullId, products, extraData);
-                this.notificationService.show("Reimpresión generada satisfactoriamente vía Jasper.", false, "ÉXITO");
+                const res = await this.printerService.imprimirReporteTransferenciaJasper(ordenFullId, products, extraData);
+                if (res.success) {
+                    this.notificationService.show("Reimpresión generada satisfactoriamente vía Jasper.", false, "ÉXITO");
+                } else {
+                    this.notificationService.show(`Error reporte: ${res.error}`, true, "ERROR");
+                }
             }, 800);
 
         } catch (e: any) {

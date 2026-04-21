@@ -165,8 +165,17 @@
             <button class="btn-v2 btn-primary">Agregar</button>
             <button class="btn-v2 btn-outline">Editar</button>
             <button class="btn-v2 btn-danger">Eliminar</button>
-            <button class="btn-v2 btn-dark">Imprimir</button>
+            <button class="btn-v2 btn-dark" (click)="imprimir()">Imprimir</button>
             <button class="btn-v2 btn-dark" routerLink="/revisor">Cerrar</button>
         </div>
     </footer>
+
+    @if (showPreview()) {
+        <app-report-preview-modal 
+            [title]="'Vista Previa - ' + numero" 
+            [htmlContent]="previewHtml()"
+            (close)="showPreview.set(false)"
+            (print)="ejecutarImpresion()">
+        </app-report-preview-modal>
+    }
 </div>

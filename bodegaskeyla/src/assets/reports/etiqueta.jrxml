@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="etiqueta" pageWidth="295" pageHeight="144" orientation="Landscape" columnWidth="295" leftMargin="0" rightMargin="0" topMargin="0" bottomMargin="0">
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="etiqueta" pageWidth="295" pageHeight="144" orientation="Portrait" columnWidth="295" leftMargin="0" rightMargin="0" topMargin="0" bottomMargin="0">
 	<property name="ireport.zoom" value="2.0"/>
 	<property name="ireport.x" value="0"/>
 	<property name="ireport.y" value="0"/>
+	<queryString>
+		<![CDATA[]]>
+	</queryString>
 	<field name="sucursal" class="java.lang.String"/>
 	<field name="direccion" class="java.lang.String"/>
 	<field name="fecha" class="java.lang.String"/>
@@ -14,65 +17,59 @@
 	</background>
 	<detail>
 		<band height="144" splitType="Stretch">
-			<!-- Formato Horizontal Nativo (104mm x 51mm) -->
 			<staticText>
-				<reportElement x="0" y="8" width="295" height="20"/>
+				<reportElement x="0" y="5" width="295" height="18"/>
 				<textElement textAlignment="Center" verticalAlignment="Middle">
-					<font fontName="SansSerif" size="14" isBold="true"/>
+					<font fontName="SansSerif" size="12" isBold="true"/>
 				</textElement>
-				<text><![CDATA[CENTRO DE DISTRIBUCION FARMAKEYLA]]></text>
+				<text><![CDATA[CENTRO DE DISTRIBUCIÓN FARMAKEYLA]]></text>
 			</staticText>
 			
 			<textField isBlankWhenNull="true">
-				<reportElement x="0" y="28" width="295" height="22"/>
+				<reportElement x="0" y="23" width="295" height="22"/>
 				<textElement textAlignment="Center" verticalAlignment="Middle">
-					<font fontName="SansSerif" size="16" isBold="true"/>
+					<font fontName="SansSerif" size="15" isBold="true"/>
 				</textElement>
-				<textFieldExpression><![CDATA["SUCURSAL :" + ($F{sucursal} != null ? $F{sucursal}.toUpperCase() : "")]]></textFieldExpression>
+				<textFieldExpression><![CDATA["SUCURSAL :" + ($F{sucursal} != null ? $F{sucursal}.toUpperCase() : "---")]]></textFieldExpression>
 			</textField>
 			
 			<line>
-				<reportElement x="15" y="52" width="265" height="1"/>
-				<graphicElement><pen lineWidth="1.0"/></graphicElement>
+				<reportElement x="10" y="47" width="275" height="1"/>
+				<graphicElement><pen lineWidth="1.5"/></graphicElement>
 			</line>
 			
 			<textField isBlankWhenNull="true">
-				<reportElement x="25" y="58" width="245" height="12"/>
-				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+				<reportElement x="15" y="50" width="265" height="13"/>
+				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="false"/></textElement>
 				<textFieldExpression><![CDATA["Dirección :" + ($F{direccion} != null ? $F{direccion} : "")]]></textFieldExpression>
 			</textField>
 			
 			<textField isBlankWhenNull="true">
-				<reportElement x="25" y="70" width="245" height="12"/>
+				<reportElement x="15" y="63" width="265" height="13"/>
 				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="10" isBold="true"/></textElement>
 				<textFieldExpression><![CDATA["FECHA DE DESPACHO " + ($F{fecha} != null ? $F{fecha} : "")]]></textFieldExpression>
 			</textField>
 			
 			<textField isBlankWhenNull="true">
-				<reportElement x="25" y="82" width="245" height="12"/>
+				<reportElement x="15" y="76" width="265" height="13"/>
 				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="11" isBold="true"/></textElement>
 				<textFieldExpression><![CDATA["Número de Bulto #: " + ($F{bulto} != null ? $F{bulto} : "")]]></textFieldExpression>
 			</textField>
 			
 			<textField isBlankWhenNull="true">
-				<reportElement x="25" y="94" width="245" height="12"/>
+				<reportElement x="15" y="89" width="265" height="13"/>
 				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="11" isBold="true"/></textElement>
 				<textFieldExpression><![CDATA["Número de Pedido # " + ($F{pedido} != null ? $F{pedido} : "")]]></textFieldExpression>
 			</textField>
 			
 			<textField isBlankWhenNull="true">
-				<reportElement x="25" y="106" width="245" height="12"/>
-				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+				<reportElement x="15" y="102" width="265" height="11"/>
+				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
 				<textFieldExpression><![CDATA["Digitador : " + ($F{digitador} != null ? $F{digitador} : "")]]></textFieldExpression>
 			</textField>
 			
-			<line>
-				<reportElement x="15" y="123" width="265" height="1"/>
-				<graphicElement><pen lineWidth="1.0"/></graphicElement>
-			</line>
-			
 			<staticText>
-				<reportElement x="0" y="126" width="295" height="12"/>
+				<reportElement x="0" y="125" width="295" height="14"/>
 				<textElement textAlignment="Center" verticalAlignment="Bottom">
 					<font fontName="SansSerif" size="10" isBold="true"/>
 				</textElement>

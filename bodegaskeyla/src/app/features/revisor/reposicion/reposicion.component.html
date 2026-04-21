@@ -330,3 +330,13 @@
 }
 
 <!-- Toast Notifications Removed v104.4 -->
+
+<!-- MODAL VISTA PREVIA DE REPORTE (v1.0) -->
+@if (showReportPreview()) {
+    <app-report-preview-modal 
+        [title]="reportPreviewTitle()" 
+        [htmlContent]="reportPreviewHtml()"
+        (close)="showReportPreview.set(false)"
+        (print)="confirmarImpresionDesdePreview()">
+    </app-report-preview-modal>
+}

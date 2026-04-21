@@ -11,11 +11,12 @@ import { PrinterService } from '../../../core/services/printer.service';
 import { BultoType, Product, Batch } from '../../../shared/models/product.model';
 import { DataService } from '../../../core/services/data.service';
 import { ConfigService } from '../../../core/services/config.service';
+import { ReportPreviewModalComponent } from '../../../shared/components/report-preview-modal/report-preview-modal.component';
 
 @Component({
     selector: 'app-reposicion',
     standalone: true,
-    imports: [CommonModule, FormsModule],
+    imports: [CommonModule, FormsModule, ReportPreviewModalComponent],
     templateUrl: './reposicion.component.html',
     styleUrl: './reposicion.component.css'
 })
@@ -81,6 +82,12 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
     loteModalVisible = signal(false);
     selectedProductForLote = signal<Product | null>(null);
     loteWorkingList = signal<any[]>([]);
+
+    // Estados de Modal Report Preview (v1.0)
+    showReportPreview = signal(false);
+    reportPreviewHtml = signal("");
+    reportPreviewTitle = signal("");
+    private pendingReportData: any = null; // Para guardar datos mientras se previsualiza
 
     // Proyecciones del servicio orquestador
     ordenProductos = this.revisorService.ordenProductos;
@@ -788,13 +795,49 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
     private imprimirReportesFinales(bultosParaEnviar?: any[]) {
         const metadata = this.revisorService.orderMetadata();
         const user = this.authService.getStoredUser();
+        const productsVerificados = this.escaneados().filter(p => p.despachado > 0);
 
-        // 1. REGLA MAESTRA (v160.50): Solo se imprimen etiquetas si el bulto 999 tiene cantidad > 0
-        const bulto999 = bultosParaEnviar?.find(b => b.codigoTipoBulto === 999);
+        if (productsVerificados.length === 0) return;
+
+        const config = this.configService.getConfig();
+        const showPreview = config?.PREVIEW_REPORTE !== false; // v1.2: Respetar interruptor de configuración
+
+        // Preparamos datos necesarios para ambos casos
+        const extraReport = {
+            sucursal: metadata?.nombreSucursalDestino || metadata?.sucursalDestino || '---',
+            usuario: user?.username || 'SISTEMA',
+            digitador: user?.username || 'SISTEMA',
+            fecha: new Date().toLocaleDateString('es-EC'),
+            bodegaOrigen: metadata?.nombreSucursalOrigen,
+            bodegaDestino: metadata?.nombreSucursalDestino || metadata?.sucursalDestino,
+            bultos: bultosParaEnviar
+        };
+
+        this.pendingReportData = { bultosParaEnviar, productsVerificados, extraReport, metadata, user };
+
+        if (showPreview) {
+            // Caso 1: Vista Previa Interna activada
+            const html = this.printerService.generateTransferReportHtml(this.orderNumber, productsVerificados, extraReport);
+            this.reportPreviewHtml.set(html);
+            this.reportPreviewTitle.set(`Reporte de Transferencia - ${this.orderNumber}`);
+            this.showReportPreview.set(true);
+        } else {
+            // Caso 2: Impresión Automática (Silent)
+            this.confirmarImpresionDesdePreview();
+        }
+    }
+
+    async confirmarImpresionDesdePreview() {
+        const { bultosParaEnviar, productsVerificados, extraReport, metadata, user } = this.pendingReportData;
+
+        // 1. Imprimir Reporte de Transferencia vía Jasper (Impresión DIRECTA, sin visor externo)
+        await this.printerService.imprimirReporteTransferenciaJasper(this.orderNumber, productsVerificados, extraReport, undefined, false);
+
+        // 2. Imprimir Etiquetas si aplica (Impresión DIRECTA)
+        const bulto999 = bultosParaEnviar?.find((b: any) => b.codigoTipoBulto === 999);
         const cantidadAPrint = bulto999 ? Number(bulto999.cantidad) : 0;
 
         if (cantidadAPrint > 0) {
-            console.log(`[ReposicionComponent] 🖨️ Generando ${cantidadAPrint} etiquetas vía Jasper (Master 999)`);
             const extraData = {
                 sucursal: metadata?.nombreSucursalDestino || metadata?.sucursalDestino || '---',
                 digitador: user?.username || 'SISTEMA',
@@ -802,25 +845,11 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
                 bodegaDestino: metadata?.nombreSucursalDestino || metadata?.sucursalDestino
             };
             const bultoLabel = { label: 'IMPRESIÓN DE ETIQUETAS', value: cantidadAPrint };
-            this.printerService.imprimirEtiquetaJasper(this.orderNumber, bultoLabel, extraData);
+            await this.printerService.imprimirEtiquetaJasper(this.orderNumber, bultoLabel, extraData, undefined, false);
         }
 
-        // 2. Reporte de Transferencia Jasper (SIEMPRE se imprime si hay productos)
-        const productsVerificados = this.escaneados().filter(p => p.despachado > 0);
-        if (productsVerificados.length > 0) {
-            console.log('[ReposicionComponent] Generando reporte de transferencia A4 vía Jasper...');
-            const extraReport = {
-                sucursal: metadata?.nombreSucursalDestino || metadata?.sucursalDestino || '---',
-                usuario: user?.username || 'SISTEMA',
-                digitador: user?.username || 'SISTEMA',
-                fecha: new Date().toLocaleDateString('es-EC'),
-                bodegaOrigen: metadata?.nombreSucursalOrigen,
-                bodegaDestino: metadata?.nombreSucursalDestino || metadata?.sucursalDestino,
-                bultos: bultosParaEnviar
-            };
-            this.printerService.imprimirReporteTransferenciaJasper(this.orderNumber, productsVerificados, extraReport);
-            this.showToast("Impresión Jasper generada.", false, "IMPRESIÓN");
-        }
+        this.showReportPreview.set(false);
+        this.showToast("Impresión enviada directamente a la impresora.", false, "ÉXITO");
     }
 
     /**
