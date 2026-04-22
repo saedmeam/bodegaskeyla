@@ -81,7 +81,7 @@ export class PrinterService {
             bodegaDestino: extra.bodegaDestino || '---',
             digitador: extra.digitador || 'SISTEMA',
             resumenBultos: resumenBultos,
-            codigo: p.item || p.codigoBarras || '',
+            codigo: p.codigoExistencia || '',
             nombre: p.nombre || '',
             medida: p.unidad || '',
             cantidad: p.despachado?.toString() || '0'
@@ -498,7 +498,7 @@ export class PrinterService {
                     <tbody>
                         ${products.map(p => `
                         <tr>
-                            <td class="col-codigo">${p.item || p.codigoBarras || ''}</td>
+                            <td class="col-codigo">${p.codigoExistencia || ''}</td>
                             <td class="col-desc">${p.nombre}</td>
                             <td class="col-lab">${(p as any).laboratorio || ''}</td>
                             <td class="col-med">${p.unidad}</td>

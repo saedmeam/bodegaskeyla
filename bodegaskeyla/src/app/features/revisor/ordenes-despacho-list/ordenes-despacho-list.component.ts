@@ -262,6 +262,7 @@ export class OrdenesDespachoListComponent implements OnInit {
                 despachado: d.cantidad || d.cantidad || 0,
                 lote: d.lote || '',
                 caducidad: d.caducidad || '',
+                codigoExistencia: d.codigoExistencia?.toString() || '',
                 codigoBarras: d.sciExistenciasXCodBarras?.[0]?.codigoBarras?.toString() || d.codigoBarras?.toString() || '',
                 vtas: 0, sLocal: 0, suger: 0, bulto: 0, invBod: d.saldoActualEnCajas || d.stock || 0, color: 'negro'
             }));
