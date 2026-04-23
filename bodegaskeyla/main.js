@@ -271,7 +271,7 @@ function createWindow() {
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
-            devTools: false, // v160.32: Deshabilitado por seguridad
+            devTools: false, // v160.32: Deshabilitado para seguridad
             preload: path.join(__dirname, 'preload.js')
         }
     });
@@ -280,8 +280,9 @@ function createWindow() {
 
     // v160.29: Habilitado para pase final
     // win.webContents.openDevTools();
-
-    // v160.22: Refuerzo para asegurar que las herramientas de desarrollo no se abran
+    /**
+     * v160.22: Refuerzo para asegurar que las herramientas de desarrollo no se abran
+     */
     win.webContents.on('devtools-opened', () => {
         win.webContents.closeDevTools();
     });

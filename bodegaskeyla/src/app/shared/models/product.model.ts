@@ -3,6 +3,8 @@ export interface Batch {
     caducidad: string;
     stock: number;
     despachado: number;
+    fechaElaboracion?: string;
+    codigoExistencia?: string | number;
 }
 
 export interface Product {

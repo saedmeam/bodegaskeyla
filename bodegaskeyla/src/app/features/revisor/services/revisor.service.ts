@@ -347,6 +347,8 @@ export class RevisorService {
                         product.lotes = batchList.map((l: any) => ({
                             lote: l.codigoLote || l.lote || 'S/L',
                             caducidad: l.fechaCaducidad || l.caducidad || 'N/A',
+                            fechaElaboracion: l.fechaElaboracion || '',
+                            codigoExistencia: l.codigoExistencia || product.codigoExistencia,
                             stock: l.saldoActualEnCajas || l.stock || 0,
                             despachado: 0
                         }));
@@ -667,6 +669,28 @@ export class RevisorService {
         if (!metadata) return of(null);
 
         // A. Mapear productos escaneados (v112.0: Nuevo parámetro 'cantidadADespachar')
+        // B. Recolectar todos los lotes despachados (v170.5: Requerimiento Keyla API v2)
+        const allLotes: any[] = [];
+        this.escaneados().forEach(p => {
+            if (p.lotes && p.lotes.length > 0) {
+                p.lotes.forEach(l => {
+                    if (l.despachado > 0) {
+                        allLotes.push({
+                            codigoLote: l.lote,
+                            codigoExistencia: Number(l.codigoExistencia || p.codigoExistencia) || 0,
+                            fechaElaboracion: l.fechaElaboracion || '',
+                            fechaCaducidad: l.caducidad || '',
+                            cantidadADespachar: l.despachado
+                        });
+                    }
+                });
+            } else if (p.despachado > 0) {
+                // Si no hay arreglo de lotes pero se despachó (caso sin lotes),
+                // el API podría requerir un registro vacío o nada, pero según Word,
+                // se envían los que se despachan.
+            }
+        });
+
         const payloadActualizar = {
             codigoEmpresa: metadata.codigoEmpresa || 1,
             numeroSolicitud: metadata.numeroSolicitud,
@@ -687,7 +711,8 @@ export class RevisorService {
                 observacion: p.observacion || 'API_UPDATE_KEYLA',
                 codigoEstado: p.estado || 'ING',
                 esActivo: p.esActivo || 'S'
-            }))
+            })),
+            lotesXExistencia: allLotes
         };
 
         console.log('[RevisorService] 🛠️ Paso 1: Actualizando detalles de productos...', payloadActualizar);
@@ -802,6 +827,8 @@ export class RevisorService {
                         p.lotes = match.lotesXExistencia.map((l: any) => ({
                             lote: l.codigoLote || l.lote || 'S/L',
                             caducidad: l.fechaCaducidad || l.caducidad || 'N/A',
+                            fechaElaboracion: l.fechaElaboracion || '',
+                            codigoExistencia: l.codigoExistencia || p.codigoExistencia,
                             stock: l.saldoActualEnCajas || l.stock || 0,
                             despachado: 0
                         }));
