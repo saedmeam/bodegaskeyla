@@ -1,9 +1,30 @@
 .header-container {
+    width: 100%;
     display: flex;
     flex-direction: column;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     z-index: 1000;
 }
+
+.env-badge .badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 0.85rem;
+    color: #fff;
+    text-transform: uppercase;
+}
+
+.env-badge .test {
+    background-color: #ff9800; /* Naranja para Test */
+    border: 1px solid #fff;
+}
+
+.env-badge .desarrollo {
+    background-color: #e91e63; /* Rosa/Fucsia para Desarrollo */
+    border: 1px solid #fff;
+}
+
 
 .neu-header {
     display: flex;

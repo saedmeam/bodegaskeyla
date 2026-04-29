@@ -16,8 +16,8 @@ export class RevisorService {
     public escaneados = signal<Product[]>([]);
     public orderMetadata = signal<any>(null);
 
-    public getOrdenesDespachoList(empresa: number, filtro: string, valor: string, pagina: number = 0, fechaDesde?: string, fechaHasta?: string) {
-        return this.dataService.executeAction<any>('GET_ORDENES_DESPACHO_LIST', { empresa, filtro, valor, pagina, fechaDesde, fechaHasta });
+    public getOrdenesDespachoList(empresa: number, filtro: string, valor: string, pagina: number = 0, fechaDesde?: string, fechaHasta?: string, diaEmbarque?: string) {
+        return this.dataService.executeAction<any>('GET_ORDENES_DESPACHO_LIST', { empresa, filtro, valor, pagina, fechaDesde, fechaHasta, diaEmbarque });
     }
 
     public getTiposBultos() {
@@ -198,6 +198,7 @@ export class RevisorService {
                             bulto: d.unidadesXCaja || 1,
                             lote: d.lote || '',
                             caducidad: d.caducidad || '',
+                            laboratorio: d.fabricante || '',
                             lineaDetalle: d.lineaDetalle,
                             estado: d.codigoEstado,
                             unidadesXCaja: d.unidadesXCaja || 0,

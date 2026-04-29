@@ -39,6 +39,7 @@ export interface Product {
     cantidadBaseEquivalente?: number;
     observacion?: string;
     esActivo?: string;
+    laboratorio?: string;
     // v170.2: Sophisticated multi-batch support
     lotes?: Batch[];
 }

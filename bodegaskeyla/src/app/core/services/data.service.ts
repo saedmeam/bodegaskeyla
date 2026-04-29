@@ -105,7 +105,8 @@ export class DataService {
                         color: 'naranja',
                         bulto: d.unidadesXCaja || 1,
                         lote: d.lote || '',
-                        caducidad: d.caducidad || ''
+                        caducidad: d.caducidad || '',
+                        laboratorio: d.fabricante || ''
                     };
                 });
             }),
@@ -139,16 +140,31 @@ export class DataService {
             case 'ACTUALIZAR_ORDEN_DETALLES':
                 return this.actualizarDetallesOrdenDespacho(params.payload) as Observable<T>;
             case 'GET_ORDENES_DESPACHO_LIST':
-                return this.getOrdenesDespachoList(params.empresa, params.filtro, params.valor, params.pagina, params.fechaDesde, params.fechaHasta) as Observable<T>;
+                return this.getOrdenesDespachoList(params.empresa, params.filtro, params.valor, params.pagina, params.fechaDesde, params.fechaHasta, params.diaEmbarque) as Observable<T>;
             case 'GET_TIPOS_BULTOS':
                 return this.getTiposBultos() as Observable<T>;
             case 'GET_LOTES_EXISTENCIA_ORDEN':
                 return this.getLotesExistenciaOrdenDespacho(params.solicitud, params.orden) as Observable<T>;
+            case 'GET_DIAS_SEMANA':
+                return this.getDiasSemana() as Observable<T>;
             case 'IMPRIMIR_TIRILLA':
                 return this.imprimirTirilla(params.empresa, params.secuencia) as Observable<T>;
             default:
                 return of(null as any);
         }
+    }
+
+    private getDiasSemana(): Observable<any> {
+        const params = {
+            arg0: this.getCurrentCompany()
+        };
+        const headers = this.getHeaders();
+        return this.http.get(`${this.API_BASE}/XPosConsultas/diasSemana`, { params, headers }).pipe(
+            catchError(err => {
+                console.error('[DataService] Error consultando diasSemana', err);
+                return of({ mensaje: 'Error cargando días', isError: true, diasSemana: [] });
+            })
+        );
     }
 
     getOrdenDespacho(numero: string, fechaDesde?: string, fechaHasta?: string): Observable<any> {
@@ -188,7 +204,7 @@ export class DataService {
         );
     }
 
-    getOrdenesDespachoList(empresa: number, filtro: string, valor: string, pagina: number = 0, fechaDesde?: string, fechaHasta?: string): Observable<any> {
+    getOrdenesDespachoList(empresa: number, filtro: string, valor: string, pagina: number = 0, fechaDesde?: string, fechaHasta?: string, diaEmbarque?: string): Observable<any> {
         const user = this.authService?.getStoredUser();
         const username = user?.username || 'DESCONOCIDO';
 
@@ -211,10 +227,17 @@ export class DataService {
             .set('arg6', formatToAPI(fechaDesde))
             .set('arg7', formatToAPI(fechaHasta));
 
+        if (diaEmbarque && diaEmbarque !== 'TODOS') {
+            params = params.set('arg8', diaEmbarque);
+        }
+
         if (valor && valor.trim() !== '') {
-            // v110.0: Requerimiento mandatorio Keyla: arg2 siempre es la clave compuesta
+            // v110.0: Requerimiento mandatorio Keyla: arg2 siempre es la clave compuesta si hay valor
             params = params.set('arg2', 'numeroSolicitud-numeroOrdenDespacho');
             params = params.set('arg3', valor.trim());
+        } else {
+             // Si no hay valor, igual mandamos la clave compuesta vacía, como en Postman
+             params = params.set('arg2', 'numeroSolicitud-numeroOrdenDespacho');
         }
 
         const headers = this.getHeaders();

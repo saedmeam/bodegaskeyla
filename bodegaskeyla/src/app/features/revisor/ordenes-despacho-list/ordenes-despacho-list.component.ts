@@ -34,9 +34,14 @@ export class OrdenesDespachoListComponent implements OnInit {
     private dataService = inject(DataService);
 
     // Filters
-    diaEmbarque: string = 'TODOS';
+    diaEmbarque: string = this.getInitialDay();
     fechaDesde: string = this.getLocalDateString();
     fechaHasta: string = this.getLocalDateString();
+
+    private getInitialDay(): string {
+        const day = new Date().getDay(); // 0: Domingo, 1: Lunes...
+        return day === 0 ? '7' : day.toString(); // Asume Lunes=1, Domingo=7
+    }
 
     private getLocalDateString(): string {
         const d = new Date();
@@ -46,16 +51,7 @@ export class OrdenesDespachoListComponent implements OnInit {
     numeroPedido: string = '';
     selectedSucursal: Sucursal | null = null;
 
-    diasSemana = [
-        { value: 'TODOS', label: 'Todos' },
-        { value: 'LUN', label: 'Lunes' },
-        { value: 'MAR', label: 'Martes' },
-        { value: 'MIE', label: 'Miércoles' },
-        { value: 'JUE', label: 'Jueves' },
-        { value: 'VIE', label: 'Viernes' },
-        { value: 'SAB', label: 'Sábado' },
-        { value: 'DOM', label: 'Domingo' }
-    ];
+    diasSemana: any[] = [{ value: 'TODOS', label: 'Todos' }];
 
     // Selection UI State
     sucursales: Sucursal[] = [];
@@ -113,13 +109,38 @@ export class OrdenesDespachoListComponent implements OnInit {
 
     ngOnInit() {
         const user = this.authService.getStoredUser();
-        if (user && user.sucursal) {
-            this.selectedSucursal = user.sucursal;
-            // v4.3: searchTermSucursal debe estar vacío para no filtrar el dropdown al abrirlo
-            this.searchTermSucursal = '';
+        if (user) {
+            if (user.sucursal) {
+                this.selectedSucursal = user.sucursal;
+                this.searchTermSucursal = '';
+            }
+            // v2.2: Cargar días SOLO si tenemos contexto de usuario/empresa
+            this.cargarDiasEmbarque();
         }
         this.cargarSucursales();
         this.buscar(0);
+    }
+
+    async cargarDiasEmbarque() {
+        try {
+            // v2.1: Log de diagnóstico para asegurar que la llamada se realiza
+            const res = await firstValueFrom(this.dataService.executeAction<any>('GET_DIAS_SEMANA'));
+            console.log('[OrdenesList] Respuesta diasSemana:', res);
+
+            if (res && !res.isError) {
+                const listRaw = res.diasSemana || [];
+                const list = listRaw.map((d: any) => ({
+                    value: d.codigoDia?.toString() || '',
+                    label: d.nombreDia || '---'
+                }));
+                if (list.length > 0) {
+                    this.diasSemana = [{ value: 'TODOS', label: 'Todos' }, ...list];
+                    console.log('[OrdenesList] Combo de días poblado:', this.diasSemana.length);
+                }
+            }
+        } catch (e) {
+            console.error('Error cargando dias de embarque', e);
+        }
     }
 
     async cargarSucursales() {
@@ -196,7 +217,7 @@ export class OrdenesDespachoListComponent implements OnInit {
             }
             const pagedArg = page * 20;
             const res = await firstValueFrom(this.revisorService.getOrdenesDespachoList(
-                empresa, filtro, valor, pagedArg, this.fechaDesde, this.fechaHasta
+                empresa, filtro, valor, pagedArg, this.fechaDesde, this.fechaHasta, this.diaEmbarque
             ));
             if (res?.mensaje === 'OK' || res?.codigo === '000') {
                 let list = res.ordenesDespacho || [];
@@ -264,6 +285,7 @@ export class OrdenesDespachoListComponent implements OnInit {
                 caducidad: d.caducidad || '',
                 codigoExistencia: d.codigoExistencia?.toString() || '',
                 codigoBarras: d.sciExistenciasXCodBarras?.[0]?.codigoBarras?.toString() || d.codigoBarras?.toString() || '',
+                laboratorio: d.fabricante || '',
                 vtas: 0, sLocal: 0, suger: 0, bulto: 0, invBod: d.saldoActualEnCajas || d.stock || 0, color: 'negro'
             }));
 

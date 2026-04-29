@@ -84,7 +84,8 @@ export class PrinterService {
             codigo: p.codigoExistencia || '',
             nombre: p.nombre || '',
             medida: p.unidad || '',
-            cantidad: p.despachado?.toString() || '0'
+            cantidad: p.despachado?.toString() || '0',
+            laboratorio: p.laboratorio || ''
         }));
  
         return this.imprimirJasper('transferencia.jrxml', data, printerName, preview ?? true);
@@ -107,7 +108,7 @@ export class PrinterService {
         for (let i = 1; i <= totalEtiquetas; i++) {
             data.push({
                 sucursal: extra.sucursal || '---',
-                direccion: 'Provincia: GUAYAS Canton: GUAYAQUIL', 
+                direccion: 'Provincia: GUAYAS Cantón: GUAYAQUIL', 
                 fecha: extra.fecha || new Date().toLocaleDateString('es-EC'),
                 pedido: orderFullId,
                 bulto: i.toString(), 
@@ -500,7 +501,7 @@ export class PrinterService {
                         <tr>
                             <td class="col-codigo">${p.codigoExistencia || ''}</td>
                             <td class="col-desc">${p.nombre}</td>
-                            <td class="col-lab">${(p as any).laboratorio || ''}</td>
+                            <td class="col-lab">${p.laboratorio || ''}</td>
                             <td class="col-med">${p.unidad}</td>
                             <td class="col-cant">${p.despachado}</td>
                         </tr>
