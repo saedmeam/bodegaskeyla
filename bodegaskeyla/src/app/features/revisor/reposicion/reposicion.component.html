@@ -130,6 +130,7 @@
                                                 (ngModelChange)="updateQty(item.item, $event)" 
                                                 [readonly]="(item.lotes || []).length > 1"
                                                 (focus)="$any($event.target).select()"
+                                                [title]="(item.lotes || []).length > 1 ? 'Producto con múltiples lotes. Use el botón de caja para asignar cantidades.' : ''"
                                                 class="input-v2 w-tiny" [class.readonly-field]="(item.lotes || []).length > 1">
                                         </div>
                                     </td>

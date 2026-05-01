@@ -3,7 +3,7 @@ import { Product } from '../../../shared/models/product.model';
 import { DataService } from '../../../core/services/data.service';
 import { StorageService } from '../../../core/services/storage.service';
 import { switchMap, map, tap, catchError } from 'rxjs/operators';
-import { of, throwError, Observable, firstValueFrom } from 'rxjs';
+import { of, throwError, Observable, firstValueFrom, from } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
 import { LoadingService } from '../../../core/services/loading.service';
 
@@ -174,7 +174,7 @@ export class RevisorService {
 
                     return this.dataService.getDetallesOrdenDespacho(cab_solicitud, cab_orden);
                 }),
-                map(detRes => {
+                switchMap(detRes => {
                     if (detRes?.isError) {
                         console.error('[RevisorService] ❌ Error en detalles de orden:', detRes?.mensaje);
                         throw new Error(detRes?.mensaje || 'Error consultando detalles');
@@ -210,44 +210,45 @@ export class RevisorService {
                             cantidadBaseEquivalente: d.cantidadBaseEquivalente || 0,
                             observacion: d.observacion || 'API_REFRESH',
                             esActivo: d.esActivo || 'S',
-                            vtas: 0,
-                            sLocal: 0,
-                            suger: 0,
+                            vtas: d.vtas || 0,
+                            sLocal: d.sLocal || d.saldoActualEnCajas || 0,
+                            suger: d.suger || 0,
                             lotes: []
                         };
-
-                        // Recalcular estado si es refresh
-                        if (forceRefresh && previousEscaneados.length > 0) {
-                            const prev = previousEscaneados.find(e => e.item === p.item);
-                            if (prev) {
-                                p.despachado = prev.despachado;
-                                this.updateColorLogic(p);
-                            }
-                        }
                         return p;
                     });
 
-                    this.ordenProductos.set(newProducts);
-
-                    // PASO ADICIONAL (v2.7): Consultar lotes masivos para enriquecer la orden
+                    // PASO ADICIONAL (v2.7/v200.4): Consultar lotes masivos de forma SECUENCIAL
                     const meta = this.orderMetadata();
-                    console.log('[RevisorService] 🛠️ Iniciando secuencia de enriquecimiento de lotes...');
-                    this.fetchBatchesForAll(newProducts, meta?.numeroSolicitud, meta?.numeroOrdenDespacho);
+                    console.log('[RevisorService] 🛠️ Iniciando enriquecimiento secuencial de lotes...');
+                    
+                    return from(this.fetchBatchesForAll(newProducts, meta?.numeroSolicitud, meta?.numeroOrdenDespacho)).pipe(
+                        map(() => {
+                            this.ordenProductos.set(newProducts);
 
-                    if (forceRefresh) {
-                        const updatedEscaneados = previousEscaneados.map(esc => {
-                            const matching = newProducts.find((np: Product) => np.item === esc.item);
-                            return matching ? { ...matching, despachado: esc.despachado } : esc;
-                        });
-                        this.escaneados.set(updatedEscaneados);
-                    } else {
-                        this.escaneados.set([]);
-                    }
+                            if (forceRefresh) {
+                                const updatedEscaneados = previousEscaneados.map(esc => {
+                                    const matching = newProducts.find((np: Product) => np.item === esc.item);
+                                    if (matching) {
+                                        // Sincronizar cantidades de lotes recuperados si es lote único
+                                        if (matching.lotes && matching.lotes.length === 1) {
+                                            matching.lotes[0].despachado = esc.despachado;
+                                        }
+                                        return { ...matching, despachado: esc.despachado };
+                                    }
+                                    return esc;
+                                });
+                                this.escaneados.set(updatedEscaneados);
+                            } else {
+                                this.escaneados.set([]);
+                            }
 
-                    this.isLoading = false;
-                    this.loadingService.hide();
-                    this.persistCurrentState();
-                    return true;
+                            this.isLoading = false;
+                            this.loadingService.hide();
+                            this.persistCurrentState();
+                            return true;
+                        })
+                    );
                 }),
                 catchError(err => {
                     console.error('[RevisorService] Error cargando/sincronizando orden', err);
@@ -274,7 +275,9 @@ export class RevisorService {
         };
 
         const sessionKey = `REVISION_SESSION_${this.currentOrderNumber}`;
-        console.log(`[RevisorService] Persistiendo sesión local en ${sessionKey}. Escaneados: ${currentEscaneados.length}`);
+        const lotesCount = currentEscaneados.filter(p => p.lote).length;
+        console.log(`[RevisorService] 💾 Persistiendo sesión local en ${sessionKey}. Escaneados: ${currentEscaneados.length}, Con Lote: ${lotesCount}`);
+        
         // Guardamos en LocalStorage y archivo físico (.json) automáticamente
         this.storage.saveLocal(sessionKey, sessionState);
     }
@@ -308,6 +311,12 @@ export class RevisorService {
             }
 
             product.despachado = newQty;
+            
+            // v200.2: Sincronización automática de lote único en acumulación (Captura 2)
+            if (product.lotes && product.lotes.length === 1) {
+                product.lotes[0].despachado = newQty;
+            }
+
             const originalIndex = this.ordenProductos().findIndex(p => p.item === product.item);
             this.updateColorLogic(product);
             this.updateState(product, originalIndex);
@@ -433,8 +442,16 @@ export class RevisorService {
         const productIndex = this.ordenProductos().findIndex(p => p.item === item);
         if (productIndex !== -1) {
             const product = { ...this.ordenProductos()[productIndex] };
-            // Aseguramos que sea un número válido y no negativo
-            product.despachado = Math.max(0, Number(qty) || 0);
+            const newQty = Math.max(0, Number(qty) || 0);
+            product.despachado = newQty;
+
+            // v200.2: Sincronización automática de lote único en actualización manual
+            if (product.lotes && product.lotes.length === 1) {
+                product.lotes[0].despachado = newQty;
+                product.lote = product.lotes[0].lote;
+                product.caducidad = product.lotes[0].caducidad;
+            }
+
             this.updateColorLogic(product);
             this.updateState(product, productIndex);
         }
@@ -678,17 +695,24 @@ export class RevisorService {
                     if (l.despachado > 0) {
                         allLotes.push({
                             codigoLote: l.lote,
+                            lote: l.lote, // v200.4: Atributo redundante para compatibilidad
                             codigoExistencia: Number(l.codigoExistencia || p.codigoExistencia) || 0,
                             fechaElaboracion: l.fechaElaboracion || '',
-                            fechaCaducidad: l.caducidad || '',
+                            fechaCaducidad: (l.caducidad && l.caducidad !== 'N/A' && l.caducidad !== 'S/F') ? l.caducidad : '',
                             cantidadADespachar: l.despachado
                         });
                     }
                 });
-            } else if (p.despachado > 0) {
-                // Si no hay arreglo de lotes pero se despachó (caso sin lotes),
-                // el API podría requerir un registro vacío o nada, pero según Word,
-                // se envían los que se despachan.
+            } else if (p.despachado > 0 && p.lote) {
+                // v200.4: Backup para productos con lote único no expandido en arreglo (Blindaje Crítico)
+                allLotes.push({
+                    codigoLote: p.lote,
+                    lote: p.lote, // v200.4: Atributo redundante
+                    codigoExistencia: Number(p.codigoExistencia) || 0,
+                    fechaElaboracion: '',
+                    fechaCaducidad: (p.caducidad && p.caducidad !== 'N/A' && p.caducidad !== 'S/F') ? p.caducidad : '',
+                    cantidadADespachar: p.despachado
+                });
             }
         });
 
@@ -702,6 +726,8 @@ export class RevisorService {
                 codigoExistencia: Number(p.codigoExistencia) || 0,
                 unidadesXCaja: p.unidadesXCaja || 1,
                 cantidadADespachar: p.despachado !== undefined ? p.despachado : 0, // v131.0: Default a 0 si no se escaneó
+                lote: p.lote || '', // v200.4: Persistencia explícita de lote
+                fechaCaducidad: (p.caducidad && p.caducidad !== 'N/A' && p.caducidad !== 'S/F') ? p.caducidad : '',
                 // v146.0: Technical fields for API consistency
                 cantidad: p.cantidad || 0,
                 cantidadUnidades: p.cantidadUnidades || 0,
@@ -711,7 +737,14 @@ export class RevisorService {
                 cantidadBaseEquivalente: p.cantidadBaseEquivalente || 0,
                 observacion: p.observacion || 'API_UPDATE_KEYLA',
                 codigoEstado: p.estado || 'ING',
-                esActivo: p.esActivo || 'S'
+                esActivo: p.esActivo || 'S',
+                // v200.4: Datos de comparativo para consistencia en auditoría
+                invBod: p.invBod || 0,
+                solicita: p.solicita || 0,
+                unidad: p.unidad || '',
+                vtas: p.vtas || 0,
+                sLocal: p.sLocal || 0,
+                suger: p.suger || 0
             })),
             lotesXExistencia: allLotes
         };

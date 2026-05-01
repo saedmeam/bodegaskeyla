@@ -134,6 +134,19 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
                 }, 250); // v140.0: Un poco más de delay para asegurar renderizado
             }
         });
+
+        // v200.4: Foco automático para el primer lote al abrir modal
+        effect(() => {
+            if (this.loteModalVisible()) {
+                setTimeout(() => {
+                    const firstLoteInput = document.querySelector('.batch-qty-input') as HTMLInputElement;
+                    if (firstLoteInput) {
+                        firstLoteInput.focus();
+                        firstLoteInput.select();
+                    }
+                }, 250);
+            }
+        });
     }
 
     @HostListener('window:keydown', ['$event'])
@@ -370,7 +383,8 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
     focusScanner() {
         // Un pequeño delay asegura que el DOM se haya estabilizado
         setTimeout(() => {
-            if (this.scannerInput && !this.modalVisible()) {
+            // v200.4: Bloqueo estricto de foco si hay CUALQUIER modal abierto (Evita inhibición por robo de foco)
+            if (this.scannerInput && !this.modalVisible() && !this.bultoModalVisible() && !this.loteModalVisible()) {
                 this.scannerInput.nativeElement.focus();
                 this.scannerInput.nativeElement.select();
             }

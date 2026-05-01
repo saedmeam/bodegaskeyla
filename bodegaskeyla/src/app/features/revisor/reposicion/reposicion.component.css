@@ -191,7 +191,9 @@
 
 .readonly-field {
     background: #f1f5f9;
-    color: #475569;
+    color: #94a3b8;
+    cursor: not-allowed;
+    border-color: #cbd5e0;
 }
 
 .w-tiny {

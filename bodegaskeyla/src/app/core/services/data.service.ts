@@ -145,6 +145,8 @@ export class DataService {
                 return this.getTiposBultos() as Observable<T>;
             case 'GET_LOTES_EXISTENCIA_ORDEN':
                 return this.getLotesExistenciaOrdenDespacho(params.solicitud, params.orden) as Observable<T>;
+            case 'GET_LOTES_EXISTENCIA':
+                return this.getLotesExistencia(params.codigoExistencia, params.nombreExistencia) as Observable<T>;
             case 'GET_DIAS_SEMANA':
                 return this.getDiasSemana() as Observable<T>;
             case 'IMPRIMIR_TIRILLA':
@@ -310,6 +312,24 @@ export class DataService {
                     errorMsg = `<strong>MENSAJE:</strong> ${errorMsg}<br/><br/><strong>DETALLE SISTEMA:</strong> ${errorBody.errorSistemas}`;
                 }
                 return of({ mensaje: errorMsg, isError: true, lotes: [] });
+            })
+        );
+    }
+
+    /**
+     * v200.4: Consulta de lotes para un ítem específico (Uso bajo demanda)
+     */
+    getLotesExistencia(codigoExistencia: string, nombreExistencia: string): Observable<any> {
+        const params = {
+            arg0: this.getCurrentCompany(),
+            arg1: codigoExistencia || '',
+            arg2: nombreExistencia || ''
+        };
+        const headers = this.getHeaders();
+        return this.http.get(`${this.API_BASE}/XPosConsultas/lotesExistencia`, { params, headers }).pipe(
+            catchError(err => {
+                console.error('[DataService] Error consultando lotesExistencia individual', err);
+                return of({ mensaje: err.message, isError: true, detalles: [] });
             })
         );
     }

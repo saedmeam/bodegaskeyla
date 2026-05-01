@@ -101,10 +101,20 @@ function setupIpcHandlers() {
         if (fs.existsSync(userConfigPath)) {
             try {
                 const user = JSON.parse(fs.readFileSync(userConfigPath, 'utf8'));
+                
+                // v160.38: Guardamos el entorno original del paquete
+                const originalEnv = mergedConfig.environment;
+                
                 mergedConfig = { ...mergedConfig, ...user };
-                console.log('[Electron:Main] Config de usuario cargada desde:', userConfigPath);
+
+                // v160.38: FORZAMOS que el entorno sea el del paquete de instalación 
+                // para evitar que configuraciones viejas de Test/Preproducción se queden pegadas.
+                if (originalEnv) {
+                    mergedConfig.environment = originalEnv;
+                }
+
+                console.log(`[Electron:Main] Config de usuario cargada. Entorno forzado a: ${mergedConfig.environment}`);
             } catch (e) {
-                // Es normal que no exista la primera vez
                 console.log('[Electron:Main] No hay config de usuario aún.');
             }
         }
