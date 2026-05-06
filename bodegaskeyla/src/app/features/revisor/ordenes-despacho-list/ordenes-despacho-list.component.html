@@ -120,12 +120,17 @@
                                     @if (order.codigoEstado === 'ING') {
                                         <button class="btn-process" (click)="procesar(order)">PROCESAR</button>
                                     } @else {
-                                        <button class="btn-process btn-consult" (click)="procesar(order)">CONSULTAR</button>
+                                        @if (false) {
+                                            <button class="btn-process btn-consult" (click)="procesar(order)">CONSULTAR</button>
+                                        }
                                     }
-                                    <!-- v200.3: Botón de impresión bloqueado temporalmente por fallos en formato -->
+
+                                    @if (false) {
+                                        <!-- v200.3: Botón de impresión bloqueado temporalmente por fallos en formato -->
                                         <button class="btn-mass-print" (click)="imprimirOrdenMasivo(order)" title="Imprimir Orden de Despacho Masiva">
                                             <span class="icon">📋</span>
                                         </button>
+                                    }
 
                                         @if (order.codigoEstado === 'DP' || order.codigoEstado === 'DT' || order.codigoEstado === 'PRO') {
                                             <button class="btn-direct-print" (click)="imprimirOrdenDirecto(order)" title="Reimprimir Reporte de Transferencia">
