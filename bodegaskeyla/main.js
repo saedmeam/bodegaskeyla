@@ -363,7 +363,7 @@ async function checkForUpdates() {
 
     const pkg = require('./package.json');
     const currentVersion = pkg.version;
-    const updateUrl = 'https://raw.githubusercontent.com/saedmeam/bodegaskeyla/impresion_automatica/latest_version.json';
+    const updateUrl = 'https://raw.githubusercontent.com/saedmeam/bodegaskeyla/impresion_automatica/bodegaskeyla/latest_version.json';
 
     https.get(updateUrl, (res) => {
         let data = '';
