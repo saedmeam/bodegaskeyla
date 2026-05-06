@@ -357,42 +357,54 @@ app.on('ready', () => {
 async function checkForUpdates() {
     console.log('[Updater] Verificando actualizaciones...');
     const https = require('https');
-    const fs = require('fs');
-    const { exec } = require('child_process');
     const { dialog } = require('electron');
-
     const pkg = require('./package.json');
     const currentVersion = pkg.version;
     const updateUrl = 'https://raw.githubusercontent.com/saedmeam/bodegaskeyla/impresion_automatica/bodegaskeyla/latest_version.json';
 
-    https.get(updateUrl, (res) => {
-        let data = '';
-        res.on('data', (chunk) => data += chunk);
-        res.on('end', async () => {
-            try {
-                const remote = JSON.parse(data);
-                console.log(`[Updater] Local: ${currentVersion}, Remoto: ${remote.version}`);
-
-                if (remote.version !== currentVersion) {
-                    const choice = dialog.showMessageBoxSync(win, {
-                        type: 'info',
-                        buttons: ['Actualizar Ahora', 'Más Tarde'],
-                        title: 'Actualización Disponible',
-                        message: `Hay una nueva versión disponible (${remote.version}). ¿Deseas actualizar ahora?`,
-                        detail: remote.notes || ''
-                    });
-
-                    if (choice === 0) {
-                        downloadAndInstall(remote.url);
-                    }
+    const fetchJson = (url) => {
+        return new Promise((resolve, reject) => {
+            https.get(url, (res) => {
+                // Manejar redirecciones (301, 302)
+                if (res.statusCode === 301 || res.statusCode === 302) {
+                    return fetchJson(res.headers.location).then(resolve).catch(reject);
                 }
-            } catch (e) {
-                console.error('[Updater] Error parseando version.json', e.message);
-            }
+
+                if (res.statusCode !== 200) {
+                    return reject(new Error(`Servidor respondió con código ${res.statusCode}`));
+                }
+
+                let data = '';
+                res.setEncoding('utf8'); // Asegurar que leemos texto UTF-8
+                res.on('data', (chunk) => data += chunk);
+                res.on('end', () => resolve(data.trim()));
+            }).on('error', reject);
         });
-    }).on('error', (err) => {
-        console.error('[Updater] Error de red consultando actualizaciones', err.message);
-    });
+    };
+
+    try {
+        const data = await fetchJson(updateUrl);
+        const remote = JSON.parse(data);
+        console.log(`[Updater] Local: ${currentVersion}, Remoto: ${remote.version}`);
+
+        if (remote.version !== currentVersion) {
+            const choice = dialog.showMessageBoxSync(win, {
+                type: 'info',
+                buttons: ['Actualizar Ahora', 'Más Tarde'],
+                title: 'Actualización Disponible',
+                message: `Hay una nueva versión disponible (${remote.version}). ¿Deseas actualizar ahora?`,
+                detail: remote.notes || ''
+            });
+
+            if (choice === 0) {
+                downloadAndInstall(remote.url);
+            }
+        } else {
+            console.log('[Updater] El sistema está actualizado.');
+        }
+    } catch (e) {
+        console.error('[Updater] Error verificando actualizaciones:', e.message);
+    }
 }
 
 function downloadAndInstall(url) {
