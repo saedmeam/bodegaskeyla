@@ -26,7 +26,7 @@ export class LoginComponent implements OnInit {
     private ngZone = inject(NgZone);
     private cdr = inject(ChangeDetectorRef);
     private configService = inject(ConfigService);
-    public appVersion = '1.0.6';
+    public appVersion = '1.0.5';
 
     // Flow State
     step: number = 1;
