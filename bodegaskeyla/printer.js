@@ -97,42 +97,41 @@ module.exports = {
                     return reject(new Error(`No se encontró el archivo .jasper en: ${reportPath}. Verifique que el archivo exista en src/assets/reports/`));
                 }
 
-                let args = [
-                    preview ? "process" : "print",
-                    "-t", "json",
-                    "--data-file", jsonPath,
-                    "--json-query", ""
-                ];
+                let args = ["process", reportPath];
+                args.push("-t", "json");
+                args.push("--data-file", jsonPath);
 
                 let pdfPath = "";
                 if (preview) {
                     pdfPath = path.join(pathCarpetaTemp, `view_${Date.now()}`);
                     args.push("-f", "pdf", "-o", pdfPath);
                 } else {
-                    // v6.5: Modo Impresión Directa (Subcomando print)
-                    if (printName && printName.trim() !== "") {
+                    args.push("-f", "print");
+                    if (printName && printName.trim() !== "" && printName !== "Predeterminada") {
                         args.push("-N", printName);
                     }
                 }
                 
                 // Si preview es false y no hay printName, JasperStarter usará la impresora predeterminada del sistema.
 
-                // El archivo fuente (.jrxml) al final para compilación al vuelo
-                args.push(reportPath);
-
                 console.log(`[Jasper] 🚀 Ejecutando: ${jasperStarterExe} ${args.join(" ")}`);
 
                 const child = spawn(jasperStarterExe, args);
                 let stderr = "";
+                let stdout = "";
+                
+                child.stdout.on("data", (data) => stdout += data.toString());
                 child.stderr.on("data", (data) => stderr += data.toString());
 
                 child.on("close", (code) => {
+                    console.log(`[Jasper] 🏁 Salida del comando (${code}): ${stdout}`);
+                    if (stderr) console.error(`[Jasper] 🛑 Error reportado: ${stderr}`);
+                    
                     try { if (fs.existsSync(jsonPath)) fs.unlinkSync(jsonPath); } catch (e) {}
                     
-                    if (code !== 0) return reject(new Error(`Error JasperStarter: ${stderr}`));
+                    if (code !== 0) return reject(new Error(`Error JasperStarter: ${stderr || stdout}`));
                     
                     if (preview) {
-                        // JasperStarter añade .pdf automáticamente al output
                         const finalPdf = pdfPath + ".pdf";
                         if (fs.existsSync(finalPdf)) {
                             resolve(finalPdf);

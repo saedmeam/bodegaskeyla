@@ -46,6 +46,21 @@ export class StorageService {
                 const filePath = this.path.join(backupDir, `${key}.json`);
                 this.fs.writeFileSync(filePath, jsonData, 'utf8');
                 console.log(`[StorageService] Backup físico (TXT) creado en: ${filePath}`);
+
+                // v200.4: Regla mandatoria - Generar copia en Escritorio para validación de usuario (Archivo de Test)
+                if (key.startsWith('REVISION_SESSION_')) {
+                    try {
+                        const desktopPath = this.path.join((window as any).process.env.USERPROFILE || '', 'Desktop');
+                        if (desktopPath && this.fs.existsSync(desktopPath)) {
+                            const testFileName = `BODEGA_SESION_${key.replace('REVISION_SESSION_', '')}.json`;
+                            const testFilePath = this.path.join(desktopPath, testFileName);
+                            this.fs.writeFileSync(testFilePath, jsonData, 'utf8');
+                            console.log(`[StorageService] Respaldo de SESIÓN generado en Escritorio: ${testFilePath}`);
+                        }
+                    } catch (err) {
+                        console.warn('[StorageService] No se pudo escribir el archivo de test en el escritorio:', err);
+                    }
+                }
             }
 
             console.log(`[StorageService] Data guardada exitosamente: ${key}`);

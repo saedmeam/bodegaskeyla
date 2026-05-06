@@ -1,5 +1,5 @@
 {
-    "environment": "preproduccion",
+    "environment": "produccion",
     "CARGA_AUTOMATICO_EMPRESA_SUCURSAL": 1,
     "EMPRESA_POR_DEFECTO": 1,
     "SUCURSAL_POR_DEFECTO": 176,
@@ -11,8 +11,15 @@
                 "pass": "n3UE60@s3Rv1c10@Xp0s"
             }
         },
-        "preproduccion": {
+        "test": {
             "apiUrl": "https://test-erp.farmaciaskeyla.com/X-uitWSRest",
+            "auth": {
+                "user": "wsxpos",
+                "pass": "n3UE60@s3Rv1c10@Xp0s"
+            }
+        },
+        "produccion": {
+            "apiUrl": "https://pos-erp.farmaciaskeyla.com/X-uitWSRest",
             "auth": {
                 "user": "wsxpos",
                 "pass": "n3UE60@s3Rv1c10@Xp0s"

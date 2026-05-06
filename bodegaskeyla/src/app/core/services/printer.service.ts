@@ -1,4 +1,5 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import { ConfigService } from './config.service';
 
 @Injectable({
     providedIn: 'root'
@@ -57,7 +58,7 @@ export class PrinterService {
     /**
      * v3.0: Impresión Profesional vía JasperReports
      */
-    async imprimirJasper(reportFileName: string, jsonData: any, printerName?: string, preview: boolean = true): Promise<boolean> {
+    async imprimirJasper(reportFileName: string, jsonData: any, printerName?: string, preview: boolean = true): Promise<{ success: boolean; error?: string }> {
         if ((window as any).electronAPI && (window as any).electronAPI.printJasper) {
             console.log(`📡 [PrinterService] Solicitando impresión Jasper: ${reportFileName} (Vista Previa: ${preview})`);
             const result = await (window as any).electronAPI.printJasper({
@@ -66,18 +67,31 @@ export class PrinterService {
                 jsonData,
                 preview
             });
-            return result.success;
+            if (!result.success) {
+                console.error('❌ [PrinterService] Error en impresión Jasper:', result.error);
+            }
+            return result;
         }
-        console.error('❌ [PrinterService] Electron API for Jasper not available');
-        return false;
+        const errorMsg = 'Electron API for Jasper not available';
+        console.error(`❌ [PrinterService] ${errorMsg}`);
+        return { success: false, error: errorMsg };
     }
 
+    private configService = inject(ConfigService);
+
     /**
-     * Prepara los datos JSON para el reporte de transferencia Jasper
+     * v0.3.0: Prepara los datos JSON para el reporte de transferencia Jasper
      */
-    async imprimirReporteTransferenciaJasper(orderFullId: string, products: any[], extra: any, printerName?: string, preview: boolean = true) {
-        const resumenBultos = extra.bultos
-            ? extra.bultos.map((b: any) => `${b.nombreTipoBulto || b.label}: ${b.cantidad || b.value}`).join(", ")
+    async imprimirReporteTransferenciaJasper(orderFullId: string, products: any[], extra: any, printerName?: string, preview?: boolean) {
+        const config = this.configService.getConfig();
+        
+        if (printerName === undefined) printerName = config?.IMPRESORA_REPORTE || '';
+        if (preview === undefined) {
+            preview = (config && config.PREVIEW_REPORTE !== undefined) ? config.PREVIEW_REPORTE : true;
+        }
+
+        const resumenBultos = extra.bultos 
+            ? extra.bultos.map((b: any) => `${b.nombreTipoBulto || b.label}: ${b.cantidad || b.value}`).join(", ") 
             : "S/N";
 
         const data = products.map(p => ({
@@ -89,44 +103,72 @@ export class PrinterService {
             bodegaDestino: extra.bodegaDestino || '---',
             digitador: extra.digitador || 'SISTEMA',
             resumenBultos: resumenBultos,
-            codigo: p.item || p.codigoBarras || '',
+            codigo: p.codigoExistencia || '',
             nombre: p.nombre || '',
             medida: p.unidad || '',
-            cantidad: p.despachado?.toString() || '0'
+            cantidad: p.despachado?.toString() || '0',
+            laboratorio: p.laboratorio || ''
         }));
-
-        return this.imprimirJasper('transferencia.jrxml', data, printerName, preview);
+ 
+        return this.imprimirJasper('transferencia.jrxml', data, printerName, preview ?? true);
     }
 
     /**
-     * Prepara los datos JSON para etiquetas térmicas Jasper (Soporta múltiples etiquetas)
-     * v6.0: Impresión AUTOMÁTICA y LIBRE (Sin vista previa, directo a impresora configurada)
+     * v105.0: Prepara los datos para el reporte de despacho masivo (Picking List)
      */
-    async imprimirEtiquetaJasper(orderFullId: string, bulto: any, extra: any, printerName?: string, preview: boolean = false) {
-        if (!printerName && (window as any).electronAPI && (window as any).electronAPI.getAppConfig) {
-            const config = await (window as any).electronAPI.getAppConfig();
-            printerName = config?.IMPRESORA_TICKET || '';
+    async imprimirDespachoMasivoJasper(cabecera: any, detalles: any[], printerName?: string, preview?: boolean) {
+        const config = this.configService.getConfig();
+        
+        if (printerName === undefined) printerName = config?.IMPRESORA_REPORTE || '';
+        if (preview === undefined) {
+            preview = (config && config.PREVIEW_REPORTE !== undefined) ? config.PREVIEW_REPORTE : true;
+        }
+
+        // Aplanamos la cabecera en cada fila para que Jasper pueda acceder a los campos globales
+        const data = detalles.map(d => ({
+            ...d,
+            // Datos de cabecera inyectados en cada registro
+            pedidoId: cabecera.numeroSolicitud || '',
+            ordenId: cabecera.ordenDespacho || '',
+            fechaImpresion: cabecera.fechaImpresion || new Date().toLocaleString(),
+            sucursalNombre: cabecera.nombreSucursal || '---',
+            ubicacionHeader: cabecera.ubicacion || '---',
+            grupoDespachoHeader: cabecera.nombreGrupoDespacho || '---',
+            usuarioHeader: cabecera.usuario || 'SISTEMA'
+        }));
+
+        console.log(`[PrinterService] 📦 Generando Reporte Masivo con ${detalles.length} registros.`);
+        return this.imprimirJasper('despacho_masivo.jrxml', data, printerName, preview ?? true);
+    }
+
+    /**
+     * v0.3.0: Prepara los datos JSON para etiquetas térmicas Jasper
+     */
+    async imprimirEtiquetaJasper(orderFullId: string, bulto: any, extra: any, printerName?: string, preview?: boolean) {
+        const config = this.configService.getConfig();
+
+        if (printerName === undefined) printerName = config?.IMPRESORA_TICKET || '';
+        if (preview === undefined) {
+            preview = (config && config.PREVIEW_TICKET !== undefined) ? config.PREVIEW_TICKET : false;
         }
 
         const totalEtiquetas = Number(bulto.value) || 1; 
         const data = [];
 
-        // v3.8: Generamos un registro por cada etiqueta para que Jasper cree un reporte multi-página
         for (let i = 1; i <= totalEtiquetas; i++) {
             data.push({
                 sucursal: extra.sucursal || '---',
-                direccion: 'Provincia: GUAYAS Canton: GUAYAQUIL', // v5.2: Fijo por requerimiento
+                direccion: 'Provincia: GUAYAS Cantón: GUAYAQUIL', 
                 fecha: extra.fecha || new Date().toLocaleDateString('es-EC'),
                 pedido: orderFullId,
-                bulto: i.toString(), // v5.2: Solo el número del bulto
+                bulto: i.toString(), 
                 digitador: (extra.digitador || 'SISTEMA').toUpperCase(),
                 nro: i,
                 total: totalEtiquetas
             });
         }
 
-        console.log(`[PrinterService] 🏷️ Enviando lote de ${totalEtiquetas} etiquetas a impresión (${preview ? 'Vista Previa' : 'DIRECTA'}) (${printerName || 'Predeterminada'})`);
-        return this.imprimirJasper('etiqueta.jrxml', data, printerName, preview);
+        return this.imprimirJasper('etiqueta.jrxml', data, printerName, preview ?? false);
     }
 
     /**
@@ -330,231 +372,215 @@ export class PrinterService {
         return labels;
     }
 
-    /**
-     * Genera el HTML para el reporte de Transferencia de Mercadería
-     * v3.0: Inclusión de espacios para firmas y cuadre de bultos
-     */
-    generateTransferReportHtml(orderNumber: string, products: any[], extra: { sucursal: string, usuario: string, digitador: string, fecha?: string, bodegaOrigen?: string, bodegaDestino?: string, bultos?: any[] }): string {
-        const now = new Date();
-        const dateStr = extra.fecha || now.toLocaleDateString('es-EC');
-        const fullDateStr = `${dateStr} ${now.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
-        const [solicitud, orden] = orderNumber.split('-');
+  /**
+   * Genera el HTML para el reporte de Transferencia de Mercadería
+   * v3.0: Inclusión de espacios para firmas y cuadre de bultos (Ajustado para matriz)
+   */
+  generateTransferReportHtml(orderNumber: string, products: any[], extra: { sucursal: string, usuario: string, digitador: string, fecha?: string, bodegaOrigen?: string, bodegaDestino?: string, bultos?: any[] }): string {
+    const now = new Date();
+    const dateStr = extra.fecha || now.toLocaleDateString('es-EC');
+    const fullDateStr = `${dateStr} ${now.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+    
+    // Formatear resumen de bultos en una sola línea
+    const resumenBultosStr = extra.bultos && extra.bultos.length > 0
+      ? extra.bultos.map(b => `${b.nombreTipoBulto || b.label}: ${b.cantidad || b.value}`).join(', ')
+      : 'S/N';
 
         let html = `
       <html>
         <head>
           <style>
-            @page {
-              size: A4;
-              margin: 10mm;
+            @page { 
+              size: Letter;
+              margin: 10mm; 
             }
-            body {
-              font-family: 'Arial Black', Gadget, sans-serif;
-              font-size: 11pt;
+            html, body {
+              height: 100%;
               margin: 0;
               padding: 0;
+            }
+            body { 
+              font-family: 'Arial', sans-serif;
+              font-size: 8pt; 
               color: black;
-              line-height: 1.0;
               background: white;
-              font-weight: 900 !important;
               text-transform: uppercase;
+              line-height: 1.1;
             }
             .page-container {
               width: 100%;
-              position: relative;
+              height: 100%;
               display: flex;
               flex-direction: column;
+              justify-content: space-between;
+              box-sizing: border-box;
+            }
+            .content-top {
+                /* Este contenedor agrupa el header y la tabla */
             }
             .header-main {
+              margin-bottom: 10pt;
+            }
+            .header-top-line {
               display: flex;
               justify-content: space-between;
-              align-items: flex-start;
+              align-items: center;
               margin-bottom: 5pt;
             }
-            .brand-name {
-              font-size: 16pt;
+            .brand-name { 
+              font-size: 16pt; 
+              font-weight: bold;
+              margin: 0;
             }
-            .report-type {
+            .doc-number {
+              font-size: 12pt;
+              font-weight: bold;
+            }
+            .report-title {
+              text-align: center;
               font-size: 11pt;
-              margin-top: 5pt;
+              font-weight: bold;
+              text-decoration: underline;
+              margin-bottom: 10pt;
             }
-            .doc-id-box {
-              text-align: right;
-              font-size: 10pt;
+            .metadata-grid {
+              display: flex;
+              width: 100%;
+              gap: 20pt;
+              margin-bottom: 10pt;
             }
-            .info-label {
-              font-size: 9pt;
-              font-weight: bold !important;
-              text-transform: uppercase;
+            .meta-column {
+              flex: 1;
+              display: grid;
+              grid-template-columns: 120px 1fr;
+              row-gap: 2pt;
+              font-size: 8pt;
             }
-            .info-value {
-              font-size: 10pt;
-              font-weight: normal !important;
+            .meta-label {
+              font-weight: bold;
             }
             .report-table {
               width: 100%;
               border-collapse: collapse;
-              margin-top: 20pt;
+              margin-top: 5pt;
             }
             .report-table th {
-              font-weight: 900 !important;
-              text-transform: uppercase;
-              font-size: 10pt;
-              padding: 4pt 5pt;
-              border: none;
+              border-bottom: 1pt solid black;
+              border-top: 1pt solid black;
+              padding: 3pt;
               text-align: left;
+              font-size: 8pt;
+              font-weight: bold;
             }
             .report-table td {
-              padding: 1pt 5pt;
-              font-size: 9pt;
-              font-weight: 900 !important;
-              border: none;
+              padding: 2pt 3pt;
+              font-size: 8pt;
             }
-            .col-codigo {
-                width: 120px;
-                text-align: left;
-            }
-            .col-desc { font-weight: 900 !important; }
-            .col-cant { font-size: 10pt !important; text-align: right; }
+            .col-codigo { width: 15%; }
+            .col-desc { width: 40%; }
+            .col-lab { width: 20%; }
+            .col-med { width: 10%; }
+            .col-cant { width: 15%; text-align: right; }
 
-            .section-bultos {
-                margin-top: 15px;
-                padding: 10px;
-                position: relative;
+            .footer-section {
+              margin-top: 10pt;
+              padding-bottom: 5mm;
+            }
+            .bultos-summary {
+              margin-bottom: 10pt;
+              font-size: 8pt;
             }
             .bultos-title {
-                font-weight: 900 !important;
-                font-size: 11pt;
-                text-transform: uppercase;
-                margin-bottom: 5px;
+              font-weight: bold;
+              margin-bottom: 2pt;
             }
-            .signature-box-bultos {
-                position: absolute;
-                right: 20px;
-                top: 30px;
-                width: 200px;
-                text-align: center;
-            }
-            .sig-line-compact {
-                border-top: 1px solid black;
-                padding-top: 5px;
-                font-size: 8pt;
-                font-weight: bold !important;
-                text-transform: uppercase;
-            }
-
-            .report-footer {
-              margin-top: 40pt;
-            }
-            .footer-signatures {
+            .signatures-grid {
+              display: flex;
+              justify-content: space-between;
               width: 100%;
-              margin-top: 30pt;
-              border-collapse: collapse;
+              margin-top: 20pt;
             }
-            .footer-signatures td {
-                width: 25%;
-                padding: 0 5pt;
-                vertical-align: top;
-                text-align: center;
+            .signature-item {
+              width: 22%;
+              text-align: center;
             }
             .sig-line {
-              border-top: 1.5pt solid black;
-              padding-top: 5pt;
-              font-weight: 900 !important;
-              text-transform: uppercase;
-              font-size: 9pt;
-              line-height: 1.1;
+              border-top: 1pt solid black;
+              padding-top: 3pt;
+              font-size: 7pt;
+              font-weight: bold;
             }
           </style>
         </head>
         <body>
           <div class="page-container">
-            <header class="header-main">
-              <div class="branding">
-                <h1 class="brand-name">FARMACIAS KEYLA S.A</h1>
-                <span class="report-type">TRANSFERENCIA DE MERCADERIA</span>
-              </div>
-              <div class="doc-id-box">
-                <b>NO. DOCUMENTO: ${solicitud}${orden}</b><br>
-                <b>FECHA: ${dateStr}</b>
-              </div>
-            </header>
+            <div class="content-top">
+                <header class="header-main">
+                    <div class="header-top-line">
+                        <h1 class="brand-name">FARMACIAS KEYLA S.A</h1>
+                        <div class="doc-number">No: ${orderNumber}</div>
+                    </div>
+                    <div class="report-title">TRANSFERENCIA DE MERCADERIA</div>
+                    
+                    <div class="metadata-grid">
+                        <div class="meta-column">
+                            <span class="meta-label">EMISOR:</span> <span>${extra.usuario}</span>
+                            <span class="meta-label">BODEGA ORIG:</span> <span>${extra.bodegaOrigen || 'CENTRO DE DISTRIBUCCION'}</span>
+                            <span class="meta-label">FECHA/HORA:</span> <span>${fullDateStr}</span>
+                        </div>
+                        <div class="meta-column">
+                            <span class="meta-label">DESTINO/MOV:</span> <span>${extra.sucursal}</span>
+                            <span class="meta-label">BODEGA DEST:</span> <span>${extra.bodegaDestino || extra.sucursal}</span>
+                            <span class="meta-label">DIGITADOR:</span> <span>${extra.digitador}</span>
+                        </div>
+                    </div>
+                </header>
 
-            <table style="width:100%; border-collapse:collapse;">
-              <tr>
-                <td style="width:33%; vertical-align:top;">
-                  <span class="info-label">USUARIO EMISOR:</span><br>
-                  <span class="info-value">${extra.usuario}</span><br>
-                  <span class="info-label">FECHA/HORA PROCESO:</span><br>
-                  <span class="info-value">${fullDateStr}</span>
-                </td>
-                <td style="width:34%; vertical-align:top;">
-                   <span class="info-label">DESTINO / MOVIMIENTO:</span><br>
-                   <span class="info-value" style="font-size: 10pt;">${solicitud}-${orden} | ${extra.sucursal}</span><br>
-                   <span class="info-label">DIGITADOR:</span><br>
-                   <span class="info-value">${extra.digitador}</span>
-                </td>
-                <td style="width:33%; vertical-align:top;">
-                   <span class="info-label">BODEGA ORIGEN:</span><br>
-                   <span class="info-value">${extra.bodegaOrigen || 'CENTRO DE DISTRIBUCCION'}</span><br>
-                   <span class="info-label">BODEGA DESTINO:</span><br>
-                   <span class="info-value">${extra.bodegaDestino || extra.sucursal}</span>
-                </td>
-              </tr>
-            </table>
-
-            <div class="table-container" style="flex-grow: 1;">
-              <table class="report-table">
-                <thead>
-                  <tr>
-                    <th class="col-codigo"><b>CODIGO</b></th>
-                    <th class="col-desc"><b>DESCRIPCION PRODUCTO</b></th>
-                    <th class="col-medida"><b>MEDIDA</b></th>
-                    <th class="col-cant" style="width: 50px;"><b>CANT.</b></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${products.map(p => `
-                    <tr>
-                      <td class="col-codigo">${p.item}</td>
-                      <td class="col-desc">${p.nombre}</td>
-                      <td class="col-medida">${p.unidad}</td>
-                      <td class="col-cant">${p.despachado}</td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th class="col-codigo">CODIGO</th>
+                            <th class="col-desc">DESCRIPCION</th>
+                            <th class="col-lab">LABORATORIO</th>
+                            <th class="col-med">MED</th>
+                            <th class="col-cant">CANT</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${products.map(p => `
+                        <tr>
+                            <td class="col-codigo">${p.codigoExistencia || ''}</td>
+                            <td class="col-desc">${p.nombre}</td>
+                            <td class="col-lab">${p.laboratorio || ''}</td>
+                            <td class="col-med">${p.unidad}</td>
+                            <td class="col-cant">${p.despachado}</td>
+                        </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
             </div>
 
-            ${extra.bultos && extra.bultos.length > 0 ? `
-            <section class="section-bultos">
-                <div class="bultos-title">RESUMEN DE DESPACHO (BULTOS)</div>
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                    ${extra.bultos.map(b => `
-                        <div style="font-size: 12pt; font-weight: normal !important;">${b.nombreTipoBulto}: ${b.cantidad}</div>
-                    `).join('')}
+            <footer class="footer-section">
+                <div class="bultos-summary">
+                    <div class="bultos-title">RESUMEN DE BULTOS:</div>
+                    <div class="bultos-content">${resumenBultosStr}</div>
                 </div>
-            </section>
-            ` : ''}
 
-            <div class="report-footer">
-              <table class="footer-signatures">
-                <tr>
-                  <td>
-                    <div class="sig-line">ELABORADO POR ${extra.usuario}</div>
-                  </td>
-                  <td>
-                    <div class="sig-line">REVISADO POR CONTROL DE BODEGA</div>
-                  </td>
-                  <td>
-                    <div class="sig-line">RECIBIDO POR (CONTEO BULTOS)</div>
-                  </td>
-                  <td>
-                    <div class="sig-line">RECIBIDO POR LOGISTICA SUCURSAL</div>
-                  </td>
-                </tr>
-              </table>
-            </div>
+                <div class="signatures-grid">
+                    <div class="signature-item">
+                        <div class="sig-line">ELABORADO</div>
+                    </div>
+                    <div class="signature-item">
+                        <div class="sig-line">BODEGA</div>
+                    </div>
+                    <div class="signature-item">
+                        <div class="sig-line">REC. BULTOS</div>
+                    </div>
+                    <div class="signature-item">
+                        <div class="sig-line">REC. SUCURSAL</div>
+                    </div>
+                </div>
+            </footer>
           </div>
         </body>
       </html>

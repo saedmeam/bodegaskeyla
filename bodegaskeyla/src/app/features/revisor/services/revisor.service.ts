@@ -3,7 +3,7 @@ import { Product } from '../../../shared/models/product.model';
 import { DataService } from '../../../core/services/data.service';
 import { StorageService } from '../../../core/services/storage.service';
 import { switchMap, map, tap, catchError } from 'rxjs/operators';
-import { of, throwError, Observable, firstValueFrom } from 'rxjs';
+import { of, throwError, Observable, firstValueFrom, from } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
 import { LoadingService } from '../../../core/services/loading.service';
 
@@ -16,8 +16,8 @@ export class RevisorService {
     public escaneados = signal<Product[]>([]);
     public orderMetadata = signal<any>(null);
 
-    public getOrdenesDespachoList(empresa: number, filtro: string, valor: string, pagina: number = 0, fechaDesde?: string, fechaHasta?: string) {
-        return this.dataService.executeAction<any>('GET_ORDENES_DESPACHO_LIST', { empresa, filtro, valor, pagina, fechaDesde, fechaHasta });
+    public getOrdenesDespachoList(empresa: number, filtro: string, valor: string, pagina: number = 0, fechaDesde?: string, fechaHasta?: string, diaEmbarque?: string) {
+        return this.dataService.executeAction<any>('GET_ORDENES_DESPACHO_LIST', { empresa, filtro, valor, pagina, fechaDesde, fechaHasta, diaEmbarque });
     }
 
     public getTiposBultos() {
@@ -63,7 +63,7 @@ export class RevisorService {
             case 'LOAD':
                 return this.loadOrder(payload.orderNumber, payload.fechaDesde, payload.fechaHasta, payload.forceRefresh);
             case 'SCAN':
-                return this.processBarcode(payload.barcode, payload.lote, payload.caducidad);
+                return this.processBarcode(payload.barcode, payload.lote, payload.caducidad, payload.lineaDetalle);
             case 'UPDATE_QTY':
                 this.updateQuantity(payload.item, payload.qty);
                 break;
@@ -97,21 +97,32 @@ export class RevisorService {
         const storageKey = `REVISION_SESSION_${orderNumber}`;
         const savedSession = this.storage.loadLocal<any>(storageKey);
 
-        // v160.11: Si NO es forzado y hay sesión, recuperamos y retornamos OK inmediatamente
-        if (!forceRefresh && savedSession && String(savedSession.orderNumber) === String(orderNumber)) {
-            console.log(`[RevisorService] Recuperando sesión local para la orden: ${orderNumber}`);
+        // v104.9: OFFLINE-FIRST. Cargamos la sesión local INMEDIATAMENTE si existe.
+        if (savedSession && String(savedSession.orderNumber) === String(orderNumber)) {
+            console.log(`[RevisorService] 🏠 Cargando sesión local inmediata para: ${orderNumber}`);
             this.ordenProductos.set(savedSession.ordenProductos || []);
             this.escaneados.set(savedSession.escaneados || []);
             this.orderMetadata.set(savedSession.orderMetadata || null);
-            this.isLoading = false;
-            return of(true);
+            
+            // Si no es forzado, ya terminamos.
+            if (!forceRefresh) {
+                this.isLoading = false;
+                return of(true);
+            }
         }
 
         this.loadingService.show();
         this.isLoading = true; // Bloqueamos autoguardado reactivo durante el fetch
 
         // Preservamos escaneados previos si estamos forzando refresh de la MISMA orden (v160.11 / v200.1)
-        const previousEscaneados = (forceRefresh && !isDifferentOrder) ? [...this.escaneados()] : [];
+        // O si venimos de otra orden, recuperamos su progreso de la sesión guardada.
+        let previousEscaneados: any[] = [];
+        if (forceRefresh && !isDifferentOrder) {
+            previousEscaneados = [...this.escaneados()];
+        } else if (savedSession && savedSession.escaneados) {
+            console.log(`[RevisorService] ♻️ Recuperando progreso guardado para ${orderNumber}`);
+            previousEscaneados = [...savedSession.escaneados];
+        }
 
         // 2. Si es forzado o no hay sesión, consultamos la API Real
         return this.dataService.login()
@@ -125,8 +136,10 @@ export class RevisorService {
                     console.log('[RevisorService] 🔑 Sesión iniciada.');
 
                     const meta = this.orderMetadata();
-                    // v160.12: Si ya tenemos la metadata (solicitud y orden), no consultamos la cabecera para evitar error de fechas
-                    if (meta && (String(meta.numeroSolicitud) === String(orderNumber) || String(meta.numeroOrdenDespacho) === String(orderNumber) || orderNumber.includes(String(meta.numeroSolicitud)))) {
+                    // v104.9: Corregido match exacto para evitar colisiones entre órdenes con prefijos similares (ej. 96-12 vs 96-2)
+                    const currentFullKey = meta ? (meta.numeroSolicitudOrdenDespacho || `${meta.numeroSolicitud}-${meta.numeroOrdenDespacho}`) : null;
+                    
+                    if (meta && currentFullKey === orderNumber) {
                         console.log('[RevisorService] ⚡ Metadata existente detectada. Saltando consulta de cabecera.');
                         return of({ isFromCache: true, metadata: meta });
                     }
@@ -174,30 +187,43 @@ export class RevisorService {
 
                     return this.dataService.getDetallesOrdenDespacho(cab_solicitud, cab_orden);
                 }),
-                map(detRes => {
+                switchMap(detRes => {
                     if (detRes?.isError) {
                         console.error('[RevisorService] ❌ Error en detalles de orden:', detRes?.mensaje);
                         throw new Error(detRes?.mensaje || 'Error consultando detalles');
                     }
                     console.log(`[RevisorService] 📦 Productos obtenidos (${detRes?.detalles?.length || 0}). Mapeando lista...`);
                     const detalles = detRes?.detalles || [];
-                    const newProducts = detalles.map((d: any) => {
-                        const barcode = d.sciExistenciasXCodBarras?.[0]?.codigoBarras?.toString()
+                    const newProducts = detalles.map((d: any, index: number) => {
+                        let barcode = d.sciExistenciasXCodBarras?.[0]?.codigoBarras?.toString()
                             || d.codigoBarras?.toString()
                             || '';
+                        
+                        // v104.9: Gestión de Productos sin Código de Barras
+                        // Si no hay barcode, usamos el codigoExistencia como base para la identificación
+                        if (!barcode || barcode.trim() === '') {
+                            barcode = d.codigoExistencia?.toString()?.trim() || `REF-${index}-${Date.now()}`;
+                        }
+
+                        // v104.9: Creamos un ID ÚNICO combinando código y lineaDetalle
+                        // Esto evita que productos con el mismo código pero distinta línea se sobreescriban.
+                        const uniqueId = `${barcode}|${d.lineaDetalle}`;
+
                         const p: Product = {
-                            item: barcode,
+                            item: uniqueId,
                             codigoExistencia: d.codigoExistencia?.toString() || '',
                             codigoBarras: barcode,
                             nombre: d.nombreExistencia || 'SIN NOMBRE',
                             unidad: d.tipoMedida || 'U/C',
                             solicita: d.cantidad || d.cantidad || 0,
                             invBod: d.saldoActualEnCajas || d.stock || 0,
-                            despachado: 0,
-                            color: 'naranja',
+                            // v104.9: Si la orden ya está procesada (DP/DT), cargamos lo que se despachó realmente
+                            despachado: (this.orderMetadata()?.estado !== 'ING') ? (d.cantidadADespachar || d.cantidadUnidadMedidaStockB || 0) : 0,
+                            color: (this.orderMetadata()?.estado !== 'ING') ? 'negro' : 'naranja',
                             bulto: d.unidadesXCaja || 1,
                             lote: d.lote || '',
                             caducidad: d.caducidad || '',
+                            laboratorio: d.fabricante || '',
                             lineaDetalle: d.lineaDetalle,
                             estado: d.codigoEstado,
                             unidadesXCaja: d.unidadesXCaja || 0,
@@ -209,49 +235,73 @@ export class RevisorService {
                             cantidadBaseEquivalente: d.cantidadBaseEquivalente || 0,
                             observacion: d.observacion || 'API_REFRESH',
                             esActivo: d.esActivo || 'S',
-                            vtas: 0,
-                            sLocal: 0,
-                            suger: 0,
+                            vtas: d.vtas || 0,
+                            sLocal: d.sLocal || d.saldoActualEnCajas || 0,
+                            suger: d.suger || 0,
                             lotes: []
                         };
-
-                        // Recalcular estado si es refresh
-                        if (forceRefresh && previousEscaneados.length > 0) {
-                            const prev = previousEscaneados.find(e => e.item === p.item);
-                            if (prev) {
-                                p.despachado = prev.despachado;
-                                this.updateColorLogic(p);
-                            }
-                        }
                         return p;
                     });
 
-                    this.ordenProductos.set(newProducts);
-
-                    // PASO ADICIONAL (v2.7): Consultar lotes masivos para enriquecer la orden
+                    // PASO ADICIONAL (v2.7/v200.4): Consultar lotes masivos de forma SECUENCIAL
                     const meta = this.orderMetadata();
-                    console.log('[RevisorService] 🛠️ Iniciando secuencia de enriquecimiento de lotes...');
-                    this.fetchBatchesForAll(newProducts, meta?.numeroSolicitud, meta?.numeroOrdenDespacho);
+                    console.log('[RevisorService] 🛠️ Iniciando enriquecimiento secuencial de lotes...');
+                    
+                    return from(this.fetchBatchesForAll(newProducts, meta?.numeroSolicitud, meta?.numeroOrdenDespacho)).pipe(
+                        map(() => {
+                            this.ordenProductos.set(newProducts);
 
-                    if (forceRefresh) {
-                        const updatedEscaneados = previousEscaneados.map(esc => {
-                            const matching = newProducts.find((np: Product) => np.item === esc.item);
-                            return matching ? { ...matching, despachado: esc.despachado } : esc;
-                        });
-                        this.escaneados.set(updatedEscaneados);
-                    } else {
-                        this.escaneados.set([]);
-                    }
+                            if (forceRefresh) {
+                                const updatedEscaneados = previousEscaneados.map(esc => {
+                                    // v104.9: Intento de recuperación por ID Único
+                                    let matchingIndex = newProducts.findIndex((np: Product) => np.item === esc.item);
+                                    
+                                    // Si no coincide el ID (por cambio de versión), intentamos por barcode + lineaDetalle
+                                    if (matchingIndex === -1 && esc.codigoBarras && esc.lineaDetalle !== undefined) {
+                                        const derivedId = `${esc.codigoBarras}|${esc.lineaDetalle}`;
+                                        matchingIndex = newProducts.findIndex((np: Product) => np.item === derivedId);
+                                    }
 
-                    this.isLoading = false;
-                    this.loadingService.hide();
-                    this.persistCurrentState();
-                    return true;
+                                    // Último recurso: por item (barcode antiguo) + lineaDetalle
+                                    if (matchingIndex === -1 && esc.item && esc.lineaDetalle !== undefined) {
+                                        const derivedId = `${esc.item}|${esc.lineaDetalle}`;
+                                        matchingIndex = newProducts.findIndex((np: Product) => np.item === derivedId);
+                                    }
+
+                                    if (matchingIndex !== -1) {
+                                        const matching = newProducts[matchingIndex];
+                                        // v200.5: Sincronizar cantidades
+                                        newProducts[matchingIndex].despachado = esc.despachado;
+                                        newProducts[matchingIndex].color = esc.despachado === esc.solicita ? 'completado' : 'naranja';
+                                        
+                                        const updated = { ...newProducts[matchingIndex] };
+                                        this.updateColorLogic(updated);
+                                        return updated;
+                                    }
+                                    return esc;
+                                });
+                                this.escaneados.set(updatedEscaneados);
+                                this.ordenProductos.set([...newProducts]);
+                            } else {
+                                this.escaneados.set([]);
+                            }
+
+                            this.isLoading = false;
+                            this.loadingService.hide();
+                            this.persistCurrentState();
+                            return true;
+                        })
+                    );
                 }),
                 catchError(err => {
-                    console.error('[RevisorService] Error cargando/sincronizando orden', err);
+                    console.error('[RevisorService] 🔌 Error de red o API. Manteniendo estado local si existe.', err);
                     this.isLoading = false;
                     this.loadingService.hide();
+                    
+                    // v104.9: Si falló la API pero tenemos datos cargados de la sesión, no lanzamos error.
+                    if (this.ordenProductos().length > 0) {
+                        return of(true); 
+                    }
                     return throwError(() => err);
                 })
             );
@@ -273,15 +323,17 @@ export class RevisorService {
         };
 
         const sessionKey = `REVISION_SESSION_${this.currentOrderNumber}`;
-        console.log(`[RevisorService] Persistiendo sesión local en ${sessionKey}. Escaneados: ${currentEscaneados.length}`);
+        const lotesCount = currentEscaneados.filter(p => p.lote).length;
+        console.log(`[RevisorService] 💾 Persistiendo sesión local en ${sessionKey}. Escaneados: ${currentEscaneados.length}, Con Lote: ${lotesCount}`);
+        
         // Guardamos en LocalStorage y archivo físico (.json) automáticamente
         this.storage.saveLocal(sessionKey, sessionState);
     }
 
-    private async processBarcode(barcode: string, lote?: string, caducidad?: string): Promise<{ product: Product, isAccumulated: boolean } | null> {
+    private async processBarcode(barcode: string, lote?: string, caducidad?: string, lineaDetalle?: number): Promise<{ product: Product, isAccumulated: boolean } | null> {
         if (!barcode) return null;
 
-        // v160.14: AUDITORÍA PREVIA (Bloqueo por errores críticos pendientes)
+        // v104.8: AUDITORÍA PREVIA (Bloqueo por errores críticos pendientes)
         const currentErrors = this.getValidationErrors();
         if (currentErrors.some(e => e.isCritical)) {
             throw new Error("Pistoleo Bloqueado: Corrija las discrepancias (Sobrantes / Stock Insuficiente) antes de seguir escaneando.");
@@ -290,13 +342,24 @@ export class RevisorService {
         const searchText = barcode.trim().toUpperCase();
 
         // 1. Buscamos primero en lo que ya está en la grilla de "Despachados" para acumular
-        const scannedIndex = this.escaneados().findIndex(p =>
-            p.item?.trim().toUpperCase() === searchText || p.nombre?.trim().toUpperCase() === searchText
-        );
+        // v104.9: Búsqueda priorizada por lineaDetalle -> Item -> Nombre
+        const scannedIndex = this.escaneados().findIndex(p => {
+            // v104.9: Prioridad 1: Coincidencia exacta por lineaDetalle (Desambiguación Total)
+            if (lineaDetalle !== undefined && p.lineaDetalle === lineaDetalle) return true;
+            
+            // Prioridad 2: Coincidencia por Código de Existencia (v104.9)
+            if (p.codigoExistencia?.trim().toUpperCase() === searchText) return true;
+
+            // Prioridad 3: Coincidencia por Barcode (sin lineaDetalle)
+            const cleanItem = p.item?.split('|')[0] || '';
+            const itemMatch = cleanItem.toUpperCase() === searchText;
+            const nameMatch = p.nombre?.trim().toUpperCase() === searchText;
+            return itemMatch || nameMatch;
+        });
 
         if (scannedIndex !== -1) {
             const product = { ...this.escaneados()[scannedIndex] };
-            const newQty = product.despachado + 1;
+            const newQty = (product.despachado || 0) + 1;
 
             // v160.14: VALIDACIONES DE LÍMITE (Acumulación)
             if (newQty > product.solicita) {
@@ -307,16 +370,33 @@ export class RevisorService {
             }
 
             product.despachado = newQty;
-            const originalIndex = this.ordenProductos().findIndex(p => p.item === product.item);
+            
+            // v200.2: Sincronización automática de lote único en acumulación (Captura 2)
+            if (product.lotes && product.lotes.length === 1) {
+                product.lotes[0].despachado = newQty;
+            }
+
+            const originalIndex = this.ordenProductos().findIndex(p => p.lineaDetalle === product.lineaDetalle);
             this.updateColorLogic(product);
             this.updateState(product, originalIndex);
             return { product, isAccumulated: true };
         }
 
         // 2. Si no está en despachados, lo buscamos en la orden original
-        const productIndex = this.ordenProductos().findIndex(p =>
-            p.item?.trim().toUpperCase() === searchText || p.nombre?.trim().toUpperCase() === searchText
-        );
+        // v104.9: Búsqueda priorizada por lineaDetalle -> Item -> Nombre
+        const productIndex = this.ordenProductos().findIndex(p => {
+            // v104.9: Prioridad 1: Coincidencia exacta por lineaDetalle (Desambiguación Total)
+            if (lineaDetalle !== undefined && p.lineaDetalle === lineaDetalle) return true;
+
+            // Prioridad 2: Coincidencia por Código de Existencia (v104.9)
+            if (p.codigoExistencia?.trim().toUpperCase() === searchText) return true;
+
+            // Prioridad 3: Coincidencia por Barcode/Nombre
+            const cleanItem = p.item?.split('|')[0] || '';
+            const itemMatch = cleanItem.toUpperCase() === searchText;
+            const nameMatch = p.nombre?.trim().toUpperCase() === searchText;
+            return itemMatch || nameMatch;
+        });
 
         if (productIndex !== -1) {
             let product = { ...this.ordenProductos()[productIndex] };
@@ -325,7 +405,7 @@ export class RevisorService {
             if (Number(product.invBod || 0) <= 0) {
                 throw new Error(`SIN STOCK: El producto ${product.nombre} tiene stock 0 en bodega. No se puede agregar.`);
             }
-            if (1 > product.solicita) {
+            if (1 > (product.solicita || 0)) {
                 throw new Error(`NO SOLICITADO: Este item tiene cantidad solicitada 0.`);
             }
 
@@ -339,14 +419,13 @@ export class RevisorService {
                         orden: meta.numeroOrdenDespacho
                     }));
 
-                    console.log(`[RevisorService] 📥 Respuesta API Lotes para ${product.item}:`, lotesRes);
-
                     if (lotesRes && !lotesRes.isError) {
                         const batchList = lotesRes.detalles?.[0]?.lotesXExistencia || lotesRes.lotesXExistencia || lotesRes.lotes || [];
-                        console.log(`[RevisorService] 📦 Lotes encontrados para ${product.item}: ${batchList.length}`);
                         product.lotes = batchList.map((l: any) => ({
                             lote: l.codigoLote || l.lote || 'S/L',
                             caducidad: l.fechaCaducidad || l.caducidad || 'N/A',
+                            fechaElaboracion: l.fechaElaboracion || '',
+                            codigoExistencia: l.codigoExistencia || product.codigoExistencia,
                             stock: l.saldoActualEnCajas || l.stock || 0,
                             despachado: 0
                         }));
@@ -359,23 +438,19 @@ export class RevisorService {
             product.despachado = 1;
             product.bulto = 1;
 
-            // v2.5 REGLA DE NEGOCIO MANEJADA POR BODEGA:
             const totalLotes = product.lotes?.length || 0;
 
             if (totalLotes === 0) {
-                // Caso A: No hay lotes -> Asignamos 1 igualmente (Requerimiento Usuario)
                 product.despachado = 1;
                 product.lote = '';
                 product.caducidad = '';
             } else if (totalLotes === 1) {
-                // Caso B: Solo hay 1 lote -> Asignamos automáticamente
                 const uniqueLote = product.lotes![0];
                 uniqueLote.despachado = 1;
                 product.lote = uniqueLote.lote;
                 product.caducidad = uniqueLote.caducidad;
             } else {
-                // Caso C: Mas de 1 lote -> No asignamos cantidad aún (el componente debe abrir el modal)
-                product.despachado = 0; // Se resetea para obligar a asignar vía modal
+                product.despachado = 0; 
                 product.lote = 'MULTI-LOTE';
             }
 
@@ -404,12 +479,12 @@ export class RevisorService {
 
     private updateState(product: Product, index: number) {
         this.escaneados.update(list => {
-            const existing = list.findIndex(p => p.item === product.item);
-            if (existing !== -1) {
-                list[existing] = product;
-                return [...list];
+            const existingIndex = list.findIndex(p => p.item === product.item);
+            if (existingIndex !== -1) {
+                // v104.7: Si ya existe, lo removemos y lo ponemos al inicio (Último escaneado arriba)
+                list.splice(existingIndex, 1);
             }
-            return [...list, product];
+            return [product, ...list];
         });
 
         this.ordenProductos.update(list => {
@@ -430,8 +505,16 @@ export class RevisorService {
         const productIndex = this.ordenProductos().findIndex(p => p.item === item);
         if (productIndex !== -1) {
             const product = { ...this.ordenProductos()[productIndex] };
-            // Aseguramos que sea un número válido y no negativo
-            product.despachado = Math.max(0, Number(qty) || 0);
+            const newQty = Math.max(0, Number(qty) || 0);
+            product.despachado = newQty;
+
+            // v200.2: Sincronización automática de lote único en actualización manual
+            if (product.lotes && product.lotes.length === 1) {
+                product.lotes[0].despachado = newQty;
+                product.lote = product.lotes[0].lote;
+                product.caducidad = product.lotes[0].caducidad;
+            }
+
             this.updateColorLogic(product);
             this.updateState(product, productIndex);
         }
@@ -667,27 +750,62 @@ export class RevisorService {
         if (!metadata) return of(null);
 
         // A. Mapear productos escaneados (v112.0: Nuevo parámetro 'cantidadADespachar')
+        // B. Recolectar todos los lotes despachados (v170.5: Requerimiento Keyla API v2)
+        // v104.9: Usamos la lista maestra de la orden para asegurar que enviamos todo lo despachado
+        const allProducts = this.ordenProductos().filter(p => p.despachado > 0);
+        const allLotes: any[] = [];
+
+        allProducts.forEach(p => {
+            let lotsAddedForThisProduct = 0;
+            if (p.lotes && p.lotes.length > 0) {
+                p.lotes.forEach(l => {
+                    if (l.despachado > 0) {
+                        allLotes.push({
+                            codigoLote: l.lote || 'MIGRACION',
+                            codigoExistencia: Number(l.codigoExistencia || p.codigoExistencia) || 0,
+                            fechaElaboracion: l.fechaElaboracion || '01/04/2026',
+                            fechaCaducidad: (l.caducidad && l.caducidad !== 'N/A' && l.caducidad !== 'S/F') ? l.caducidad : '01/07/2026',
+                            cantidadADespachar: l.despachado
+                        });
+                        lotsAddedForThisProduct++;
+                    }
+                });
+            }
+            
+            // v104.9: FALLBACK CRÍTICO - Si el producto está despachado pero no se agregaron lotes desde el array (o el array está vacío)
+            if (p.despachado > 0 && lotsAddedForThisProduct === 0) {
+                allLotes.push({
+                    codigoLote: p.lote || 'MIGRACION',
+                    codigoExistencia: Number(p.codigoExistencia) || 0,
+                    fechaElaboracion: '01/04/2026',
+                    fechaCaducidad: (p.caducidad && p.caducidad !== 'N/A' && p.caducidad !== 'S/F') ? p.caducidad : '01/07/2026',
+                    cantidadADespachar: p.despachado
+                });
+            }
+        });
+
         const payloadActualizar = {
             codigoEmpresa: metadata.codigoEmpresa || 1,
             numeroSolicitud: metadata.numeroSolicitud,
             numeroOrdenDespacho: metadata.numeroOrdenDespacho,
             codigoUsuario: this.authService.getStoredUser()?.username || 'AAAVEROS',
-            detalles: this.escaneados().map(p => ({
+            detalles: allProducts.map(p => ({
                 lineaDetalle: p.lineaDetalle || 1,
                 codigoExistencia: Number(p.codigoExistencia) || 0,
                 unidadesXCaja: p.unidadesXCaja || 1,
-                cantidadADespachar: p.despachado !== undefined ? p.despachado : 0, // v131.0: Default a 0 si no se escaneó
-                // v146.0: Technical fields for API consistency
                 cantidad: p.cantidad || 0,
-                cantidadUnidades: p.cantidadUnidades || 0,
+                cantidadADespachar: p.despachado || 0, 
+                cantidadCajas: p.despachado || 0,
+                cantidadUnidades: p.despachado || 0,
                 grupoUnidadMedidaStockBase: (p.grupoUnidadMedidaStockBase === 0 || !p.grupoUnidadMedidaStockBase) ? null : p.grupoUnidadMedidaStockBase,
                 unidadMedidaStockBase: (p.unidadMedidaStockBase === 0 || !p.unidadMedidaStockBase) ? null : p.unidadMedidaStockBase,
-                cantidadUnidadMedidaStockB: p.cantidadUnidadMedidaStockB || 0,
+                cantidadUnidadMedidaStockB: p.despachado || 0,
                 cantidadBaseEquivalente: p.cantidadBaseEquivalente || 0,
                 observacion: p.observacion || 'API_UPDATE_KEYLA',
                 codigoEstado: p.estado || 'ING',
                 esActivo: p.esActivo || 'S'
-            }))
+            })),
+            lotesXExistencia: allLotes
         };
 
         console.log('[RevisorService] 🛠️ Paso 1: Actualizando detalles de productos...', payloadActualizar);
@@ -802,6 +920,8 @@ export class RevisorService {
                         p.lotes = match.lotesXExistencia.map((l: any) => ({
                             lote: l.codigoLote || l.lote || 'S/L',
                             caducidad: l.fechaCaducidad || l.caducidad || 'N/A',
+                            fechaElaboracion: l.fechaElaboracion || '',
+                            codigoExistencia: l.codigoExistencia || p.codigoExistencia,
                             stock: l.saldoActualEnCajas || l.stock || 0,
                             despachado: 0
                         }));

@@ -42,14 +42,7 @@ export class DataService {
                     this.storage.saveLocal('ACCESS_TOKEN', res.accesToken);
                 }
             }),
-            catchError(err => {
-                const errorBody = err.error;
-                let errorMsg = errorBody?.mensaje || errorBody?.causa || err.message || 'Error de conexión';
-                if (errorBody?.errorSistemas) {
-                    errorMsg = `<strong>MENSAJE:</strong> ${errorMsg}<br/><br/><strong>DETALLE SISTEMA:</strong> ${errorBody.errorSistemas}`;
-                }
-                return of({ mensaje: errorMsg, isError: true });
-            })
+            catchError(err => of({ mensaje: this.handleError(err, 'Error de conexión'), isError: true }))
         );
     }
 
@@ -105,7 +98,8 @@ export class DataService {
                         color: 'naranja',
                         bulto: d.unidadesXCaja || 1,
                         lote: d.lote || '',
-                        caducidad: d.caducidad || ''
+                        caducidad: d.caducidad || '',
+                        laboratorio: d.fabricante || ''
                     };
                 });
             }),
@@ -139,16 +133,53 @@ export class DataService {
             case 'ACTUALIZAR_ORDEN_DETALLES':
                 return this.actualizarDetallesOrdenDespacho(params.payload) as Observable<T>;
             case 'GET_ORDENES_DESPACHO_LIST':
-                return this.getOrdenesDespachoList(params.empresa, params.filtro, params.valor, params.pagina, params.fechaDesde, params.fechaHasta) as Observable<T>;
+                return this.getOrdenesDespachoList(params.empresa, params.filtro, params.valor, params.pagina, params.fechaDesde, params.fechaHasta, params.diaEmbarque) as Observable<T>;
             case 'GET_TIPOS_BULTOS':
                 return this.getTiposBultos() as Observable<T>;
             case 'GET_LOTES_EXISTENCIA_ORDEN':
                 return this.getLotesExistenciaOrdenDespacho(params.solicitud, params.orden) as Observable<T>;
+            case 'GET_LOTES_EXISTENCIA':
+                return this.getLotesExistencia(params.codigoExistencia, params.nombreExistencia) as Observable<T>;
+            case 'GET_DIAS_SEMANA':
+                return this.getDiasSemana() as Observable<T>;
+            case 'GET_ORDEN_DESPACHO_MASIVO':
+                return this.getOrdenDespachoMasivo(params.empresa, params.solicitud, params.orden) as Observable<T>;
             case 'IMPRIMIR_TIRILLA':
                 return this.imprimirTirilla(params.empresa, params.secuencia) as Observable<T>;
             default:
                 return of(null as any);
         }
+    }
+
+    /**
+     * v105.0: Nuevo servicio para reporte masivo de orden de despacho (3 parámetros)
+     */
+    private getOrdenDespachoMasivo(empresa: number, solicitud: number, orden: number): Observable<any> {
+        const params = {
+            arg0: empresa || this.getCurrentCompany(),
+            arg1: solicitud,
+            arg2: orden
+        };
+        const headers = this.getHeaders();
+        return this.http.get(`${this.API_BASE}/XPosConsultas/ordenDespachoMasivo`, { params, headers }).pipe(
+            catchError(err => {
+                console.error('[DataService] Error consultando ordenDespachoMasivo', err);
+                return of({ mensaje: this.handleError(err, 'Error consultando datos masivos'), isError: true, detalles: [] });
+            })
+        );
+    }
+
+    private getDiasSemana(): Observable<any> {
+        const params = {
+            arg0: this.getCurrentCompany()
+        };
+        const headers = this.getHeaders();
+        return this.http.get(`${this.API_BASE}/XPosConsultas/diasSemana`, { params, headers }).pipe(
+            catchError(err => {
+                console.error('[DataService] Error consultando diasSemana', err);
+                return of({ mensaje: 'Error cargando días', isError: true, diasSemana: [] });
+            })
+        );
     }
 
     getOrdenDespacho(numero: string, fechaDesde?: string, fechaHasta?: string): Observable<any> {
@@ -178,17 +209,12 @@ export class DataService {
         return this.http.get(`${this.API_BASE}/XPosConsultas/ordenesDespacho`, { params, headers }).pipe(
             catchError(err => {
                 console.error('[DataService] Error consultando ordenesDespacho', err);
-                const errorBody = err.error;
-                let errorMsg = errorBody?.mensaje || errorBody?.causa || err.message || 'Error consultando orden';
-                if (errorBody?.errorSistemas) {
-                    errorMsg = `<strong>MENSAJE:</strong> ${errorMsg}<br/><br/><strong>DETALLE SISTEMA:</strong> ${errorBody.errorSistemas}`;
-                }
-                return of({ mensaje: errorMsg, isError: true, ordenesDespacho: [] });
+                return of({ mensaje: this.handleError(err, 'Error consultando orden'), isError: true, ordenesDespacho: [] });
             })
         );
     }
 
-    getOrdenesDespachoList(empresa: number, filtro: string, valor: string, pagina: number = 0, fechaDesde?: string, fechaHasta?: string): Observable<any> {
+    getOrdenesDespachoList(empresa: number, filtro: string, valor: string, pagina: number = 0, fechaDesde?: string, fechaHasta?: string, diaEmbarque?: string): Observable<any> {
         const user = this.authService?.getStoredUser();
         const username = user?.username || 'DESCONOCIDO';
 
@@ -211,10 +237,17 @@ export class DataService {
             .set('arg6', formatToAPI(fechaDesde))
             .set('arg7', formatToAPI(fechaHasta));
 
+        if (diaEmbarque && diaEmbarque !== 'TODOS') {
+            params = params.set('arg8', diaEmbarque);
+        }
+
         if (valor && valor.trim() !== '') {
-            // v110.0: Requerimiento mandatorio Keyla: arg2 siempre es la clave compuesta
+            // v110.0: Requerimiento mandatorio Keyla: arg2 siempre es la clave compuesta si hay valor
             params = params.set('arg2', 'numeroSolicitud-numeroOrdenDespacho');
             params = params.set('arg3', valor.trim());
+        } else {
+             // Si no hay valor, igual mandamos la clave compuesta vacía, como en Postman
+             params = params.set('arg2', 'numeroSolicitud-numeroOrdenDespacho');
         }
 
         const headers = this.getHeaders();
@@ -237,16 +270,7 @@ export class DataService {
             // tap(res => console.log('[DataService] 📥 RESPONSE:', res)),
             catchError(err => {
                 console.error('[DataService] Error consultando lista ordenesDespacho', err);
-                const errorBody = err.error;
-                let errorMsg = errorBody?.mensaje || errorBody?.causa || err.message || 'Error consultando listado';
-                if (errorBody?.errorSistemas) {
-                    errorMsg = `<strong>MENSAJE:</strong> ${errorMsg}<br/><br/><strong>DETALLE SISTEMA:</strong> ${errorBody.errorSistemas}`;
-                }
-                return of({
-                    mensaje: errorMsg,
-                    isError: true,
-                    ordenesDespacho: []
-                });
+                return of({ mensaje: this.handleError(err, 'Error consultando listado'), isError: true, ordenesDespacho: [] });
             })
         );
     }
@@ -261,12 +285,7 @@ export class DataService {
         return this.http.get(`${this.API_BASE}/XPosConsultas/detallesOrdenDespacho`, { params, headers }).pipe(
             catchError(err => {
                 console.error('[DataService] Error consultando detallesOrdenDespacho', err);
-                const errorBody = err.error;
-                let errorMsg = errorBody?.mensaje || errorBody?.causa || err.message || 'Error consultando detalles';
-                if (errorBody?.errorSistemas) {
-                    errorMsg = `<strong>MENSAJE:</strong> ${errorMsg}<br/><br/><strong>DETALLE SISTEMA:</strong> ${errorBody.errorSistemas}`;
-                }
-                return of({ mensaje: errorMsg, isError: true, detalles: [] });
+                return of({ mensaje: this.handleError(err, 'Error consultando detalles'), isError: true, detalles: [] });
             })
         );
     }
@@ -281,12 +300,25 @@ export class DataService {
         return this.http.get(`${this.API_BASE}/XPosConsultas/lotesExistenciaXOrdenDespacho`, { params, headers }).pipe(
             catchError(err => {
                 console.error('[DataService] Error consultando lotesExistenciaXOrdenDespacho', err);
-                const errorBody = err.error;
-                let errorMsg = errorBody?.mensaje || errorBody?.causa || err.message || 'Error consultando lotes';
-                if (errorBody?.errorSistemas) {
-                    errorMsg = `<strong>MENSAJE:</strong> ${errorMsg}<br/><br/><strong>DETALLE SISTEMA:</strong> ${errorBody.errorSistemas}`;
-                }
-                return of({ mensaje: errorMsg, isError: true, lotes: [] });
+                return of({ mensaje: this.handleError(err, 'Error consultando lotes'), isError: true, lotes: [] });
+            })
+        );
+    }
+
+    /**
+     * v200.4: Consulta de lotes para un ítem específico (Uso bajo demanda)
+     */
+    getLotesExistencia(codigoExistencia: string, nombreExistencia: string): Observable<any> {
+        const params = {
+            arg0: this.getCurrentCompany(),
+            arg1: codigoExistencia || '',
+            arg2: nombreExistencia || ''
+        };
+        const headers = this.getHeaders();
+        return this.http.get(`${this.API_BASE}/XPosConsultas/lotesExistencia`, { params, headers }).pipe(
+            catchError(err => {
+                console.error('[DataService] Error consultando lotesExistencia individual', err);
+                return of({ mensaje: err.message, isError: true, detalles: [] });
             })
         );
     }
@@ -325,12 +357,7 @@ export class DataService {
         return this.http.post(`${this.API_BASE}/XPos/actualizarDetallesOrdenDespacho`, payload, { headers }).pipe(
             catchError(err => {
                 console.error('[DataService] Error en actualizarDetallesOrdenDespacho', err);
-                const errorBody = err.error;
-                let errorMsg = errorBody?.mensaje || errorBody?.causa || err.message || 'Error actualizando detalles';
-                if (errorBody?.errorSistemas) {
-                    errorMsg = `<strong>MENSAJE:</strong> ${errorMsg}<br/><br/><strong>DETALLE SISTEMA:</strong> ${errorBody.errorSistemas}`;
-                }
-                return of({ mensaje: errorMsg, isError: true });
+                return of({ mensaje: this.handleError(err, 'Error actualizando detalles'), isError: true });
             })
         );
     }
@@ -352,12 +379,7 @@ export class DataService {
         return this.http.post(`${this.API_BASE}/XPos/finalizarOrdenDespacho`, finalBody, { headers }).pipe(
             catchError(err => {
                 console.error('[DataService] Error en finalizarOrdenDespacho', err);
-                const errorBody = err.error;
-                let errorMsg = errorBody?.mensaje || errorBody?.causa || err.message || 'Error de conexión';
-                if (errorBody?.errorSistemas) {
-                    errorMsg = `<strong>MENSAJE:</strong> ${errorMsg}<br/><br/><strong>DETALLE SISTEMA:</strong> ${errorBody.errorSistemas}`;
-                }
-                return of({ mensaje: errorMsg, isError: true });
+                return of({ mensaje: this.handleError(err, 'Error de conexión'), isError: true });
             })
         );
     }
@@ -381,5 +403,17 @@ export class DataService {
                 return of({ mensaje: 'Error al obtener formato de impresión', isError: true });
             })
         );
+    }
+    /**
+     * v200.5: Helper centralizado para formateo de errores de API (Soporta Arrays y Objetos)
+     */
+    private handleError(err: any, defaultMsg: string): string {
+        const errorData = Array.isArray(err.error) ? err.error[0] : err.error;
+        let errorMsg = errorData?.mensaje || errorData?.causa || err.message || defaultMsg;
+        const sysError = errorData?.errorSistemas;
+        if (sysError) {
+            errorMsg = `${errorMsg}<br/><br/><strong>DETALLE:</strong> ${sysError}`;
+        }
+        return errorMsg;
     }
 }

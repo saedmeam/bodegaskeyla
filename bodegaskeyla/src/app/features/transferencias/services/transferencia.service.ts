@@ -10,6 +10,7 @@ export interface TransferenciaProduct {
     cantidad: number;
     costo: number;
     subtotal: number;
+    laboratorio?: string;
 }
 
 @Injectable({

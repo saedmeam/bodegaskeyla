@@ -1,6 +1,6 @@
 <div class="dispatch-container">
     <div class="page-header">
-        <h1 class="page-title">Mantenimiento de Órdenes</h1>
+        <h1 class="page-title">Mantenimiento de Órdenes v{{ appVersion }}</h1>
         <div class="header-actions">
             <button class="btn-clean-all" (click)="purgarTodo()">
                 <span class="icon">🧹</span> Limpiar Todo
@@ -117,12 +117,24 @@
                             </td>
                             <td class="actions-cell-v2">
                                 <div class="btn-group-v2">
-                                    <button class="btn-process" [disabled]="order.codigoEstado === 'DP' || order.codigoEstado === 'DT'" (click)="procesar(order)">PROCESAR</button>
-                                    @if (order.codigoEstado === 'DP' || order.codigoEstado === 'DT') {
-                                        <button class="btn-direct-print" (click)="imprimirOrdenDirecto(order)" title="Reimprimir Etiquetas y Reporte">
-                                            <span class="icon">🖨️</span>
-                                        </button>
+                                    @if (order.codigoEstado === 'ING') {
+                                        <button class="btn-process" (click)="procesar(order)">PROCESAR</button>
+                                    } @else {
+                                        <button class="btn-process btn-consult" (click)="procesar(order)">CONSULTAR</button>
                                     }
+                                    <!-- v200.3: Botón de impresión bloqueado temporalmente por fallos en formato -->
+                                        <button class="btn-mass-print" (click)="imprimirOrdenMasivo(order)" title="Imprimir Orden de Despacho Masiva">
+                                            <span class="icon">📋</span>
+                                        </button>
+
+                                        @if (order.codigoEstado === 'DP' || order.codigoEstado === 'DT' || order.codigoEstado === 'PRO') {
+                                            <button class="btn-direct-print" (click)="imprimirOrdenDirecto(order)" title="Reimprimir Reporte de Transferencia">
+                                                <span class="icon">🖨️</span>
+                                            </button>
+                                            <button class="btn-label-print" (click)="abrirModalEtiquetas(order)" title="Reimprimir Etiquetas">
+                                                <span class="icon">🏷️</span>
+                                            </button>
+                                        }
                                 </div>
                             </td>
                         </tr>
@@ -143,7 +155,7 @@
         <!-- Paginación Estacionaria (Siempre Visible) -->
         <div class="pagination-modern-v2">
             <div class="pagination-info">
-                Exhibiendo {{ ordenes().length }} órdenes
+                Exhibiendo {{ ordenes().length }} órdenes | NEU360 Engine v{{ appVersion }}
             </div>
 
             <div class="pagination-controls-v2">
@@ -170,5 +182,40 @@
     <span class="icon">⚠️</span>
     <span class="error-content" [innerHTML]="error()"></span>
     <button class="btn-close-toast" (click)="error.set('')">×</button>
+</div>
+}
+
+<!-- v104.6: Modal de Reimpresión de Etiquetas -->
+@if (showLabelModal()) {
+<div class="modal-overlay" (click)="showLabelModal.set(false)">
+    <div class="glass-modal label-modal animate-pop" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+            <div class="modal-icon">🏷️</div>
+            <h3>Reimpresión de Etiquetas</h3>
+            <button class="btn-close-modal" (click)="showLabelModal.set(false)">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="label-setup-container">
+                <p class="setup-intro">Configure la cantidad de etiquetas para la orden <strong>{{ selectedOrderForLabels()?.solicitudOrden }}</strong></p>
+                
+                <div class="setup-grid-single">
+                    <div class="setup-field centered">
+                        <label>Cantidad de Etiquetas a Reimprimir</label>
+                        <div class="qty-control-premium large">
+                            <button (click)="labelQuantity = Math.max(1, labelQuantity - 1)">-</button>
+                            <input type="number" [(ngModel)]="labelQuantity" min="1">
+                            <button (click)="labelQuantity = labelQuantity + 1">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer central">
+            <button class="btn-modal-cancel" (click)="showLabelModal.set(false)">CANCELAR</button>
+            <button class="btn-modal-action btn-green-premium" (click)="confirmarImpresionEtiquetas()">
+                🚀 INICIAR IMPRESIÓN
+            </button>
+        </div>
+    </div>
 </div>
 }

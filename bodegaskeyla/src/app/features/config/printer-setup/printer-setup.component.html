@@ -2,51 +2,83 @@
     <div class="setup-card animate__animated animate__fadeIn">
         <div class="setup-header">
             <span class="icon">🖨️</span>
-            <h2>Configuración de Impresora térmica</h2>
+            <h2>Configuración de Impresión</h2>
         </div>
 
         <div class="setup-body">
-            <p class="description">
-                Seleccione o escriba el nombre de la impresora de etiquetas (Zebra, Epson, etc.) 
-                para la impresión de bultos y tirillas.
-            </p>
-
-            <div class="form-group-v2">
-                <label>Nombre de la Impresora en el Sistema</label>
-                <div class="input-wrapper">
-                    <input type="text" 
-                           [ngModel]="printerNameSelected()"
-                           (ngModelChange)="printerNameSelected.set($event)"
-                           placeholder="Ej: Zebra ZD230"
-                           class="input-v2 full-width">
+            <!-- SECCIÓN 1: ETIQUETAS -->
+            <div class="config-section">
+                <div class="section-title">
+                    <span class="dot tickets"></span>
+                    IMPRESORA ETIQUETAS (Térmica)
                 </div>
-            </div>
+                
+                <div class="preview-toggle">
+                    <label class="switch">
+                        <input type="checkbox" [ngModel]="previewTickets()" (ngModelChange)="previewTickets.set($event)">
+                        <span class="slider round"></span>
+                    </label>
+                    <span class="toggle-text">VER EN PANTALLA (ON = Vista Previa / OFF = Directo)</span>
+                </div>
 
-            @if (availablePrinters().length > 0) {
-            <div class="printers-list-container">
-                <label class="list-label">Impresoras detectadas en este equipo:</label>
-                <div class="printers-grid">
+                <div class="form-group-v2">
+                    <div class="input-wrapper">
+                        <input type="text" 
+                               [ngModel]="printerTicketsSelected()"
+                               (ngModelChange)="printerTicketsSelected.set($event)"
+                               placeholder="Ej: Zebra ZD230"
+                               class="input-v2 full-width">
+                    </div>
+                </div>
+
+                <div class="printers-mini-grid">
                     @for (p of availablePrinters(); track p.name) {
-                    <div class="printer-chip" 
-                         [class.selected]="printerNameSelected() === p.name"
-                         (click)="selectPrinter(p.name)">
-                        <div class="p-icon-container">
-                            <span class="p-icon">{{ p.isDefault ? '⭐' : '📄' }}</span>
-                        </div>
-                        <div class="p-details">
-                            <span class="p-name">{{ p.name }}</span>
-                            <span class="p-status">{{ p.status === 0 ? 'LISTA' : 'CONECTADA' }}</span>
-                        </div>
+                    <div class="printer-tag" 
+                         [class.selected]="printerTicketsSelected() === p.name"
+                         (click)="selectPrinterTickets(p.name)">
+                         {{ p.name }}
                     </div>
                     }
                 </div>
             </div>
-            } @else {
-            <div class="no-printers-alert">
-                <span class="alert-icon">⚠️</span>
-                <span>No se detectaron impresoras activas. Asegúrese de que el equipo esté conectado y encendido.</span>
+
+            <hr class="divider-v2">
+
+            <!-- SECCIÓN 2: DETALLE ORDEN -->
+            <div class="config-section">
+                <div class="section-title">
+                    <span class="dot report"></span>
+                    IMPRESORA DETALLE ORDEN (Reporte A4)
+                </div>
+
+                <div class="preview-toggle">
+                    <label class="switch">
+                        <input type="checkbox" [ngModel]="previewReport()" (ngModelChange)="previewReport.set($event)">
+                        <span class="slider round"></span>
+                    </label>
+                    <span class="toggle-text">VER EN PANTALLA (ON = Vista Previa / OFF = Directo)</span>
+                </div>
+
+                <div class="form-group-v2">
+                    <div class="input-wrapper">
+                        <input type="text" 
+                               [ngModel]="printerReportSelected()"
+                               (ngModelChange)="printerReportSelected.set($event)"
+                               placeholder="Ej: Epson L4160"
+                               class="input-v2 full-width">
+                    </div>
+                </div>
+
+                <div class="printers-mini-grid">
+                    @for (p of availablePrinters(); track p.name) {
+                    <div class="printer-tag" 
+                         [class.selected]="printerReportSelected() === p.name"
+                         (click)="selectPrinterReport(p.name)">
+                         {{ p.name }}
+                    </div>
+                    }
+                </div>
             </div>
-            }
         </div>
 
         <div class="setup-footer">

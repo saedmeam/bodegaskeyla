@@ -26,11 +26,13 @@ export class LoginComponent implements OnInit {
     private ngZone = inject(NgZone);
     private cdr = inject(ChangeDetectorRef);
     private configService = inject(ConfigService);
+    public appVersion = '1.0.6';
 
     // Flow State
     step: number = 1;
     loading: boolean = false;
     error: string = '';
+    systemError: string = ''; // v1.0.5: Technical error details
 
     // Form Data
     username: string = '';
@@ -138,12 +140,15 @@ export class LoginComponent implements OnInit {
                 console.warn('[LoginComponent] ❌ Falló inicio de sesión:', loginRes.mensaje);
                 this.ngZone.run(() => {
                     this.error = loginRes.mensaje || 'Credenciales inválidas';
+                    // v1.0.5: Mostrar errorSistemas si existe, sino causa, sino código de error
+                    this.systemError = loginRes.errorSistemas || loginRes.causa || (loginRes.codigo ? 'Error: ' + loginRes.codigo : 'ERR_UNKNOWN');
                     this.cdr.detectChanges();
                 });
             }
         } catch (e: any) {
             this.ngZone.run(() => {
-                this.error = e.message || 'Error en el inicio de sesión';
+                this.error = 'Error en el inicio de sesión';
+                this.systemError = e.message || 'Error de conexión';
                 this.cdr.detectChanges();
             });
         } finally {
@@ -253,9 +258,9 @@ export class LoginComponent implements OnInit {
                 }
             });
         } catch (e: any) {
-            console.error('[LoginComponent] ❌ Error al cargar datos de sucursales:', e);
             this.ngZone.run(() => {
                 this.error = 'Error al cargar datos de la sucursal y permisos';
+                this.systemError = e.message || 'Error de permisos';
                 this.cdr.detectChanges();
             });
         } finally {
@@ -302,6 +307,7 @@ export class LoginComponent implements OnInit {
         } catch (e: any) {
             this.ngZone.run(() => {
                 this.error = 'Error al finalizar el inicio de sesión';
+                this.systemError = e.message || 'Error de finalización';
                 this.cdr.detectChanges();
             });
         } finally {
@@ -373,6 +379,7 @@ export class LoginComponent implements OnInit {
         if (this.step > 1) {
             this.step--;
             this.error = '';
+            this.systemError = '';
         }
     }
 }

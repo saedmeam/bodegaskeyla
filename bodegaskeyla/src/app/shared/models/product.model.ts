@@ -3,6 +3,8 @@ export interface Batch {
     caducidad: string;
     stock: number;
     despachado: number;
+    fechaElaboracion?: string;
+    codigoExistencia?: string | number;
 }
 
 export interface Product {
@@ -37,6 +39,7 @@ export interface Product {
     cantidadBaseEquivalente?: number;
     observacion?: string;
     esActivo?: string;
+    laboratorio?: string;
     // v170.2: Sophisticated multi-batch support
     lotes?: Batch[];
 }

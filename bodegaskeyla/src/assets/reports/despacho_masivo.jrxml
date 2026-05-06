@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- v105.10: Reporte de Despacho Masivo (Picking List) - UNA SOLA LÍNEA (FUENTE 6.8pt) -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="despacho_masivo" pageWidth="595" pageHeight="842" columnWidth="265" leftMargin="20" rightMargin="310" topMargin="20" bottomMargin="20">
+	<property name="ireport.zoom" value="2.0"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<queryString>
+		<![CDATA[]]>
+	</queryString>
+
+	<!-- Campos de Cabecera -->
+	<field name="pedidoId" class="java.lang.String"/>
+	<field name="ordenId" class="java.lang.String"/>
+	<field name="fechaImpresion" class="java.lang.String"/>
+	<field name="sucursalNombre" class="java.lang.String"/>
+	<field name="ubicacionHeader" class="java.lang.String"/>
+	<field name="grupoDespachoHeader" class="java.lang.String"/>
+	<field name="usuarioHeader" class="java.lang.String"/>
+	
+	<!-- Campos de Detalle -->
+	<field name="cadena1" class="java.lang.String"/>
+	<field name="cadena6" class="java.lang.String"/> 
+	<field name="cadena7" class="java.lang.String"/> 
+	<field name="cadena9" class="java.lang.String"/> 
+	<field name="cadena10" class="java.lang.String"/> 
+	<field name="cadena12" class="java.lang.String"/> 
+
+	<!-- Variable para contar productos -->
+	<variable name="totalProductos" class="java.lang.Integer" calculation="Count">
+		<variableExpression><![CDATA[$F{cadena1}.equals("E") ? 1 : null]]></variableExpression>
+		<initialValueExpression><![CDATA[0]]></initialValueExpression>
+	</variable>
+
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+
+	<pageHeader>
+		<band height="98" splitType="Stretch">
+			<staticText>
+				<reportElement x="50" y="0" width="50" height="14"/>
+				<textElement textAlignment="Right"><font fontName="SansSerif" size="8.5" isBold="true"/></textElement>
+				<text><![CDATA[Pedido:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="105" y="0" width="100" height="14"/>
+				<textElement><font fontName="SansSerif" size="8.5" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$F{pedidoId}]]></textFieldExpression>
+			</textField>
+			
+			<staticText>
+				<reportElement x="0" y="16" width="60" height="13"/>
+				<textElement><font fontName="SansSerif" size="7.5" isBold="true"/></textElement>
+				<text><![CDATA[Página No:]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="60" y="16" width="30" height="13"/>
+				<textElement><font fontName="SansSerif" size="7.5" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+			
+			<staticText>
+				<reportElement x="95" y="16" width="80" height="13"/>
+				<textElement textAlignment="Right"><font fontName="SansSerif" size="7.5" isBold="true"/></textElement>
+				<text><![CDATA[Orden:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="180" y="16" width="85" height="13"/>
+				<textElement><font fontName="SansSerif" size="7.5" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$F{ordenId}]]></textFieldExpression>
+			</textField>
+			
+			<staticText>
+				<reportElement x="0" y="29" width="50" height="13"/>
+				<textElement><font fontName="SansSerif" size="7.5" isBold="true"/></textElement>
+				<text><![CDATA[USUARIO:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="50" y="29" width="60" height="13"/>
+				<textElement><font fontName="SansSerif" size="7.5" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$F{usuarioHeader}]]></textFieldExpression>
+			</textField>
+			
+			<staticText>
+				<reportElement x="110" y="29" width="60" height="13"/>
+				<textElement textAlignment="Right"><font fontName="SansSerif" size="7" isBold="true"/></textElement>
+				<text><![CDATA[FECHA/HORA:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="175" y="29" width="90" height="13"/>
+				<textElement textAlignment="Right"><font fontName="SansSerif" size="7" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$F{fechaImpresion}]]></textFieldExpression>
+			</textField>
+			
+			<staticText>
+				<reportElement x="0" y="42" width="60" height="13"/>
+				<textElement><font fontName="SansSerif" size="7.5" isBold="true"/></textElement>
+				<text><![CDATA[PEDIDO DE:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="60" y="42" width="205" height="13"/>
+				<textElement><font fontName="SansSerif" size="7.5" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$F{sucursalNombre}]]></textFieldExpression>
+			</textField>
+			
+			<line>
+				<reportElement x="0" y="56" width="265" height="1"/>
+				<graphicElement><pen lineWidth="1.5"/></graphicElement>
+			</line>
+			
+			<staticText>
+				<reportElement x="0" y="59" width="60" height="14"/>
+				<textElement><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+				<text><![CDATA[Ubicación:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="60" y="59" width="205" height="14"/>
+				<textElement><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$F{ubicacionHeader}]]></textFieldExpression>
+			</textField>
+			
+			<staticText>
+				<reportElement x="0" y="73" width="85" height="14"/>
+				<textElement><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+				<text><![CDATA[Grupo Desp.:]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="85" y="73" width="180" height="14"/>
+				<textElement><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$F{grupoDespachoHeader}]]></textFieldExpression>
+			</textField>
+			
+			<line>
+				<reportElement x="0" y="90" width="265" height="1"/>
+				<graphicElement><pen lineWidth="1.5"/></graphicElement>
+			</line>
+		</band>
+	</pageHeader>
+
+	<detail>
+		<band height="13" splitType="Stretch">
+			<!-- Registro G -->
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="1" width="265" height="11" isRemoveLineWhenBlank="true">
+					<printWhenExpression><![CDATA[$F{cadena1}.equals("G")]]></printWhenExpression>
+				</reportElement>
+				<textElement><font fontName="SansSerif" size="7" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$F{cadena10}]]></textFieldExpression>
+			</textField>
+			<line>
+				<reportElement x="0" y="12" width="265" height="1" isRemoveLineWhenBlank="true">
+					<printWhenExpression><![CDATA[$F{cadena1}.equals("G")]]></printWhenExpression>
+				</reportElement>
+				<graphicElement><pen lineWidth="0.5"/></graphicElement>
+			</line>
+			
+			<!-- Registro P -->
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="1" width="265" height="11" isRemoveLineWhenBlank="true">
+					<printWhenExpression><![CDATA[$F{cadena1}.equals("P")]]></printWhenExpression>
+				</reportElement>
+				<textElement><font fontName="SansSerif" size="6.8" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$F{cadena10}]]></textFieldExpression>
+			</textField>
+			<line>
+				<reportElement x="0" y="12" width="230" height="1" isRemoveLineWhenBlank="true">
+					<printWhenExpression><![CDATA[$F{cadena1}.equals("P")]]></printWhenExpression>
+				</reportElement>
+				<graphicElement><pen lineWidth="0.5"/></graphicElement>
+			</line>
+
+			<!-- Registro E (Producto) - TODO EN UNA SOLA LÍNEA -->
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="0" width="18" height="12" isRemoveLineWhenBlank="true">
+					<printWhenExpression><![CDATA[$F{cadena1}.equals("E")]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right"><font fontName="SansSerif" size="6.8" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$F{cadena6}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="20" y="0" width="18" height="12" isRemoveLineWhenBlank="true">
+					<printWhenExpression><![CDATA[$F{cadena1}.equals("E")]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right"><font fontName="SansSerif" size="6.8" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$F{cadena7}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="40" y="0" width="30" height="12" isRemoveLineWhenBlank="true">
+					<printWhenExpression><![CDATA[$F{cadena1}.equals("E")]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right"><font fontName="SansSerif" size="6.8" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$F{cadena9}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="72" y="0" width="168" height="12" isRemoveLineWhenBlank="true">
+					<printWhenExpression><![CDATA[$F{cadena1}.equals("E")]]></printWhenExpression>
+				</reportElement>
+				<textElement><font fontName="SansSerif" size="6.8" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$F{cadena10}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="240" y="0" width="25" height="12" isRemoveLineWhenBlank="true">
+					<printWhenExpression><![CDATA[$F{cadena1}.equals("E")]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right"><font fontName="SansSerif" size="8.5" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$F{cadena12}]]></textFieldExpression>
+			</textField>
+
+			<!-- Registro L (Lote) -->
+			<textField isBlankWhenNull="true">
+				<reportElement x="30" y="0" width="210" height="12" isRemoveLineWhenBlank="true">
+					<printWhenExpression><![CDATA[$F{cadena1}.equals("L")]]></printWhenExpression>
+				</reportElement>
+				<textElement><font fontName="SansSerif" size="6.8" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[($F{cadena9} != null ? $F{cadena9} + " - " : "") + $F{cadena10}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="240" y="0" width="25" height="12" isRemoveLineWhenBlank="true">
+					<printWhenExpression><![CDATA[$F{cadena1}.equals("L")]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right"><font fontName="SansSerif" size="6.8" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$F{cadena12}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+
+	<pageFooter>
+		<band height="14" splitType="Stretch">
+			<textField>
+				<reportElement x="165" y="0" width="100" height="12"/>
+				<textElement textAlignment="Right"><font fontName="SansSerif" size="7" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA["Hoja " + $V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageFooter>
+
+	<summary>
+		<band height="25" splitType="Stretch">
+			<line>
+				<reportElement x="0" y="3" width="265" height="1"/>
+				<graphicElement><pen lineWidth="1.0" lineStyle="Dashed"/></graphicElement>
+			</line>
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="6" width="265" height="14"/>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA["TOTAL: " + $V{totalProductos} + " PRODUCTOS"]]></textFieldExpression>
+			</textField>
+		</band>
+	</summary>
+</jasperReport>

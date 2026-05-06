@@ -21,6 +21,12 @@
             <span class="value">{{ sucursal }}</span>
         </div>
 
+        @if (environment && environment !== 'produccion') {
+            <div class="segment info-field env-badge">
+                <span class="value badge" [ngClass]="environment">{{ environment | uppercase }}</span>
+            </div>
+        }
+
         <div class="segment clock-container">
             <span class="time-value">🕒 {{ currentTime() }}</span>
         </div>

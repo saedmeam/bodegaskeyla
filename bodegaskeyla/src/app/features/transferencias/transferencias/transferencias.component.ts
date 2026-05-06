@@ -2,16 +2,21 @@ import { Component, signal, computed, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TransferenciaService } from '../services/transferencia.service';
+import { PrinterService } from '../../../core/services/printer.service';
+import { ConfigService } from '../../../core/services/config.service';
+import { ReportPreviewModalComponent } from '../../../shared/components/report-preview-modal/report-preview-modal.component';
 
 @Component({
     selector: 'app-transferencias',
     standalone: true,
-    imports: [CommonModule, FormsModule],
+    imports: [CommonModule, FormsModule, ReportPreviewModalComponent],
     templateUrl: './transferencias.component.html',
     styleUrl: './transferencias.component.css'
 })
 export class TransferenciasComponent implements OnInit {
     private transferenciaService = inject(TransferenciaService);
+    private printerService = inject(PrinterService);
+    private configService = inject(ConfigService);
 
     // Estados de UI
     numero = "";
@@ -34,9 +39,50 @@ export class TransferenciasComponent implements OnInit {
     totalItems = computed(() => this.productos().length);
 
     notificationMessage = signal("");
+    showPreview = signal(false);
+    previewHtml = signal("");
 
     ngOnInit() {
         // Inicia en blanco. El usuario debe consultar una transferencia.
+    }
+
+    imprimir() {
+        if (this.productos().length === 0) return;
+
+        const config = this.configService.getConfig();
+        const showPreview = config?.PREVIEW_REPORTE !== false; // Default true
+
+        if (showPreview) {
+            const info = this.infoCabecera();
+            const html = this.printerService.generateTransferReportHtml(this.numero, this.productos(), {
+                sucursal: info.sucursal || '---',
+                usuario: 'ADMINISTRA',
+                digitador: 'ADMINISTRA',
+                bodegaOrigen: this.bodega,
+                bodegaDestino: this.movimientoNombre,
+                fecha: this.fecha
+            });
+
+            this.previewHtml.set(html);
+            this.showPreview.set(true);
+        } else {
+            // Impresión automática
+            this.ejecutarImpresion();
+        }
+    }
+
+    async ejecutarImpresion() {
+        // Ejecuta la impresión física sin abrir el visor nativo (Jasper) ya que se vio la previa interna
+        const info = this.infoCabecera();
+        await this.printerService.imprimirReporteTransferenciaJasper(this.numero, this.productos(), {
+            sucursal: info.sucursal || '---',
+            usuario: 'ADMINISTRA',
+            digitador: 'ADMINISTRA',
+            bodegaOrigen: this.bodega,
+            bodegaDestino: this.movimientoNombre,
+            fecha: this.fecha
+        }, undefined, false); // printerName: undefined, preview: false
+        this.showPreview.set(false);
     }
 
     consultarTransferencia() {

@@ -17,15 +17,25 @@ export class PrinterSetupComponent implements OnInit {
     private notificationService = inject(NotificationService);
     private router = inject(Router);
 
-    printerNameSelected = signal('');
+    // v0.2.8: Configuración separada por tipo de documento
+    printerTicketsSelected = signal('');
+    previewTickets = signal(false);
+
+    printerReportSelected = signal('');
+    previewReport = signal(true);
+
     availablePrinters = signal<any[]>([]);
 
     async ngOnInit() {
-        // v160.18: Cargar configuración actual al iniciar
-        const currentPrinter = this.configService.getPrinterName();
-        this.printerNameSelected.set(currentPrinter);
+        const config = this.configService.getConfig();
+        if (config) {
+            this.printerTicketsSelected.set(config.IMPRESORA_TICKET || '');
+            this.previewTickets.set(config.PREVIEW_TICKET ?? false);
+            
+            this.printerReportSelected.set(config.IMPRESORA_REPORTE || '');
+            this.previewReport.set(config.PREVIEW_REPORTE ?? true);
+        }
 
-        // v160.18: Solicitar lista de impresoras reales al S.O vía Electron
         if (window.electronAPI) {
             const result = await window.electronAPI.getPrinters();
             if (result.success) {
@@ -37,23 +47,25 @@ export class PrinterSetupComponent implements OnInit {
     async save() {
         const fullConfig = this.configService.getConfig();
         if (!fullConfig) {
-            this.notificationService.show('Error: No se pudo cargar la configuración base', true);
+            this.notificationService.show('Error: No se pudo cargar la configuración', true);
             return;
         }
 
-        // v160.18: Clonamos y modificamos solo la clave de la impresora
-        const newConfig = { ...fullConfig, IMPRESORA_TICKET: this.printerNameSelected() };
+        const newConfig = { 
+            ...fullConfig, 
+            IMPRESORA_TICKET: this.printerTicketsSelected(),
+            PREVIEW_TICKET: this.previewTickets(),
+            IMPRESORA_REPORTE: this.printerReportSelected(),
+            PREVIEW_REPORTE: this.previewReport()
+        };
 
         try {
             const success = await this.configService.saveConfig(newConfig);
             if (success) {
-                this.notificationService.show('IMPRESORA CONFIGURADA: El cambio se ha guardado permanentemente.', false, 'ÉXITO');
-                // Navegar de regreso al mantenimiento de órdenes solicitado
-                setTimeout(() => {
-                    this.router.navigate(['/despacho-lista']);
-                }, 1000);
+                this.notificationService.show('CONFIGURACIÓN GUARDADA: Se han actualizado ambas impresoras.', false, 'ÉXITO');
+                setTimeout(() => this.router.navigate(['/despacho-lista']), 1000);
             } else {
-                this.notificationService.show('Error al intentar guardar la configuración en el disco.', true);
+                this.notificationService.show('Error al guardar configuración.', true);
             }
         } catch (e) {
             this.notificationService.show('Fallo crítico al guardar configuración', true);
@@ -64,7 +76,11 @@ export class PrinterSetupComponent implements OnInit {
         this.router.navigate(['/despacho-lista']);
     }
 
-    selectPrinter(name: string) {
-        this.printerNameSelected.set(name);
+    selectPrinterTickets(name: string) {
+        this.printerTicketsSelected.set(name);
+    }
+
+    selectPrinterReport(name: string) {
+        this.printerReportSelected.set(name);
     }
 }

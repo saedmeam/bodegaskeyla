@@ -101,10 +101,20 @@ function setupIpcHandlers() {
         if (fs.existsSync(userConfigPath)) {
             try {
                 const user = JSON.parse(fs.readFileSync(userConfigPath, 'utf8'));
+
+                // v160.38: Guardamos el entorno original del paquete
+                const originalEnv = mergedConfig.environment;
+
                 mergedConfig = { ...mergedConfig, ...user };
-                console.log('[Electron:Main] Config de usuario cargada desde:', userConfigPath);
+
+                // v160.38: FORZAMOS que el entorno sea el del paquete de instalación
+                // para evitar que configuraciones viejas de Test/Preproducción se queden pegadas.
+                if (originalEnv) {
+                    mergedConfig.environment = originalEnv;
+                }
+
+                console.log(`[Electron:Main] Config de usuario cargada. Entorno forzado a: ${mergedConfig.environment}`);
             } catch (e) {
-                // Es normal que no exista la primera vez
                 console.log('[Electron:Main] No hay config de usuario aún.');
             }
         }
@@ -127,7 +137,7 @@ function setupIpcHandlers() {
 
     ipcMain.handle('print-labels', async (event, { html, printerName, options, preview }) => {
         console.log('[Electron:Main] 📨 IPC Receive: print-labels (Preview:', !!preview, ')');
-        
+
         const winConfig = {
             show: false,
             width: 1000,
@@ -142,7 +152,7 @@ function setupIpcHandlers() {
 
         if (preview) {
             let printWindow = new BrowserWindow(winConfig);
-            
+
             try {
                 // v160.33: Usar archivo temporal en lugar de Data URI para evitar el problema de Blanco (Limite de caracteres en URL)
                 const fs = require('fs');
@@ -152,7 +162,7 @@ function setupIpcHandlers() {
 
                 let tempWin = new BrowserWindow({ show: false });
                 await tempWin.loadFile(tempPath);
-                
+
                 // v160.37: Delay para asegurar que el motor de renderizado procese el HTML/CSS
                 await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -165,18 +175,18 @@ function setupIpcHandlers() {
 
                 const pdfData = await tempWin.webContents.printToPDF(pdfOptions);
                 tempWin.close();
-                
+
                 // Borrar archivo temporal
-                try { fs.unlinkSync(tempPath); } catch (e) {}
+                try { fs.unlinkSync(tempPath); } catch (e) { }
 
                 // Paso 2: Cargar el PDF
                 const pdfBase64 = pdfData.toString('base64');
                 await printWindow.loadURL(`data:application/pdf;base64,${pdfBase64}`);
-                
+
                 printWindow.setMenu(null);
                 printWindow.show();
                 printWindow.focus();
-                
+
                 return { success: true };
             } catch (error) {
                 console.error('[Electron:Main] ❌ Error generando PDF:', error.message);
@@ -210,15 +220,15 @@ function setupIpcHandlers() {
      * v2.0: Manejador para impresión de texto plano vía Java (PrintVeris.jar)
      */
     ipcMain.handle('print-jasper', async (event, { printerName, reportFileName, jsonData, preview }) => {
-        console.log(`[Electron:Main] 📨 IPC Receive: print-jasper (Preview: ${preview})`);
+        console.log(`[Electron:Main] 📨 IPC Receive: print-jasper (Report: ${reportFileName}, Preview: ${preview})`);
+
         const svc = getPrinterService();
         if (!svc) return { success: false, error: 'Servicio de impresión no disponible' };
         try {
             const result = await svc.imprimirJasper(printerName, reportFileName, jsonData, preview);
-            
+
             if (preview && result && result.endsWith('.pdf')) {
                 console.log(`[Electron:Main] 📂 Abriendo vista previa nativa: ${result}`);
-                // v3.5: Usar el comando nativo del sistema para abrir el archivo
                 const { shell } = require('electron');
                 await shell.openPath(result);
                 return { success: true, preview: true };
@@ -247,7 +257,7 @@ function setupIpcHandlers() {
     ipcMain.handle('save-app-config', async (event, newConfig) => {
         console.log('[Electron:Main] 📨 IPC Receive: save-app-config');
         const fs = require('fs');
-        
+
         // v160.25: Usamos la ruta userData de libre acceso
         const userConfigPath = path.join(app.getPath('userData'), 'user-config.json');
 
@@ -271,7 +281,7 @@ function createWindow() {
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
-            devTools: false, // v160.32: Deshabilitado por seguridad
+            devTools: true, // v200.5: Habilitado para soporte técnico solicitado
             preload: path.join(__dirname, 'preload.js')
         }
     });
@@ -280,11 +290,14 @@ function createWindow() {
 
     // v160.29: Habilitado para pase final
     // win.webContents.openDevTools();
-
-    // v160.22: Refuerzo para asegurar que las herramientas de desarrollo no se abran
+    /**
+     * v160.22: Refuerzo para asegurar que las herramientas de desarrollo no se abran
+     */
+    /* v160.22: Refuerzo desactivado temporalmente para permitir inspección
     win.webContents.on('devtools-opened', () => {
         win.webContents.closeDevTools();
     });
+    */
 
     /**
      * v160.22: Reinstalación de Menú Profesional para Pase a Producción
@@ -313,7 +326,9 @@ function createWindow() {
                 { label: 'Recargar', role: 'reload' },
                 { label: 'Forzar Recarga', role: 'forceReload' },
                 { type: 'separator' },
-                { label: 'Pantalla Completa', role: 'togglefullscreen' }
+                { label: 'Pantalla Completa', role: 'togglefullscreen' },
+                { type: 'separator' },
+                { label: 'Herramientas de Desarrollo', role: 'toggleDevTools' }
             ]
         }
     ];

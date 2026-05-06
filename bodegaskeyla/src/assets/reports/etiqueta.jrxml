@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="etiqueta" pageWidth="295" pageHeight="144" orientation="Landscape" columnWidth="295" leftMargin="0" rightMargin="0" topMargin="0" bottomMargin="0">
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="etiqueta" pageWidth="295" pageHeight="144" orientation="Portrait" columnWidth="295" leftMargin="0" rightMargin="0" topMargin="0" bottomMargin="0">
 	<property name="ireport.zoom" value="2.0"/>
 	<property name="ireport.x" value="0"/>
 	<property name="ireport.y" value="0"/>
+	<queryString>
+		<![CDATA[]]>
+	</queryString>
 	<field name="sucursal" class="java.lang.String"/>
 	<field name="direccion" class="java.lang.String"/>
 	<field name="fecha" class="java.lang.String"/>
@@ -14,69 +17,86 @@
 	</background>
 	<detail>
 		<band height="144" splitType="Stretch">
-			<!-- Formato Horizontal Nativo (104mm x 51mm) -->
+			<!-- CUADRO EXTERNO PRINCIPAL -->
+			<rectangle>
+				<reportElement x="5" y="5" width="285" height="115"/>
+				<graphicElement>
+					<pen lineWidth="1.5" lineStyle="Solid"/>
+				</graphicElement>
+			</rectangle>
+			
 			<staticText>
-				<reportElement x="0" y="8" width="295" height="20"/>
+				<reportElement x="10" y="8" width="275" height="15"/>
 				<textElement textAlignment="Center" verticalAlignment="Middle">
-					<font fontName="SansSerif" size="14" isBold="true"/>
+					<font fontName="Arial" size="10" isBold="true"/>
 				</textElement>
 				<text><![CDATA[CENTRO DE DISTRIBUCION FARMAKEYLA]]></text>
 			</staticText>
 			
 			<textField isBlankWhenNull="true">
-				<reportElement x="0" y="28" width="295" height="22"/>
+				<reportElement x="10" y="23" width="275" height="20"/>
 				<textElement textAlignment="Center" verticalAlignment="Middle">
-					<font fontName="SansSerif" size="16" isBold="true"/>
+					<font fontName="Arial" size="14" isBold="true"/>
 				</textElement>
-				<textFieldExpression><![CDATA["SUCURSAL :" + ($F{sucursal} != null ? $F{sucursal}.toUpperCase() : "")]]></textFieldExpression>
+				<textFieldExpression><![CDATA["SUCURSAL: " + ($F{sucursal} != null ? $F{sucursal}.toUpperCase() : "---")]]></textFieldExpression>
 			</textField>
 			
-			<line>
-				<reportElement x="15" y="52" width="265" height="1"/>
-				<graphicElement><pen lineWidth="1.0"/></graphicElement>
-			</line>
-			
+			<!-- DIRECCION DIVIDIDA EN IZQUIERDA Y DERECHA (SIN TILDES Y EN MAYUSCULAS) -->
 			<textField isBlankWhenNull="true">
-				<reportElement x="25" y="58" width="245" height="12"/>
-				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="true"/></textElement>
-				<textFieldExpression><![CDATA["Dirección :" + ($F{direccion} != null ? $F{direccion} : "")]]></textFieldExpression>
+				<reportElement x="15" y="48" width="160" height="13"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" size="9" isBold="false"/>
+				</textElement>
+				<textFieldExpression><![CDATA["DIRECCION: PROVINCIA: GUAYAS"]]></textFieldExpression>
 			</textField>
 			
 			<textField isBlankWhenNull="true">
-				<reportElement x="25" y="70" width="245" height="12"/>
-				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="10" isBold="true"/></textElement>
-				<textFieldExpression><![CDATA["FECHA DE DESPACHO " + ($F{fecha} != null ? $F{fecha} : "")]]></textFieldExpression>
+				<reportElement x="175" y="48" width="105" height="13"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Arial" size="9" isBold="false"/>
+				</textElement>
+				<textFieldExpression><![CDATA["CANTON: GUAYAQUIL"]]></textFieldExpression>
 			</textField>
 			
 			<textField isBlankWhenNull="true">
-				<reportElement x="25" y="82" width="245" height="12"/>
-				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="11" isBold="true"/></textElement>
-				<textFieldExpression><![CDATA["Número de Bulto #: " + ($F{bulto} != null ? $F{bulto} : "")]]></textFieldExpression>
+				<reportElement x="15" y="61" width="265" height="13"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" size="10" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA["FECHA DE DESPACHO: " + ($F{fecha} != null ? $F{fecha}.toUpperCase() : "")]]></textFieldExpression>
+			</textField>
+			
+			<textField isBlankWhenNull="false">
+				<reportElement x="15" y="74" width="265" height="13"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" size="10" isBold="false"/>
+				</textElement>
+				<textFieldExpression><![CDATA["NUMERO DE BULTO #: " + ($F{bulto} != null ? $F{bulto}.toUpperCase() : "1")]]></textFieldExpression>
+			</textField>
+			
+			<textField isBlankWhenNull="false">
+				<reportElement x="15" y="87" width="265" height="13"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" size="10" isBold="false"/>
+				</textElement>
+				<textFieldExpression><![CDATA["NUMERO DE PEDIDO #: " + ($F{pedido} != null ? $F{pedido}.toUpperCase() : "---")]]></textFieldExpression>
 			</textField>
 			
 			<textField isBlankWhenNull="true">
-				<reportElement x="25" y="94" width="245" height="12"/>
-				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="11" isBold="true"/></textElement>
-				<textFieldExpression><![CDATA["Número de Pedido # " + ($F{pedido} != null ? $F{pedido} : "")]]></textFieldExpression>
+				<reportElement x="15" y="100" width="265" height="13"/>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Arial" size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA["DIGITADOR: " + ($F{digitador} != null ? $F{digitador}.toUpperCase() : "")]]></textFieldExpression>
 			</textField>
 			
-			<textField isBlankWhenNull="true">
-				<reportElement x="25" y="106" width="245" height="12"/>
-				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="true"/></textElement>
-				<textFieldExpression><![CDATA["Digitador : " + ($F{digitador} != null ? $F{digitador} : "")]]></textFieldExpression>
-			</textField>
-			
-			<line>
-				<reportElement x="15" y="123" width="265" height="1"/>
-				<graphicElement><pen lineWidth="1.0"/></graphicElement>
-			</line>
-			
+			<!-- Mensaje de Seguridad FUERA del cuadro -->
 			<staticText>
-				<reportElement x="0" y="126" width="295" height="12"/>
-				<textElement textAlignment="Center" verticalAlignment="Bottom">
-					<font fontName="SansSerif" size="10" isBold="true"/>
+				<reportElement x="0" y="122" width="295" height="18"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Arial" size="9" isBold="true"/>
 				</textElement>
-				<text><![CDATA[SI ESTE SELLO VIOLADO NO ACEPTE LA CAJA]]></text>
+				<text><![CDATA[SI ESTE SELLO ES VIOLADO NO ACEPTE LA CAJA]]></text>
 			</staticText>
 		</band>
 	</detail>

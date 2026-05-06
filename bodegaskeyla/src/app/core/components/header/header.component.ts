@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy, signal, inject, computed } from '@angular
 import { CommonModule } from '@angular/common';
 import { NavigationService } from '../../services/navigation.service';
 import { AuthService } from '../../services/auth.service';
+import { ConfigService } from '../../services/config.service';
 
 @Component({
     selector: 'app-header',
@@ -13,8 +14,13 @@ import { AuthService } from '../../services/auth.service';
 export class HeaderComponent implements OnInit, OnDestroy {
     public navService = inject(NavigationService);
     public authService = inject(AuthService);
+    public configService = inject(ConfigService);
     public currentTime = signal<string>('');
     private intervalId: any;
+
+    public get environment() {
+        return this.configService.getConfig()?.environment || '';
+    }
 
     // v103.0: Dynamic session data instead of mock
     public userData = computed(() => this.authService.getStoredUser());
