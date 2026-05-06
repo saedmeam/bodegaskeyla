@@ -343,7 +343,135 @@ function createWindow() {
 app.on('ready', () => {
     setupIpcHandlers();
     createWindow();
+    
+    // v1.0.6: Iniciar verificación de actualizaciones automáticas
+    setTimeout(() => {
+        checkForUpdates();
+    }, 3000); // Esperar 3 segundos después del inicio para no bloquear la carga inicial
 });
+
+/**
+ * v1.0.6: Sistema de Auto-Actualización (Basado en Inno Setup)
+ * No requiere Git instalado en el cliente.
+ */
+async function checkForUpdates() {
+    console.log('[Updater] Verificando actualizaciones...');
+    const https = require('https');
+    const fs = require('fs');
+    const { exec } = require('child_process');
+    const { dialog } = require('electron');
+
+    const pkg = require('./package.json');
+    const currentVersion = pkg.version;
+    const updateUrl = 'https://raw.githubusercontent.com/saedmeam/bodegaskeyla/impresion_automatica/latest_version.json';
+
+    https.get(updateUrl, (res) => {
+        let data = '';
+        res.on('data', (chunk) => data += chunk);
+        res.on('end', async () => {
+            try {
+                const remote = JSON.parse(data);
+                console.log(`[Updater] Local: ${currentVersion}, Remoto: ${remote.version}`);
+
+                if (remote.version !== currentVersion) {
+                    const choice = dialog.showMessageBoxSync(win, {
+                        type: 'info',
+                        buttons: ['Actualizar Ahora', 'Más Tarde'],
+                        title: 'Actualización Disponible',
+                        message: `Hay una nueva versión disponible (${remote.version}). ¿Deseas actualizar ahora?`,
+                        detail: remote.notes || ''
+                    });
+
+                    if (choice === 0) {
+                        downloadAndInstall(remote.url);
+                    }
+                }
+            } catch (e) {
+                console.error('[Updater] Error parseando version.json', e.message);
+            }
+        });
+    }).on('error', (err) => {
+        console.error('[Updater] Error de red consultando actualizaciones', err.message);
+    });
+}
+
+function downloadAndInstall(url) {
+    const https = require('https');
+    const fs = require('fs');
+    const os = require('os');
+    const { exec } = require('child_process');
+    const { dialog } = require('electron');
+
+    const tempPath = path.join(os.tmpdir(), 'BodegasKeyla_Update.exe');
+    const file = fs.createWriteStream(tempPath);
+
+    // Notificar inicio de descarga
+    const progressWin = new BrowserWindow({
+        width: 400,
+        height: 150,
+        frame: false,
+        alwaysOnTop: true,
+        transparent: true,
+        webPreferences: { nodeIntegration: true }
+    });
+    progressWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(`
+        <body style="background:#222; color:white; font-family:sans-serif; display:flex; flex-direction:column; align-items:center; justify-content:center; border:1px solid #444;">
+            <h3>Descargando Actualización...</h3>
+            <p>Espere un momento, el sistema se reiniciará solo.</p>
+            <div style="width:80%; height:10px; background:#444; border-radius:5px; overflow:hidden;">
+                <div id="bar" style="width:0%; height:100%; background:#4caf50;"></div>
+            </div>
+        </body>
+    `)}`);
+
+    console.log(`[Updater] Descargando de: ${url}`);
+
+    https.get(url, (res) => {
+        // Manejar redireccionamientos de GitHub
+        if (res.statusCode === 302 || res.statusCode === 301) {
+            return downloadAndInstall(res.headers.location);
+        }
+
+        const totalSize = parseInt(res.headers['content-length'], 10);
+        let downloaded = 0;
+
+        res.on('data', (chunk) => {
+            downloaded += chunk.length;
+            const progress = Math.round((downloaded / totalSize) * 100);
+            if (!progressWin.isDestroyed()) {
+                progressWin.webContents.executeJavaScript(`document.getElementById("bar").style.width = "${progress}%"`);
+            }
+        });
+
+        res.pipe(file);
+
+        file.on('finish', () => {
+            file.close();
+            console.log('[Updater] Descarga completada. Ejecutando instalador...');
+            
+            // Ejecutar instalador en modo ultra silencioso
+            // /VERYSILENT: Sin interfaz
+            // /SUPPRESSMSGBOXES: Sin preguntas
+            // /RESTARTEXITCODE: Código de salida para reinicio
+            const cmd = `"${tempPath}" /VERYSILENT /SUPPRESSMSGBOXES /FORCECLOSEAPPLICATIONS`;
+            
+            exec(cmd, (err) => {
+                if (err) {
+                    console.error('[Updater] Error ejecutando instalador', err.message);
+                }
+            });
+
+            // Cerrar la app para que el instalador pueda sobreescribir los archivos
+            setTimeout(() => {
+                app.quit();
+            }, 1000);
+        });
+    }).on('error', (err) => {
+        console.error('[Updater] Error descargando el archivo', err.message);
+        if (!progressWin.isDestroyed()) progressWin.close();
+    });
+}
+
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
         app.quit();
