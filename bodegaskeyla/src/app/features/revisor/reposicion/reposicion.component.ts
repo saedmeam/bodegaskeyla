@@ -101,7 +101,7 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
     totalVerificados = computed(() => this.escaneados().length);
     totalItems = computed(() => this.totalOrder()); // v2.1: Refiere al total de la orden (ej. 5761) en lugar de escaneados
     totalCorrectos = computed(() => this.escaneados().filter(p => p.color === 'negro').length);
-    public appVersion = '1.0.5';
+    public appVersion = '1.0.0';
     totalIncompletos = computed(() => this.escaneados().filter(p => p.color === 'azul' || p.color === 'naranja').length);
 
     constructor() {
