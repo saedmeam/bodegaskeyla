@@ -1,7 +1,7 @@
 <!-- Header v2.0 (Dark Sub-header) -->
 <div class="header-revisor-v2">
     <div class="h-indicator"></div>
-    <span class="h-title">NEU360 - Pantalla de Revisor v2.0</span>
+    <span class="h-title">NEU360 - Pantalla de Revisor v{{ appVersion }}</span>
     <span class="h-subtitle">Reposicion de Mercaderia</span>
     <button class="btn-refresh-v2" (click)="actualizarOrdenData()">
         <span class="icon">🔄</span> ACTUALIZAR
@@ -44,11 +44,14 @@
                 <div class="scanner-prompt">Escaneo de Códigos |</div>
                 <div class="scanner-input-container">
                     <div class="autocomplete-wrapper-scanner">
-                        <input #scannerInput autofocus type="text" [(ngModel)]="barcodeInput" 
-                            (input)="filtrarProductos($event)"
-                            (keydown)="onScannerKeydown($event)"
-                            (keyup.enter)="simularEscaneo()"
-                            class="scanner-input-v2 code-input" placeholder="Escriba nombre o código para buscar..." autocomplete="off">
+                            <input #scannerInput autofocus type="text" [(ngModel)]="barcodeInput" 
+                                id="scannerInput"
+                                (input)="filtrarProductos($event)"
+                                (keydown)="onScannerKeydown($event)"
+                                (keyup.enter)="simularEscaneo()"
+                                (blur)="onScannerBlur()"
+                                [disabled]="isConsultaMode()"
+                                class="scanner-input-v2 code-input" [placeholder]="isConsultaMode() ? 'ORDEN CERRADA - SOLO CONSULTA' : 'Escriba nombre o código para buscar...'" autocomplete="off">
                         
                         @if (showProductDropdown() && productosFiltrados().length > 0) {
                         <div class="product-autocomplete-dropdown">
@@ -57,8 +60,13 @@
                                 [class.active]="i === selectedIndexProd()"
                                 (click)="seleccionarProducto(prod)">
                                 <div class="prod-item-info">
-                                    <span class="prod-code">{{ prod.item }}</span>
-                                    <span class="prod-name">{{ prod.nombre }}</span>
+                                    <div class="prod-name-row">
+                                        <span class="prod-name">{{ prod.nombre }}</span>
+                                        @if (prod.laboratorio) {
+                                            <span class="prod-lab-tag">{{ prod.laboratorio }}</span>
+                                        }
+                                    </div>
+                                    <span class="prod-code">CÓD: {{ prod.codigoBarras || prod.item }}</span>
                                 </div>
                                 <span class="prod-stock">Stock: {{ prod.invBod }}</span>
                             </div>
@@ -90,7 +98,6 @@
                                 <tr>
                                     <th class="col-code-name">Producto / Código</th>
                                     <th class="col-lotes">Lotes Asociados</th>
-                                    <th class="col-bulto">Bulto</th>
                                     <th class="col-u">U/C</th>
                                     <th class="col-stock">Stock</th>
                                     <th class="col-qty">Sol.</th>
@@ -107,7 +114,7 @@
                                         <div class="product-info-composite">
                                             <span class="product-name-main">{{ item.nombre }}</span>
                                             <div class="product-metadata-secondary">
-                                                <span class="meta-tag barcode">{{ item.item }}</span>
+                                                <span class="meta-tag barcode">{{ item.codigoBarras || item.item }}</span>
                                                 <span class="meta-tag dark">{{ item.tipoPresentacion }}</span>
                                             </div>
                                         </div>
@@ -117,9 +124,6 @@
                                             <span class="lotes-concat">{{ getLotesConcat(item) }}</span>
                                         </div>
                                     </td>
-                                    <td><input type="text" [value]="item.bulto || 1"
-                                            (focus)="$any($event.target).select()"
-                                            class="input-v2 w-tiny text-center"></td>
                                     <td>{{ item.tipoMedida }}</td>
                                     <td class="cell-stock">{{ item.invBod }}</td>
                                     <td><span class="qty-bubble-sol">{{ orig?.solicita || 0 }}</span></td>
@@ -128,10 +132,10 @@
                                             <!-- v170.2: Si tiene múltiples lotes, el input es readonly y se modifica vía modal -->
                                             <input type="number" [ngModel]="item?.despachado || 0"
                                                 (ngModelChange)="updateQty(item.item, $event)" 
-                                                [readonly]="(item.lotes || []).length > 1"
+                                                [readonly]="(item.lotes || []).length > 1 || isConsultaMode()"
                                                 (focus)="$any($event.target).select()"
                                                 [title]="(item.lotes || []).length > 1 ? 'Producto con múltiples lotes. Use el botón de caja para asignar cantidades.' : ''"
-                                                class="input-v2 w-tiny" [class.readonly-field]="(item.lotes || []).length > 1">
+                                                class="input-v2 w-tiny" [class.readonly-field]="(item.lotes || []).length > 1 || isConsultaMode()">
                                         </div>
                                     </td>
                                     <td>
@@ -143,10 +147,10 @@
 
                                     <td class="cell-action-buttons">
                                         <div class="action-btn-group">
-                                            <button class="btn-lote-modify" (click)="onLoteModify(item)" title="Modificar Lotes">
+                                            <button class="btn-lote-modify" (click)="onLoteModify(item)" title="Modificar Lotes" [disabled]="isConsultaMode()">
                                                 <span class="icon">📦</span>
                                             </button>
-                                            <button class="btn-delete-v2" (click)="eliminarItem(item.item)">×</button>
+                                            <button class="btn-delete-v2" (click)="eliminarItem(item.item)" [disabled]="isConsultaMode()">×</button>
                                         </div>
                                     </td>
                                 </tr>
@@ -170,10 +174,10 @@
                     <span class="toggle-icon">{{ showComparativo() ? '▼' : '▶' }}</span>
                 </div>
                 @if (showComparativo()) {
-                <div class="reference-grid-header">
-                    <span>Producto</span>
+                <div class="reference-header-v2">
+                    <span>PRODUCTO</span>
                     <span class="text-center">U/C</span>
-                    <span class="text-right">SOL</span>
+                    <span class="text-center">SOL</span>
                 </div>
                 <div class="reference-grid-v2">
                     @for (prod of ordenProductos(); track prod.item) {
@@ -186,7 +190,10 @@
                             <strong class="c-title" [title]="prod.nombre">{{ prod.nombre }}</strong>
                             <div class="c-meta-line">
                                 <span class="c-tag presentation">{{ prod.tipoPresentacion }}</span>
-                                <span class="c-meta">CÓD: {{ prod.item }} | STOCK: {{ prod.invBod }}</span>
+                                @if (prod.laboratorio) {
+                                    <span class="c-tag laboratory">{{ prod.laboratorio }}</span>
+                                }
+                                <span class="c-meta">CÓD: {{ prod.codigoBarras || prod.item }} | STOCK: {{ prod.invBod }}</span>
                             </div>
                         </div>
                         <div class="c-u-box">
@@ -217,7 +224,7 @@
                 <div class="legend-item"><span class="marker verde"></span> <span class="lbl">EXCEDIDO</span></div>
             </div>
             <div class="system-stats">
-                TRA#: 18369 | Terminal: 55336 | NEU360 Engine v2.0 Ready
+                TRA#: 18369 | Terminal: 55336 | NEU360 Engine v{{ appVersion }} Ready
             </div>
         </div>
         <div class="footer-actions-v2">
@@ -253,7 +260,7 @@
 
 @if (bultoModalVisible()) {
 <div class="modal-overlay" (click)="bultoModalVisible.set(false)">
-    <div class="glass-modal bulto-modal animate-pop" (click)="$event.stopPropagation()">
+    <div class="glass-modal bulto-modal animate-pop" (click)="$event.stopPropagation()" (keydown.enter)="$event.preventDefault(); procesarBultos()">
         <div class="modal-header">
             <span class="modal-icon">📦</span>
             <h3>Tipos de Bulto</h3>
@@ -274,9 +281,12 @@
                 }
             </div>
         </div>
-        <div class="modal-footer central">
+        <div class="modal-footer central" style="gap: 15px;">
             <button #bultoActionBtn class="btn-modal-action btn-green-premium" (click)="procesarBultos()">
-                Procesar
+                Guardar e Imprimir
+            </button>
+            <button class="btn-modal-action btn-teal-premium" (click)="soloImprimir()">
+                Solo Imprimir
             </button>
         </div>
     </div>

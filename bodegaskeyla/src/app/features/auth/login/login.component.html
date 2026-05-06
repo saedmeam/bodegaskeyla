@@ -142,14 +142,19 @@
                 <!-- Error Toast -->
                 @if (error) {
                 <div class="auth-error animate-shake">
-                    {{ error }}
+                    <div class="error-main">{{ error }}</div>
+                    @if (systemError) {
+                        <div class="error-system">
+                            <strong>Detalle técnico:</strong> {{ systemError }}
+                        </div>
+                    }
                 </div>
                 }
             </div>
         </div>
 
         <div class="auth-footer">
-            Sistema POS v2.0 • Farmacias KEYLA © 2026
+            Sistema POS v{{ appVersion }} • Farmacias KEYLA © 2026
             <div class="auth-copyright-v">© 2026 Keyla - Neu360 Solutions</div>
         </div>
     </div>

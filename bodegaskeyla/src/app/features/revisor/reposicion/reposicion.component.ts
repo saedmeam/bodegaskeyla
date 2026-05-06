@@ -1,5 +1,6 @@
 import { Component, signal, computed, inject, OnInit, AfterViewInit, ViewChild, ElementRef, effect, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Title } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
 import { RevisorService } from '../services/revisor.service';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -30,6 +31,7 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
     private printerService = inject(PrinterService);
     private dataService = inject(DataService);
     private configService = inject(ConfigService);
+    private titleService = inject(Title);
 
     @ViewChild('scannerInput') scannerInput!: ElementRef<HTMLInputElement>;
     @ViewChild('modalActionBtn') modalActionBtn!: ElementRef<HTMLButtonElement>;
@@ -88,6 +90,7 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
     reportPreviewHtml = signal("");
     reportPreviewTitle = signal("");
     private pendingReportData: any = null; // Para guardar datos mientras se previsualiza
+    isConsultaMode = signal(false); // v104.9: Para bloquear edición en órdenes ya despachadas
 
     // Proyecciones del servicio orquestador
     ordenProductos = this.revisorService.ordenProductos;
@@ -98,9 +101,11 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
     totalVerificados = computed(() => this.escaneados().length);
     totalItems = computed(() => this.totalOrder()); // v2.1: Refiere al total de la orden (ej. 5761) en lugar de escaneados
     totalCorrectos = computed(() => this.escaneados().filter(p => p.color === 'negro').length);
+    public appVersion = '1.0.5';
     totalIncompletos = computed(() => this.escaneados().filter(p => p.color === 'azul' || p.color === 'naranja').length);
 
     constructor() {
+        this.titleService.setTitle(`Bodegas Keyla - v${this.appVersion}`);
         // v45.0: Sincronización reactiva con la metadata de la orden cargada
         effect(() => {
             const metadata = this.revisorService.orderMetadata();
@@ -172,6 +177,17 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
                 this.actualizarOrdenData(fd, fh, true);
             }
         });
+        
+        // v104.9: Efecto para detectar si la orden cargada está despachada y activar consulta
+        effect(() => {
+            const meta = this.revisorService.orderMetadata();
+            if (meta && (meta.estado === 'DP' || meta.estado === 'DT')) {
+                this.isConsultaMode.set(true);
+            } else {
+                this.isConsultaMode.set(false);
+            }
+        });
+
         this.cargarTiposBultos();
     }
 
@@ -251,27 +267,28 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
     }
 
 
-    async simularEscaneo(): Promise<boolean> {
+    async simularEscaneo(lineaDetalle?: number): Promise<boolean> {
         if (!this.barcodeInput.trim()) return false;
         
-        // v2.0: Soporte para Autocompletado - Si hay uno seleccionado en el dropdown, usar su item
-        if (this.selectedIndexProd() >= 0 && this.productosFiltrados().length > 0) {
+        // 1. Soporte para Autocompletado - Si hay uno seleccionado en el dropdown, usar su item
+        if (lineaDetalle === undefined && this.selectedIndexProd() >= 0 && this.productosFiltrados().length > 0) {
             const selected = this.productosFiltrados()[this.selectedIndexProd()];
-            this.barcodeInput = selected.item;
+            this.barcodeInput = selected.item || selected.nombre;
+            const det = selected.lineaDetalle;
             this.productosFiltrados.set([]);
             this.showProductDropdown.set(false);
             this.selectedIndexProd.set(-1);
-            // Continúa el flujo normal con el item seleccionado
+            return await this.simularEscaneo(det);
         }
 
-        // REGLA DE NEGOCIO: No permitir pistoleo si no hay orden cargada
+        // 2. REGLA DE NEGOCIO: No permitir pistoleo si no hay orden cargada
         if (this.ordenProductos().length === 0) {
             this.showToast("ERROR: Debe cargar una orden antes de pistolear.", true);
             this.barcodeInput = "";
             return false;
         }
 
-        // --- NUEVA VALIDACIÓN GLOBAL: Bloqueo si hay errores previos en la lista ---
+        // 3. VALIDACIÓN GLOBAL: Bloqueo si hay errores previos en la lista (v104.9)
         const errorNoExiste = this.escaneados().find(e => !this.getOriginalRequested(e.item));
         if (errorNoExiste) {
             this.openModal("PRODUCTO NO PERTENECE", `El producto <b>${errorNoExiste.nombre || errorNoExiste.item}</b> no existe en la orden original. Por favor, elimínelo antes de continuar pistoleando.`, "❌", "alert");
@@ -296,11 +313,12 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
             return false;
         }
 
-        // 1. Prioridad: Coincidencia exacta por código de ítem o NOMBRE (v160.12)
+        // 4. LÓGICA DE BÚSQUEDA Y ESCANEO (v160.12)
         const searchText = this.barcodeInput.trim().toUpperCase();
-        let matches = this.ordenProductos().filter(p => 
-            p.item?.trim().toUpperCase() === searchText || p.nombre?.trim().toUpperCase() === searchText
-        );
+        let matches = this.ordenProductos().filter(p => {
+            if (lineaDetalle !== undefined && p.lineaDetalle === lineaDetalle) return true;
+            return p.item?.trim().toUpperCase() === searchText || p.nombre?.trim().toUpperCase() === searchText;
+        });
 
         if (matches.length === 0) {
             this.openModal("ERROR", `ERROR el código o nombre : [${this.barcodeInput}] no existe en esta orden.`, "❌", "alert");
@@ -313,7 +331,8 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
             const result = await this.revisorService.executeProcess('SCAN', {
                 barcode: this.barcodeInput,
                 lote: this.loteInput,
-                caducidad: this.caducidadInput
+                caducidad: this.caducidadInput,
+                lineaDetalle: lineaDetalle // v104.8: Pasamos lineaDetalle para desambiguar
             });
 
             if (result) {
@@ -362,13 +381,14 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
         if (!prod) return;
 
         // V160.12: Manual Scan via double click. Si no hay barcode, usamos el nombre exacto.
+        // v104.8: Priorizamos el código exacto (item) para evitar fallos de duplicidad por nombre
         this.barcodeInput = prod.item || prod.nombre;
 
         // If the product has a specific lot/expiry in the order, we use it
         if (prod.lote) this.loteInput = prod.lote;
         if (prod.caducidad) this.caducidadInput = prod.caducidad;
 
-        const wasAdded = await this.simularEscaneo();
+        const wasAdded = await this.simularEscaneo(prod.lineaDetalle);
         if (wasAdded) {
             // Only show manual scan toast if it passed the filters inside simularEscaneo
             this.showToast(`CARGA MANUAL: [${prod.item}] cargado vía comparativo.`, false, "REGISTRO MANUAL");
@@ -590,16 +610,22 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
         const status = metadata?.estado?.trim().toUpperCase();
         
         if (status === 'DP' || status === 'DT') {
-            await this.openModal(
+            const consultar = await this.openModal(
                 "ORDEN YA PROCESADA",
                 `<div style="text-align:center;">
-                    <span class="material-icons" style="font-size:48px; color:var(--danger-color); margin-bottom:15px;">lock</span>
-                    <p>Esta orden de despacho se encuentra actualmente en estado <b>[${status}]</b>.</p>
-                    <p style="margin-top:10px; font-size:0.9rem; color:#636e72;">No está permitido subir cambios ni bultos a una orden que ya ha sido cerrada o despachada totalmente.</p>
+                    <span class="material-icons" style="font-size:48px; color:var(--info-color); margin-bottom:15px;">visibility</span>
+                    <p>Esta orden ya fue despachada <b>[${status}]</b>.</p>
+                    <p style="margin-top:10px; font-size:0.9rem;">¿Desea <b>CONSULTAR</b> el detalle procesado?</p>
                 </div>`,
-                "🚫",
-                "alert"
+                "👁️",
+                "confirm"
             );
+            
+            if (consultar) {
+                // Forzamos la carga de lo que el servidor tiene como despachado
+                this.isConsultaMode.set(true);
+                this.showToast("MODO CONSULTA: Visualizando despacho final del servidor.", false, "INFO");
+            }
             return;
         }
 
@@ -699,17 +725,18 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
             </div>`;
 
         // Abrimos el modal con el reporte
-        this.modalActionDisabled.set(hasCritical);
+        // v104.9: DESBLOQUEO DE CIERRE - Se permite avanzar incluso con errores críticos (Advertencia informativa)
+        this.modalActionDisabled.set(false);
         const aceptado = await this.openModal(
-            hasCritical ? "⛔ BLOQUEO DE ENVÍO" : "📋 AUDITORÍA DE CIERRE", 
+            hasCritical ? "⛔ AUDITORÍA CON ALERTAS CRÍTICAS" : "📋 AUDITORÍA DE CIERRE", 
             messageHtml, 
             hasCritical ? "🚫" : "⚠️", 
             "confirm"
         );
 
-        if (aceptado && !hasCritical) {
+        if (aceptado) {
             this.bultoModalVisible.set(true);
-        } else if (!aceptado) {
+        } else {
             this.showToast("DESPACHO RETENIDO: Auditoría cancelada por el usuario.", true);
         }
         
@@ -730,6 +757,22 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
         this.ejecutarEnvioFinal(bultosParaEnviar);
         
         setTimeout(() => this.focusScanner(), 300); // v2.8: Volver al scanner tras procesar bultos
+    }
+
+    /**
+     * v104.9: Permite imprimir los reportes SIN guardar en la base de datos (Bypass de errores de stock)
+     */
+    soloImprimir() {
+        const bultosParaEnviar = this.bultoTypes().filter(b => (b.cantidad || 0) > 0);
+        
+        if (bultosParaEnviar.length === 0) {
+            this.showToast("DEBE REGISTRAR AL MENOS UN BULTO: Verifique las cantidades antes de continuar.", true, "VALIDACIÓN DE BULTOS");
+            return;
+        }
+
+        this.bultoModalVisible.set(false);
+        this.showToast("MODO SOLO IMPRESIÓN: Generando reportes sin guardar cambios.", false, "BODERGA BYPASS");
+        this.imprimirReportesFinales(bultosParaEnviar);
     }
 
 
@@ -754,13 +797,13 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
     }
 
     async seleccionarProducto(prod: Product) {
-        this.barcodeInput = prod.item;
+        this.barcodeInput = prod.item || prod.nombre;
         this.productosFiltrados.set([]);
         this.showProductDropdown.set(false);
         this.selectedIndexProd.set(-1);
         
-        // Ejecutar escaneo inmediatamente
-        await this.simularEscaneo();
+        // Ejecutar escaneo inmediatamente con lineaDetalle para desambiguar (v104.9)
+        await this.simularEscaneo(prod.lineaDetalle);
     }
 
     onScannerKeydown(event: KeyboardEvent) {
@@ -777,6 +820,14 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
         }
     }
 
+    onScannerBlur() {
+        // v200.5: Cerrar dropdown tras pequeño delay para permitir clics en items
+        setTimeout(() => {
+            this.showProductDropdown.set(false);
+            this.selectedIndexProd.set(-1);
+        }, 250);
+    }
+
     /**
      * Ejecuta el cierre definitivo y envío de datos (AGREGAR).
      */
@@ -790,10 +841,15 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
                     // v120.0: Ahora la impresión se dispara solo si la API responde éxito total
                     this.imprimirReportesFinales(bultos);
 
-                    // v160.11: Redirección automática al mantenimiento de órdenes tras éxito
-                    setTimeout(() => {
-                        this.router.navigate(['/despacho-lista']);
-                    }, 2500);
+                    // v1.0.3: Solo redireccionar automáticamente si no hay ninguna vista previa activa que el usuario deba ver
+                    const config = this.configService.getConfig();
+                    const hasPreviews = (config?.PREVIEW_REPORTE !== false) || (config?.PREVIEW_TICKET === true);
+                    
+                    if (!hasPreviews) {
+                        setTimeout(() => {
+                            this.router.navigate(['/despacho-lista']);
+                        }, 2500);
+                    }
                 } else {
                     // v104.5: Mostrar el mensaje de error directamente desde la respuesta (400/500)
                     this.openModal("ERROR EN PROCESO", `${res?.mensaje || 'Error desconocido'}`, "❌", "alert");
@@ -814,7 +870,7 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
         if (productsVerificados.length === 0) return;
 
         const config = this.configService.getConfig();
-        const showPreview = config?.PREVIEW_REPORTE !== false; // v1.2: Respetar interruptor de configuración
+        const showInternalPreview = config?.PREVIEW_REPORTE !== false; 
 
         // Preparamos datos necesarios para ambos casos
         const extraReport = {
@@ -829,27 +885,40 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
 
         this.pendingReportData = { bultosParaEnviar, productsVerificados, extraReport, metadata, user };
 
-        if (showPreview) {
-            // Caso 1: Vista Previa Interna activada
+        if (showInternalPreview) {
+            // Caso 1: Vista Previa Interna (Angular Modal) activada para A4
             const html = this.printerService.generateTransferReportHtml(this.orderNumber, productsVerificados, extraReport);
             this.reportPreviewHtml.set(html);
             this.reportPreviewTitle.set(`Reporte de Transferencia - ${this.orderNumber}`);
             this.showReportPreview.set(true);
         } else {
-            // Caso 2: Impresión Automática (Silent)
+            // Caso 2: Impresión Directa o Vista Previa Externa (Jasper)
             this.confirmarImpresionDesdePreview();
         }
     }
 
     async confirmarImpresionDesdePreview() {
         const { bultosParaEnviar, productsVerificados, extraReport, metadata, user } = this.pendingReportData;
+        const config = this.configService.getConfig();
 
-        // 1. Imprimir Reporte de Transferencia vía Jasper (Impresión DIRECTA, sin visor externo)
-        await this.printerService.imprimirReporteTransferenciaJasper(this.orderNumber, productsVerificados, extraReport, undefined, false);
+        // 1. Imprimir Reporte de Transferencia vía Jasper
+        const isFromModal = this.showReportPreview();
+        await this.printerService.imprimirReporteTransferenciaJasper(
+            this.orderNumber, 
+            productsVerificados, 
+            extraReport, 
+            undefined, 
+            isFromModal ? false : config?.PREVIEW_REPORTE
+        );
 
-        // 2. Imprimir Etiquetas si aplica (Impresión DIRECTA)
+        // 2. Imprimir Etiquetas (v104.9: FORZADO ESPECIAL - Una sola vez)
         const bulto999 = bultosParaEnviar?.find((b: any) => b.codigoTipoBulto === 999);
-        const cantidadAPrint = bulto999 ? Number(bulto999.cantidad) : 0;
+        let cantidadAPrint = bulto999 ? Number(bulto999.cantidad) : 0;
+        
+        // v104.9: Si no hay 999 pero hay bultos, imprimimos al menos una etiqueta por bulto total para esta vez
+        if (cantidadAPrint === 0 && bultosParaEnviar && bultosParaEnviar.length > 0) {
+            cantidadAPrint = bultosParaEnviar.reduce((acc: number, b: any) => acc + (Number(b.cantidad) || 0), 0);
+        }
 
         if (cantidadAPrint > 0) {
             const extraData = {
@@ -859,11 +928,23 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
                 bodegaDestino: metadata?.nombreSucursalDestino || metadata?.sucursalDestino
             };
             const bultoLabel = { label: 'IMPRESIÓN DE ETIQUETAS', value: cantidadAPrint };
-            await this.printerService.imprimirEtiquetaJasper(this.orderNumber, bultoLabel, extraData, undefined, false);
+            
+            await this.printerService.imprimirEtiquetaJasper(
+                this.orderNumber, 
+                bultoLabel, 
+                extraData, 
+                undefined, 
+                config?.PREVIEW_TICKET
+            );
         }
 
         this.showReportPreview.set(false);
-        this.showToast("Impresión enviada directamente a la impresora.", false, "ÉXITO");
+        this.showToast("Proceso de impresión finalizado.", false, "ÉXITO");
+
+        // v1.0.3: Tras procesar la vista previa y confirmación, regresamos a la lista
+        setTimeout(() => {
+            this.router.navigate(['/despacho-lista']);
+        }, 1500);
     }
 
     /**

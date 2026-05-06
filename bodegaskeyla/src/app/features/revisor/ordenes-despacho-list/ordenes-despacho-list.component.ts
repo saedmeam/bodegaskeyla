@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, signal, HostListener, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Title } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
 import { RevisorService } from '../services/revisor.service';
 import { AuthService } from '../../../core/services/auth.service';
@@ -32,6 +33,9 @@ export class OrdenesDespachoListComponent implements OnInit {
     private printerService = inject(PrinterService);
     private configService = inject(ConfigService);
     private dataService = inject(DataService);
+    private titleService = inject(Title);
+    public appVersion = '1.0.6';
+    public Math = Math;
 
     // Filters
     diaEmbarque: string = this.getInitialDay();
@@ -66,6 +70,13 @@ export class OrdenesDespachoListComponent implements OnInit {
     public currentPage = signal<number>(0);
     public pageInput: number = 1;
     public selectedIndex = signal<number>(0); // v2.4: Keyboard navigation
+    
+    // v104.6: Label Reimprinting UI State
+    public showLabelModal = signal<boolean>(false);
+    public labelQuantity = 1;
+    public selectedOrderForLabels = signal<DispatchOrder | null>(null);
+    public tiposBultos: any[] = [];
+    public selectedTipoBulto = signal<any>(null);
 
     public ordenes = computed(() => {
         const est = this.estado();
@@ -105,6 +116,10 @@ export class OrdenesDespachoListComponent implements OnInit {
                 this.procesar(order);
             }
         }
+    }
+
+    constructor() {
+        this.titleService.setTitle(`Bodegas Keyla - v${this.appVersion}`);
     }
 
     ngOnInit() {
@@ -256,10 +271,7 @@ export class OrdenesDespachoListComponent implements OnInit {
     irAPagina() { this.buscar(Math.max(1, Number(this.pageInput) || 1) - 1); }
 
     procesar(orden: DispatchOrder) {
-        if (orden.codigoEstado === 'DP' || orden.codigoEstado === 'DT') {
-            this.notificationService.show(`ERROR: La orden ${orden.solicitudOrden} ya ha sido procesada.`, true, 'ACCESO DENEGADO');
-            return;
-        }
+        // v104.9: Se permite entrar a órdenes DP/DT para MODO CONSULTA
         const compositeKey = `${orden.numeroSolicitud}-${orden.numeroOrdenDespacho}`;
         this.router.navigate(['/revisor'], { queryParams: { order: compositeKey, fd: this.fechaDesde, fh: this.fechaHasta } });
     }
@@ -289,9 +301,6 @@ export class OrdenesDespachoListComponent implements OnInit {
                 vtas: 0, sLocal: 0, suger: 0, bulto: 0, invBod: d.saldoActualEnCajas || d.stock || 0, color: 'negro'
             }));
 
-            // 2. Definir bultos para la etiqueta (v160.48: Por defecto 2 etiquetas si es reimpresión rápida)
-            // v3.2: Nombre de sucursal destino corregido para consistencia total
-            const bultosParaImprimir = [{ codigoTipoBulto: 999, nombreTipoBulto: 'IMPRESIÓN DE ETIQUETAS', cantidad: 2 }];
             const user = this.authService.getStoredUser();
             const ordenFullId = `${orden.numeroSolicitud}-${orden.numeroOrdenDespacho}`;
 
@@ -302,17 +311,8 @@ export class OrdenesDespachoListComponent implements OnInit {
                 fecha: new Date().toLocaleDateString('es-EC'),
                 bodegaOrigen: orden.nombreSucursalOrigen,
                 bodegaDestino: orden.nombreSucursalDestino || orden.nombreSucursal,
-                bultos: bultosParaImprimir
+                bultos: []
             };
-
-            // 3. Generar y Enviar Etiquetas Térmicas vía Jasper (AUTOMÁTICO para enviar a la cola de impresión seleccionada)
-            const bultosLabelsMapped = bultosParaImprimir.map(b => ({ label: b.nombreTipoBulto, value: b.cantidad }));
-            for (const bulto of bultosLabelsMapped) {
-                const res = await this.printerService.imprimirEtiquetaJasper(ordenFullId, bulto, extraData);
-                if (!res.success) {
-                    this.notificationService.show(`Error etiqueta: ${res.error}`, true, "ERROR");
-                }
-            }
  
             // 4. Generar y Enviar Reporte de Transferencia (A4) vía Jasper (Configurable)
             setTimeout(async () => {
@@ -327,6 +327,112 @@ export class OrdenesDespachoListComponent implements OnInit {
         } catch (e: any) {
             this.error.set(`ERROR IMPRESIÓN: ${e.message}`);
             this.notificationService.show(e.message, true, "ERROR");
+        } finally {
+            this.loadingService.hide();
+        }
+    }
+
+    /**
+     * v105.0: Reimpresión de Orden de Despacho Masiva (Picking List Matricial)
+     */
+    async imprimirOrdenMasivo(orden: DispatchOrder) {
+        console.log('[Revisor:Mantenimiento] 🖨️ Reimpresión Masiva:', orden.solicitudOrden);
+        this.loadingService.show();
+        try {
+            const user = this.authService.getStoredUser();
+            const empresa = user?.empresa?.codigoEmpresa || 1;
+
+            // 1. Consultar el nuevo servicio de datos masivos
+            const resData = await firstValueFrom(this.dataService.executeAction<any>('GET_ORDEN_DESPACHO_MASIVO', {
+                empresa: empresa,
+                solicitud: orden.numeroSolicitud,
+                orden: orden.numeroOrdenDespacho
+            }));
+
+            if (!resData || resData.isError || !resData.cabecera) {
+                throw new Error(resData?.mensaje || 'No se pudo obtener la información masiva de la orden.');
+            }
+
+            // 2. Enviar a imprimir vía Jasper
+            const printRes = await this.printerService.imprimirDespachoMasivoJasper(
+                { ...resData.cabecera, usuario: user?.username || 'SISTEMA' },
+                resData.detalles || []
+            );
+
+            if (printRes.success) {
+                this.notificationService.show("Reporte de despacho masivo generado correctamente.", false, "ÉXITO");
+            } else {
+                throw new Error(printRes.error);
+            }
+
+        } catch (e: any) {
+            console.error('[OrdenesList] Error en impresión masiva:', e);
+            this.notificationService.show(e.message, true, "ERROR");
+        } finally {
+            this.loadingService.hide();
+        }
+    }
+
+    /**
+     * v104.6: Abre el modal para configurar la reimpresión de etiquetas
+     */
+    abrirModalEtiquetas(orden: DispatchOrder) {
+        this.selectedOrderForLabels.set(orden);
+        this.labelQuantity = 1;
+        this.showLabelModal.set(true);
+        this.cargarTiposBultos();
+    }
+
+    async cargarTiposBultos() {
+        try {
+            const res = await firstValueFrom(this.dataService.executeAction<any>('GET_TIPOS_BULTOS'));
+            if (res && !res.isError) {
+                this.tiposBultos = res.tiposBultos || [];
+                if (this.tiposBultos.length > 0) {
+                    // Seleccionar por defecto ETIQUETA REIMPRESA o similar si existe
+                    const def = this.tiposBultos.find(b => b.nombreTipoBulto.toUpperCase().includes('ETIQUETA')) || this.tiposBultos[0];
+                    this.selectedTipoBulto.set(def);
+                }
+            }
+        } catch (e) {
+            console.error('Error cargando tipos de bultos', e);
+        }
+    }
+
+    async confirmarImpresionEtiquetas() {
+        const orden = this.selectedOrderForLabels();
+        const bulto = this.selectedTipoBulto();
+        const quantity = this.labelQuantity;
+
+        if (!orden || !bulto) return;
+
+        this.loadingService.show();
+        this.showLabelModal.set(false);
+
+        try {
+            const user = this.authService.getStoredUser();
+            const ordenFullId = `${orden.numeroSolicitud}-${orden.numeroOrdenDespacho}`;
+
+            const extraData = {
+                sucursal: orden.nombreSucursalDestino || orden.nombreSucursal || '---',
+                usuario: user?.username || 'SISTEMA',
+                digitador: user?.username || 'SISTEMA',
+                fecha: new Date().toLocaleDateString('es-EC'),
+                bodegaOrigen: orden.nombreSucursalOrigen,
+                bodegaDestino: orden.nombreSucursalDestino || orden.nombreSucursal,
+                bultos: [{ codigoTipoBulto: bulto.codigoTipoBulto, nombreTipoBulto: bulto.nombreTipoBulto, cantidad: quantity }]
+            };
+
+            const bultoParam = { label: bulto.nombreTipoBulto, value: quantity };
+            const res = await this.printerService.imprimirEtiquetaJasper(ordenFullId, bultoParam, extraData);
+
+            if (res.success) {
+                this.notificationService.show(`Se han enviado ${quantity} etiquetas de [${bulto.nombreTipoBulto}] a la cola de impresión.`, false, "ÉXITO");
+            } else {
+                throw new Error(res.error);
+            }
+        } catch (e: any) {
+            this.notificationService.show(`Error reimprimiendo etiquetas: ${e.message}`, true, "ERROR");
         } finally {
             this.loadingService.hide();
         }

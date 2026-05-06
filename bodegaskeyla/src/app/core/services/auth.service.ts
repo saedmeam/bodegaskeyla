@@ -42,8 +42,14 @@ export class AuthService {
             }),
             catchError(err => {
                 console.error('[AuthService] ❌ Error obteniendo XPOS Token:', err);
-                const errorMsg = err.error?.mensaje || err.error?.causa || err.message || 'Error de autenticación base';
-                return of({ mensaje: errorMsg, isError: true } as any);
+                const errorData = err.error || {};
+                const errorMsg = errorData.mensaje || errorData.causa || err.message || 'Error de autenticación base';
+                return of({ 
+                    mensaje: errorMsg, 
+                    isError: true, 
+                    errorSistemas: errorData.errorSistemas || errorData.causa || err.message,
+                    codigo: errorData.codigo || err.status
+                } as any);
             })
         );
     }
@@ -67,8 +73,14 @@ export class AuthService {
             tap(res => console.log('[AuthService] 📡 Respuesta inicioSesion:', res)),
             catchError(err => {
                 console.error('[AuthService] ❌ Error en inicio de sesión:', err);
-                const errorMsg = err.error?.mensaje || err.error?.causa || err.message || 'Error de credenciales';
-                return of({ mensaje: errorMsg, isError: true });
+                const errorData = err.error || {};
+                const errorMsg = errorData.mensaje || errorData.causa || err.message || 'Error de credenciales';
+                return of({ 
+                    mensaje: errorMsg, 
+                    isError: true, 
+                    errorSistemas: errorData.errorSistemas || errorData.causa || err.message,
+                    codigo: errorData.codigo || err.status
+                });
             })
         );
     }

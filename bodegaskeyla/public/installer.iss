@@ -1,13 +1,13 @@
 [Setup]
 AppId={{com.neu360.bodegaskeyla}}
 AppName=Bodegas Keyla
-AppVersion=1.0.0
+AppVersion=1.0.6
 AppPublisher=Neu360
 DefaultDirName={autopf}\BodegasKeyla
 DefaultGroupName=Bodegas Keyla
 AllowNoIcons=yes
 OutputDir=..\release
-OutputBaseFilename=BodegasKeyla_Setup
+OutputBaseFilename=BodegasKeyla_Setup_v1.0.6
 SetupIconFile=favicon.ico
 Compression=lzma
 SolidCompression=yes

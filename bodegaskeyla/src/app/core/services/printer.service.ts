@@ -92,6 +92,34 @@ export class PrinterService {
     }
 
     /**
+     * v105.0: Prepara los datos para el reporte de despacho masivo (Picking List)
+     */
+    async imprimirDespachoMasivoJasper(cabecera: any, detalles: any[], printerName?: string, preview?: boolean) {
+        const config = this.configService.getConfig();
+        
+        if (printerName === undefined) printerName = config?.IMPRESORA_REPORTE || '';
+        if (preview === undefined) {
+            preview = (config && config.PREVIEW_REPORTE !== undefined) ? config.PREVIEW_REPORTE : true;
+        }
+
+        // Aplanamos la cabecera en cada fila para que Jasper pueda acceder a los campos globales
+        const data = detalles.map(d => ({
+            ...d,
+            // Datos de cabecera inyectados en cada registro
+            pedidoId: cabecera.numeroSolicitud || '',
+            ordenId: cabecera.ordenDespacho || '',
+            fechaImpresion: cabecera.fechaImpresion || new Date().toLocaleString(),
+            sucursalNombre: cabecera.nombreSucursal || '---',
+            ubicacionHeader: cabecera.ubicacion || '---',
+            grupoDespachoHeader: cabecera.nombreGrupoDespacho || '---',
+            usuarioHeader: cabecera.usuario || 'SISTEMA'
+        }));
+
+        console.log(`[PrinterService] 📦 Generando Reporte Masivo con ${detalles.length} registros.`);
+        return this.imprimirJasper('despacho_masivo.jrxml', data, printerName, preview ?? true);
+    }
+
+    /**
      * v0.3.0: Prepara los datos JSON para etiquetas térmicas Jasper
      */
     async imprimirEtiquetaJasper(orderFullId: string, bulto: any, extra: any, printerName?: string, preview?: boolean) {
@@ -351,7 +379,7 @@ export class PrinterService {
             }
             body { 
               font-family: 'Arial', sans-serif;
-              font-size: 10pt; 
+              font-size: 8pt; 
               color: black;
               background: white;
               text-transform: uppercase;
@@ -369,7 +397,7 @@ export class PrinterService {
                 /* Este contenedor agrupa el header y la tabla */
             }
             .header-main {
-              margin-bottom: 20pt;
+              margin-bottom: 10pt;
             }
             .header-top-line {
               display: flex;
@@ -378,33 +406,33 @@ export class PrinterService {
               margin-bottom: 5pt;
             }
             .brand-name { 
-              font-size: 20pt; 
+              font-size: 16pt; 
               font-weight: bold;
               margin: 0;
             }
             .doc-number {
-              font-size: 14pt;
+              font-size: 12pt;
               font-weight: bold;
             }
             .report-title {
               text-align: center;
-              font-size: 13pt;
+              font-size: 11pt;
               font-weight: bold;
               text-decoration: underline;
-              margin-bottom: 15pt;
+              margin-bottom: 10pt;
             }
             .metadata-grid {
               display: flex;
               width: 100%;
               gap: 20pt;
-              margin-bottom: 15pt;
+              margin-bottom: 10pt;
             }
             .meta-column {
               flex: 1;
               display: grid;
               grid-template-columns: 120px 1fr;
-              row-gap: 4pt;
-              font-size: 9pt;
+              row-gap: 2pt;
+              font-size: 8pt;
             }
             .meta-label {
               font-weight: bold;
@@ -412,19 +440,19 @@ export class PrinterService {
             .report-table {
               width: 100%;
               border-collapse: collapse;
-              margin-top: 10pt;
+              margin-top: 5pt;
             }
             .report-table th {
               border-bottom: 1pt solid black;
               border-top: 1pt solid black;
-              padding: 5pt;
+              padding: 3pt;
               text-align: left;
-              font-size: 9pt;
+              font-size: 8pt;
               font-weight: bold;
             }
             .report-table td {
-              padding: 3pt 5pt;
-              font-size: 9pt;
+              padding: 2pt 3pt;
+              font-size: 8pt;
             }
             .col-codigo { width: 15%; }
             .col-desc { width: 40%; }
@@ -433,12 +461,12 @@ export class PrinterService {
             .col-cant { width: 15%; text-align: right; }
 
             .footer-section {
-              margin-top: 20pt;
-              padding-bottom: 10mm;
+              margin-top: 10pt;
+              padding-bottom: 5mm;
             }
             .bultos-summary {
-              margin-bottom: 20pt;
-              font-size: 10pt;
+              margin-bottom: 10pt;
+              font-size: 8pt;
             }
             .bultos-title {
               font-weight: bold;
@@ -448,7 +476,7 @@ export class PrinterService {
               display: flex;
               justify-content: space-between;
               width: 100%;
-              margin-top: 30pt;
+              margin-top: 20pt;
             }
             .signature-item {
               width: 22%;
@@ -456,8 +484,8 @@ export class PrinterService {
             }
             .sig-line {
               border-top: 1pt solid black;
-              padding-top: 5pt;
-              font-size: 8pt;
+              padding-top: 3pt;
+              font-size: 7pt;
               font-weight: bold;
             }
           </style>

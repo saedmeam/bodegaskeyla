@@ -490,7 +490,7 @@
 
 .reference-header-v2 {
     display: grid;
-    grid-template-columns: 1fr 40px 30px;
+    grid-template-columns: 1fr 45px 35px;
     gap: 8px;
     padding: 4px 12px;
     background: #f8fafc;
@@ -523,7 +523,7 @@
     border-radius: 6px;
     padding: 4px 10px;
     display: grid;
-    grid-template-columns: 1fr 40px 30px;
+    grid-template-columns: 1fr 45px 35px;
     align-items: center;
     gap: 8px;
     position: relative;
@@ -608,18 +608,62 @@
 .c-meta-line {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     margin-top: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    max-width: 100%;
 }
 
 .c-meta {
     display: inline-block;
-    font-size: 0.6rem;
+    font-size: 0.58rem;
     color: #475569;
     font-weight: 700;
     white-space: nowrap;
+    flex-shrink: 0; /* v104.9: Don't shrink stock/code info */
+}
+
+/* Search Dropdown Styles */
+.prod-name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 2px;
+}
+
+.prod-lab-tag {
+    background: #e0f2fe;
+    color: #0369a1;
+    font-size: 0.55rem;
+    font-weight: 800;
+    padding: 1px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.c-tag {
+    font-size: 0.55rem;
+    font-weight: 800;
+    padding: 1px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.c-tag.presentation {
+    background: #e2e8f0;
+    color: #475569;
+}
+
+.c-tag.laboratory {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+    max-width: 70px; /* Reduced further to ensure code/stock visibility */
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    display: inline-block;
 }
 
 .header-title-v2 h1 {
