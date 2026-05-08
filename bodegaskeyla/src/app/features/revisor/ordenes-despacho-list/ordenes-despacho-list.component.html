@@ -40,7 +40,11 @@
                 </select>
             </div>
             <div class="filter-group-inline flex-grow">
-                <input type="text" [(ngModel)]="numeroPedido" placeholder="Número de Pedido (Solicitud-Orden)" (keyup.enter)="buscar()">
+                <input #numPedidoInput id="numPedidoMaster" type="text" [(ngModel)]="numeroPedido" 
+                    placeholder="Escriba aquí el Número de Pedido..." 
+                    (keyup.enter)="buscar()"
+                    (click)="$event.stopPropagation()"
+                    class="input-search-master">
             </div>
         </div>
 
@@ -133,9 +137,11 @@
                                     }
 
                                         @if (order.codigoEstado === 'DP' || order.codigoEstado === 'DT' || order.codigoEstado === 'PRO') {
-                                            <button class="btn-direct-print" (click)="imprimirOrdenDirecto(order)" title="Reimprimir Reporte de Transferencia">
-                                                <span class="icon">🖨️</span>
-                                            </button>
+                                            @if (false) {
+                                                <button class="btn-direct-print" (click)="imprimirOrdenDirecto(order)" title="Reimprimir Reporte de Transferencia">
+                                                    <span class="icon">🖨️</span>
+                                                </button>
+                                            }
                                             <button class="btn-label-print" (click)="abrirModalEtiquetas(order)" title="Reimprimir Etiquetas">
                                                 <span class="icon">🏷️</span>
                                             </button>

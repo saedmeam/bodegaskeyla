@@ -19,4 +19,9 @@ export class LoadingService {
             this.isLoading.set(false);
         }
     }
+
+    forceHide() {
+        this.loadingCount = 0;
+        this.isLoading.set(false);
+    }
 }

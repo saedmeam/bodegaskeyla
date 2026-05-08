@@ -1433,3 +1433,45 @@
     color: #636e72;
     font-weight: 800;
 }
+
+/* v1.0.6: System Dropdown Styles */
+.header-revisor-v2 { position: relative; }
+.system-dropdown-v2 {
+    position: absolute;
+    top: 100%;
+    right: 80px;
+    background: #2d3436;
+    border: 1px solid #00C1C5;
+    border-radius: 0 0 8px 8px;
+    display: flex;
+    flex-direction: column;
+    min-width: 220px;
+    z-index: 1000;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+    overflow: hidden;
+    animation: slideDownFade 0.2s ease-out;
+}
+
+.system-dropdown-v2 button {
+    background: transparent;
+    border: none;
+    padding: 10px 15px;
+    color: white;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: background 0.2s;
+}
+
+.system-dropdown-v2 button:hover {
+    background: #00C1C5;
+    color: #1e272e;
+}
+
+.system-dropdown-v2 button .icon {
+    font-size: 1rem;
+}

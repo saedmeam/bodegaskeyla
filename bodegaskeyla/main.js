@@ -1,7 +1,10 @@
 const electron = require('electron');
-const { app, BrowserWindow } = electron;
+const { app, BrowserWindow, ipcMain, Menu } = electron;
 const path = require('path');
-const { ipcMain } = electron;
+const { autoUpdater } = require('electron-updater');
+const { exec } = require('child_process');
+const https = require('https');
+const fs = require('fs');
 
 // v150.0: Optimización para equipos antiguos (Bajos recursos)
 app.commandLine.appendSwitch('disable-gpu');
@@ -72,6 +75,134 @@ function setupIpcHandlers() {
     ipcMain.on('close-app', () => {
         console.log('[Electron:Main] 📨 IPC Receive: close-app');
         app.quit();
+    });
+
+    // v1.0.6: Manejadores de Actualización y Git Sync
+    ipcMain.handle('check-for-updates', async () => {
+        console.log('[Electron:Main] 📨 IPC Receive: check-for-updates');
+        try {
+            const result = await autoUpdater.checkForUpdatesAndNotify();
+            return { success: true, data: result };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('git-sync', async (event) => {
+        const win = BrowserWindow.fromWebContents(event.sender);
+        console.log('[Electron:Main] 📨 IPC Receive: cloud-sync (Robust)');
+        const repoOwner = 'saedmeam';
+        const repoName = 'bodegaskeyla';
+        const branch = 'main';
+
+        const sendProgress = (msg) => {
+            if (win) win.webContents.send('update-status', msg);
+        };
+
+        const downloadFile = (url, dest) => {
+            return new Promise((resolve, reject) => {
+                const dir = path.dirname(dest);
+                if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+                
+                const file = fs.createWriteStream(dest);
+                https.get(url, (response) => {
+                    if (response.statusCode !== 200) {
+                        file.close();
+                        fs.unlink(dest, () => {});
+                        reject(new Error(`Fallo descarga [${response.statusCode}] ${url}`));
+                        return;
+                    }
+                    response.pipe(file);
+                    file.on('finish', () => {
+                        file.close();
+                        resolve();
+                    });
+                }).on('error', (err) => {
+                    file.close();
+                    fs.unlink(dest, () => {});
+                    reject(err);
+                });
+            });
+        };
+
+        const fetchGitHubTree = () => {
+            return new Promise((resolve, reject) => {
+                const options = {
+                    hostname: 'api.github.com',
+                    path: `/repos/${repoOwner}/${repoName}/git/trees/${branch}?recursive=1`,
+                    headers: { 'User-Agent': 'BodegasKeyla-App' },
+                    timeout: 10000
+                };
+                https.get(options, (res) => {
+                    let data = '';
+                    res.on('data', (chunk) => data += chunk);
+                    res.on('end', () => {
+                        if (res.statusCode === 403) return reject(new Error('Límite de API de GitHub alcanzado (Rate Limit). Intente en 1 hora.'));
+                        if (res.statusCode !== 200) return reject(new Error(`Error API GitHub: ${res.statusCode}`));
+                        try {
+                            resolve(JSON.parse(data));
+                        } catch(e) { reject(new Error('Respuesta de API inválida')); }
+                    });
+                }).on('error', reject).on('timeout', () => reject(new Error('Tiempo de espera agotado al conectar con GitHub')));
+            });
+        };
+
+        try {
+            sendProgress('☁️ Consultando catálogo de recursos...');
+            const treeData = await fetchGitHubTree();
+            
+            // v1.0.7: Filtro recursivo inteligente para recursos críticos
+            const toDownload = treeData.tree.filter(i => 
+                i.type === 'blob' && 
+                (i.path.endsWith('.js') || i.path.endsWith('.json') || i.path.endsWith('.jar') || i.path.endsWith('.jasper')) &&
+                !i.path.includes('node_modules/') &&
+                !i.path.includes('.vscode/') &&
+                !i.path.includes('release/') &&
+                !['package-lock.json', 'main.js', 'package.json', 'preload.js'].includes(i.path)
+            );
+
+            if (toDownload.length === 0) {
+                return { success: true, data: "No se encontraron recursos compatibles para sincronizar." };
+            }
+
+            console.log(`[CloudSync] 🔍 Iniciando descarga de ${toDownload.length} archivos.`);
+            let count = 0;
+            for (const file of toDownload) {
+                count++;
+                // v1.0.7: Codificación de URL para mayor seguridad
+                const encodedPath = file.path.split('/').map(encodeURIComponent).join('/');
+                const rawUrl = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/${branch}/${encodedPath}`;
+                const dest = path.join(__dirname, file.path);
+                
+                sendProgress(`📥 Bajando (${count}/${toDownload.length}): ${path.basename(file.path)}`);
+                await downloadFile(rawUrl, dest);
+            }
+
+            return { success: true, data: `✅ ¡Sincronización Exitosa!\n\nSe actualizaron ${toDownload.length} archivos (Reportes, JARs, Configs).\n\nLos cambios se aplicarán en el siguiente proceso.` };
+        } catch (error) {
+            console.error('[CloudSync] ❌ Error:', error);
+            return { success: false, error: error.message };
+        }
+    });
+
+    // Eventos del auto-updater para informar al UI
+    autoUpdater.on('checking-for-update', () => {
+        win?.webContents.send('update-status', 'Buscando actualizaciones...');
+    });
+    autoUpdater.on('update-available', (info) => {
+        win?.webContents.send('update-status', `Nueva versión disponible: ${info.version}`);
+    });
+    autoUpdater.on('update-not-available', () => {
+        win?.webContents.send('update-status', 'El sistema está actualizado.');
+    });
+    autoUpdater.on('download-progress', (progressObj) => {
+        win?.webContents.send('update-progress', progressObj.percent);
+    });
+    autoUpdater.on('update-downloaded', () => {
+        win?.webContents.send('update-status', 'Actualización descargada. Se instalará al cerrar.');
+    });
+    autoUpdater.on('error', (err) => {
+        win?.webContents.send('update-status', `Error en actualización: ${err.message}`);
     });
 
     ipcMain.handle('get-app-config', async () => {
@@ -330,6 +461,20 @@ function createWindow() {
                 { type: 'separator' },
                 { label: 'Herramientas de Desarrollo', role: 'toggleDevTools' }
             ]
+        },
+        {
+            label: 'Ayuda',
+            submenu: [
+                {
+                    label: 'Actualizar Sistema',
+                    accelerator: 'CmdOrCtrl+U',
+                    click: () => {
+                        console.log('[Electron:Main] 🔄 Manual update trigger from Menu');
+                        if (win) win.webContents.send('update-status', '🔍 Buscando actualizaciones en el servidor...');
+                        autoUpdater.checkForUpdatesAndNotify();
+                    }
+                }
+            ]
         }
     ];
 
@@ -340,9 +485,58 @@ function createWindow() {
         win = null;
     });
 }
+function setupAutoUpdater() {
+    autoUpdater.on('checking-for-update', () => {
+        if (win) win.webContents.send('update-status', '🔍 Buscando actualizaciones...');
+    });
+
+    autoUpdater.on('update-available', (info) => {
+        if (win) win.webContents.send('update-status', `✨ Nueva versión disponible: ${info.version}. Descargando...`);
+    });
+
+    autoUpdater.on('update-not-available', () => {
+        if (win) win.webContents.send('update-status', '✅ Ya tienes la última versión instalada.');
+    });
+
+    autoUpdater.on('error', (err) => {
+        console.error('[AutoUpdater] ❌ Error:', err);
+        if (win) win.webContents.send('update-status', `❌ Error al buscar actualizaciones: ${err.message}`);
+    });
+
+    autoUpdater.on('download-progress', (progressObj) => {
+        let msg = `📥 Descargando: ${Math.floor(progressObj.percent)}%`;
+        if (win) {
+            win.webContents.send('update-status', msg);
+            win.webContents.send('update-progress', progressObj.percent);
+        }
+    });
+
+    autoUpdater.on('update-downloaded', () => {
+        if (win) {
+            win.webContents.send('update-status', '📦 Actualización descargada. Se instalará al cerrar.');
+            electron.dialog.showMessageBox(win, {
+                type: 'info',
+                title: 'Actualización Lista',
+                message: 'La nueva versión ha sido descargada. ¿Deseas reiniciar la aplicación ahora para aplicarla?',
+                buttons: ['Reiniciar Ahora', 'Más tarde']
+            }).then(result => {
+                if (result.response === 0) {
+                    autoUpdater.quitAndInstall();
+                }
+            });
+        }
+    });
+}
+
 app.on('ready', () => {
     setupIpcHandlers();
     createWindow();
+    setupAutoUpdater();
+    
+    // v1.0.7: Búsqueda automática al inicio en producción
+    if (app.isPackaged) {
+        autoUpdater.checkForUpdatesAndNotify();
+    }
 });
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
