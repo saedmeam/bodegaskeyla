@@ -792,6 +792,7 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
             .map((b, index) => ({
                 lineaDetalle: index + 1,
                 codigoTipoBulto: b.codigoTipoBulto,
+                nombreTipoBulto: b.nombreTipoBulto, // v1.4.6: Se agrega para el reporte de transferencia
                 cantidad: Number(b.cantidad)
             }));
         

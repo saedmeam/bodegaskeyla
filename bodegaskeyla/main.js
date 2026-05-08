@@ -158,7 +158,7 @@ function setupIpcHandlers() {
                 !i.path.includes('node_modules/') &&
                 !i.path.includes('.vscode/') &&
                 !i.path.includes('release/') &&
-                !['package-lock.json', 'main.js', 'package.json', 'preload.js'].includes(i.path)
+                !['package-lock.json', 'main.js', 'package.json', 'preload.js', 'config.json'].includes(i.path)
             );
 
             if (toDownload.length === 0) {
