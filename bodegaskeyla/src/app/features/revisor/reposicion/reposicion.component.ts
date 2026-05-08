@@ -91,6 +91,7 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
     reportPreviewTitle = signal("");
     private pendingReportData: any = null; // Para guardar datos mientras se previsualiza
     isConsultaMode = signal(false); // v104.9: Para bloquear edición en órdenes ya despachadas
+    showSystemMenu = false; // v1.0.6: Toggle para menú de sistema
 
     // Proyecciones del servicio orquestador
     ordenProductos = this.revisorService.ordenProductos;
@@ -101,7 +102,7 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
     totalVerificados = computed(() => this.escaneados().length);
     totalItems = computed(() => this.totalOrder()); // v2.1: Refiere al total de la orden (ej. 5761) en lugar de escaneados
     totalCorrectos = computed(() => this.escaneados().filter(p => p.color === 'negro').length);
-    public appVersion = '1.0.0';
+    public appVersion = '1.1.0';
     totalIncompletos = computed(() => this.escaneados().filter(p => p.color === 'azul' || p.color === 'naranja').length);
 
     constructor() {
@@ -112,7 +113,7 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
             if (metadata) {
                 this.origenNombre = metadata.nombreSucursalOrigen || 'N/A';
                 this.destinoNombre = metadata.nombreSucursalDestino || 'N/A';
-                this.concepto = metadata.concepto;
+                this.concepto = `orden ${metadata.numeroOrdenDespacho} solicitud ${metadata.numeroSolicitud} | ${metadata.concepto || ''}`;
             } else {
                 // Si no hay orden, limpiamos campos
                 this.origenNombre = "";
@@ -152,6 +153,11 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
                 }, 250);
             }
         });
+
+        if (window.electronAPI && window.electronAPI.onUpdateStatus) {
+            window.electronAPI.onUpdateStatus((s: string) => this.showToast(s, false, "SISTEMA"));
+            window.electronAPI.onUpdateProgress((p: number) => console.log(`[Update] Progress: ${p}%`));
+        }
     }
 
     @HostListener('window:keydown', ['$event'])
@@ -187,8 +193,6 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
                 this.isConsultaMode.set(false);
             }
         });
-
-        this.cargarTiposBultos();
     }
 
     /**
@@ -197,7 +201,9 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
     async actualizarOrdenData(fd?: string, fh?: string, isInitial = false) {
         if (!this.numero) return;
 
-        if (!isInitial) this.loadingService.show();
+        console.log(`[Reposicion] Iniciando actualización de datos. Initial: ${isInitial}`);
+        this.loadingService.show();
+        
         try {
             // v160.10: El orquestador ya consume la API de manera segura
             await firstValueFrom(this.revisorService.executeProcess('LOAD', { 
@@ -206,36 +212,48 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
                 fechaHasta: fh,
                 forceRefresh: true
             }) as any);
-            if (!isInitial) this.showToast("STOCK ACTUALIZADO: Datos sincronizados con el servidor.", false, "SINCRONIZACIÓN");
-        } catch (e) {
-            this.showToast("Error al sincronizar datos.", true);
+
+            this.showToast("DATOS ACTUALIZADOS: Sincronización con el servidor exitosa.", false, "ÉXITO");
+        } catch (e: any) {
+            console.error('[Reposicion] Error en carga de datos:', e);
+            const errorMsg = e.message || 'No se pudo conectar con el servidor o la orden no existe.';
+            
+            // En lugar de toast, usamos un modal de alerta si la carga crítica falla
+            this.openModal("❌ ERROR DE CARGA", 
+                `<p>No se pudo obtener la información de la orden.</p>
+                 <p style="font-size:0.85rem; color:red; margin-top:10px;">Detalle: ${errorMsg}</p>
+                 <p style="margin-top:10px;">Verifique su conexión e intente nuevamente.</p>`, 
+                "🚨", "alert");
         } finally {
-            if (!isInitial) this.loadingService.hide();
-            setTimeout(() => this.focusScanner(), 300);
+            this.loadingService.hide();
+            setTimeout(() => this.focusScanner(), 500);
         }
     }
 
     async cargarTiposBultos() {
-        try {
-            const res = await firstValueFrom(this.revisorService.getTiposBultos());
-            if (!res?.isError) {
-                const listFromApi = res?.tiposBultos || [];
-                // v160.42: Quemar la opción 'IMPRESIÓN DE ETIQUETAS' como prioridad al inicio
-                const list = [
-                    { codigoTipoBulto: 999, nombreTipoBulto: 'IMPRESIÓN DE ETIQUETAS', cantidad: 0 },
-                    ...listFromApi.map((t: any) => ({
-                        codigoTipoBulto: t.codigoTipoBulto || t.codigo || t.id || 0,
-                        nombreTipoBulto: t.nombreTipoBulto || t.descripcion || t.nombre || 'Bulto',
-                        cantidad: 0
-                    }))
-                ];
-                // Eliminar duplicados si el API ya lo mandaba
-                const uniqueList = list.filter((v, i, a) => a.findIndex(t => t.nombreTipoBulto === v.nombreTipoBulto) === i);
-                this.bultoTypes.set(uniqueList);
-            }
-        } catch (e) {
-            console.error('Error cargando tipos de bultos', e);
+        console.log('[Reposicion] 🔄 Sincronizando bultos desde el servicio...');
+        const listFromApi = this.revisorService.tiposBultos() || [];
+        
+        // v1.1.0: Mapeo directo y limpio para evitar omitir datos reales de la API (como CAJAS)
+        const mappedList: BultoType[] = listFromApi.map((t: any) => ({
+            codigoTipoBulto: Number(t.codigoTipoBulto || t.codigo || t.id || 0),
+            nombreTipoBulto: (t.nombreTipoBulto || t.descripcion || t.nombre || 'Bulto').toUpperCase(),
+            cantidad: 0
+        }));
+
+        // REQUERIMIENTO KEYLA: El campo de Etiquetas DEBE ser el primero siempre (ID: 999)
+        const finalList: BultoType[] = [
+            { codigoTipoBulto: 999, nombreTipoBulto: 'IMPRESIÓN DE ETIQUETAS', cantidad: 0 },
+            ...mappedList
+        ];
+
+        // v107.5: Si la API no trajo nada (solo etiquetas), agregamos uno genérico de respaldo
+        if (finalList.length === 1) {
+            finalList.push({ codigoTipoBulto: 1, nombreTipoBulto: 'CAJA / BULTO', cantidad: 0 });
         }
+
+        console.log('[Reposicion] ✅ Lista final bultos:', finalList);
+        this.bultoTypes.set(finalList);
     }
 
     ngAfterViewInit() {
@@ -550,15 +568,25 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
         // 2. Calcular Nuevo Total Despachado
         const newTotal = working.reduce((sum: number, l: any) => sum + (Number(l.despachado) || 0), 0);
         
-        // 3. Aplicar Cambios al Producto en el RevisorService
-        this.revisorService.executeProcess('UPDATE_QTY', { item: prod.item, qty: newTotal });
-        
-        // Sincronizar los lotes en el Signal del servicio
+        console.log(`[Reposicion] 💾 Guardando asignación para ${prod.nombre}:`, working.map(l => `${l.lote}: ${l.despachado}`).join(' | '));
+
+        // 3. Sincronizar los lotes y el total en el Signal del servicio (v1.1.0)
         this.revisorService.escaneados.update(list => {
             const idx = list.findIndex(p => p.item === prod.item);
             if (idx !== -1) {
-                list[idx].lotes = working;
-                list[idx].despachado = newTotal;
+                const original = this.ordenProductos().find(op => op.item === prod.item);
+                const updated = { ...list[idx] };
+                updated.lotes = JSON.parse(JSON.stringify(working));
+                updated.despachado = newTotal;
+                
+                // Recalcular color según reglas de negocio
+                const solicita = Number(original?.solicita || 0);
+                const stock = Number(original?.invBod || 0);
+                if (updated.despachado > stock || updated.despachado > solicita) updated.color = 'verde';
+                else if (updated.despachado === solicita) updated.color = 'negro';
+                else updated.color = 'azul';
+
+                list[idx] = updated;
             }
             return [...list];
         });
@@ -573,9 +601,12 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
      */
     getLotesConcat(product: Product): string {
         if (!product.lotes || product.lotes.length === 0) return 'S/L';
-        const despachados = product.lotes.filter((l: any) => l.despachado > 0);
-        if (despachados.length === 0) return product.lotes[0].lote || 'PEND';
-        return despachados.map((l: any) => l.lote).join(', ');
+        const despachados = product.lotes.filter((l: any) => (Number(l.despachado) || 0) > 0);
+        if (despachados.length === 0) {
+            const first = product.lotes[0];
+            return (first.lote || first.codigoLote || 'PEND');
+        }
+        return despachados.map((l: any) => (l.lote || l.codigoLote)).join(', ');
     }
 
     /**
@@ -635,7 +666,14 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
         const hasCritical = criticalErrors.length > 0;
 
         if (errors.length === 0) {
+            this.loadingService.show();
+            await this.cargarTiposBultos();
+            this.loadingService.hide();
             this.bultoModalVisible.set(true);
+            setTimeout(() => {
+                const firstInput = document.getElementById('bulto-input-0');
+                if (firstInput) (firstInput as any).focus();
+            }, 300);
             return;
         }
 
@@ -725,8 +763,8 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
             </div>`;
 
         // Abrimos el modal con el reporte
-        // v104.9: DESBLOQUEO DE CIERRE - Se permite avanzar incluso con errores críticos (Advertencia informativa)
-        this.modalActionDisabled.set(false);
+        // v170.7: BLOQUEO ESTRICTO - Si hay errores críticos, se deshabilita el botón de acción
+        this.modalActionDisabled.set(hasCritical);
         const aceptado = await this.openModal(
             hasCritical ? "⛔ AUDITORÍA CON ALERTAS CRÍTICAS" : "📋 AUDITORÍA DE CIERRE", 
             messageHtml, 
@@ -735,6 +773,9 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
         );
 
         if (aceptado) {
+            this.loadingService.show();
+            await this.cargarTiposBultos();
+            this.loadingService.hide();
             this.bultoModalVisible.set(true);
         } else {
             this.showToast("DESPACHO RETENIDO: Auditoría cancelada por el usuario.", true);
@@ -745,11 +786,17 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
     }
 
     procesarBultos() {
-        // v107.5: Validación y Extracción de bultos registrados
-        const bultosParaEnviar = this.bultoTypes().filter(b => (b.cantidad || 0) > 0);
+        // v110.0: Mapeo exacto según requerimiento de producción (incluye lineaDetalle)
+        const bultosParaEnviar = this.bultoTypes()
+            .filter(b => (b.cantidad || 0) > 0)
+            .map((b, index) => ({
+                lineaDetalle: index + 1,
+                codigoTipoBulto: b.codigoTipoBulto,
+                cantidad: Number(b.cantidad)
+            }));
         
         if (bultosParaEnviar.length === 0) {
-            this.showToast("DEBE REGISTRAR AL MENOS UN BULTO: Verifique las cantidades antes de continuar.", true, "VALIDACIÓN DE BULTOS");
+            this.showToast("DEBE REGISTRAR AL MENOS UN BULTO", true, "VALIDACIÓN");
             return;
         }
 
@@ -828,36 +875,97 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
         }, 250);
     }
 
-    /**
-     * Ejecuta el cierre definitivo y envío de datos (AGREGAR).
-     */
+    // v1.0.6: Métodos de Sistema (Actualización y Sync)
+    async buscarActualizaciones() {
+        this.showSystemMenu = false;
+        if (!window.electronAPI) {
+            this.showToast("No disponible en entorno web", true);
+            return;
+        }
+        this.showToast("Buscando nuevas versiones...", false, "UPDATE");
+        const res = await window.electronAPI.checkForUpdates();
+        if (!res.success) {
+            this.showToast(`Fallo al buscar: ${res.error}`, true);
+        }
+    }
+
+    async sincronizarGit() {
+        this.showSystemMenu = false;
+        if (!window.electronAPI) {
+            this.showToast("No disponible en entorno web", true);
+            return;
+        }
+
+        const confirm = await this.openModal(
+            "Sincronización de Nube",
+            "¿Desea descargar los últimos recursos (Reportes, Configuraciones, JARs) desde el servidor?<br/><br/>Esta acción no requiere Git ni Node.js y actualizará los archivos necesarios para el funcionamiento.",
+            "☁️",
+            "confirm"
+        );
+
+        if (confirm) {
+            this.loadingService.show();
+            this.showToast("Sincronizando con la nube...", false, "CLOUD");
+            try {
+                const res = await window.electronAPI.gitSync(); // Mantenemos el nombre del canal por compatibilidad interna
+                if (res.success) {
+                    this.openModal("Sincronización Exitosa", 
+                        `<p>Se han actualizado los recursos correctamente.</p><pre style="font-size:0.7rem; background:#f4f4f4; padding:10px; margin-top:10px;">${res.data}</pre>`, 
+                        "✅", "alert");
+                } else {
+                    this.openModal("Error de Sincronización", 
+                        `No se pudo completar la descarga: ${res.error}`, 
+                        "❌", "alert");
+                }
+            } catch (e: any) {
+                this.showToast(`Error: ${e.message}`, true);
+            } finally {
+                this.loadingService.hide();
+            }
+        }
+    }
+
     private ejecutarEnvioFinal(bultos?: any[]) {
         this.loadingService.show();
-        (this.revisorService.finalizeProcess(bultos) as any)?.subscribe({
-            next: (res: any) => {
-                this.loadingService.hide();
-                if (res?.mensaje === 'OK' || res?.codigo === '000') {
-                    this.showToast("¡ORDEN CREADA! El registro se ha realizado con éxito.", false, "ÉXITO");
-                    // v120.0: Ahora la impresión se dispara solo si la API responde éxito total
-                    this.imprimirReportesFinales(bultos);
+        this.showToast("Sincronizando detalles con el servidor...", false, "PROCESANDO");
 
-                    // v1.0.3: Solo redireccionar automáticamente si no hay ninguna vista previa activa que el usuario deba ver
-                    const config = this.configService.getConfig();
-                    const hasPreviews = (config?.PREVIEW_REPORTE !== false) || (config?.PREVIEW_TICKET === true);
-                    
-                    if (!hasPreviews) {
-                        setTimeout(() => {
-                            this.router.navigate(['/despacho-lista']);
-                        }, 2500);
-                    }
-                } else {
-                    // v104.5: Mostrar el mensaje de error directamente desde la respuesta (400/500)
-                    this.openModal("ERROR EN PROCESO", `${res?.mensaje || 'Error desconocido'}`, "❌", "alert");
+        // PASO 1: Guardar Detalles primero (v1.1.0 Fix)
+        (this.revisorService.executeProcess('API_UPDATE', { tipo: 'FINALIZAR' }) as any)?.subscribe({
+            next: (saveRes: any) => {
+                if (saveRes?.isError) {
+                    this.loadingService.hide();
+                    this.openModal("ERROR AL GUARDAR DETALLES", saveRes.mensaje, "❌", "alert");
+                    return;
                 }
+
+                // PASO 2: Finalizar con Bultos una vez confirmados los detalles
+                this.showToast("Generando cierre de bultos...", false, "PROCESANDO");
+                (this.revisorService.finalizeProcess(bultos || []) as any)?.subscribe({
+                    next: (res: any) => {
+                        this.loadingService.hide();
+                        if (res?.mensaje === 'OK' || res?.codigo === '000') {
+                            this.imprimirReportesFinales(bultos);
+                            this.revisorService.clearCurrentSession();
+
+                            const config = this.configService.getConfig();
+                            const hasPreviews = (config?.PREVIEW_REPORTE !== false) || (config?.PREVIEW_TICKET === true);
+                            
+                            if (!hasPreviews) {
+                                setTimeout(() => this.router.navigate(['/despacho-lista']), 2500);
+                            }
+                        } else {
+                            this.openModal("ERROR EN CIERRE", `${res?.mensaje || 'Error desconocido'}`, "❌", "alert");
+                        }
+                    },
+                    error: () => {
+                        this.loadingService.hide();
+                        this.showToast("Error de conexión fatal en cierre", true);
+                    }
+                });
             },
             error: () => {
                 this.loadingService.hide();
-                this.showToast("Error de conexión fatal", true);
+                this.showToast("Error de conexión fatal en sincronización", true);
             }
         });
     }
@@ -878,6 +986,7 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
             usuario: user?.username || 'SISTEMA',
             digitador: user?.username || 'SISTEMA',
             fecha: new Date().toLocaleDateString('es-EC'),
+            fechaProcesamiento: `${new Date().toLocaleDateString('es-EC')} ${new Date().toLocaleTimeString('es-EC')}`,
             bodegaOrigen: metadata?.nombreSucursalOrigen,
             bodegaDestino: metadata?.nombreSucursalDestino || metadata?.sucursalDestino,
             bultos: bultosParaEnviar

@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal, HostListener, computed } from '@angular/core';
+import { Component, OnInit, inject, signal, HostListener, computed, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Title } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
@@ -28,13 +28,15 @@ export class OrdenesDespachoListComponent implements OnInit {
     private route = inject(ActivatedRoute);
     private loadingService = inject(LoadingService);
     private notificationService = inject(NotificationService);
+    
+    @ViewChild('numPedidoInput') numPedidoInput!: ElementRef;
     private router = inject(Router);
     private cajaService = inject(CajaService);
     private printerService = inject(PrinterService);
     private configService = inject(ConfigService);
     private dataService = inject(DataService);
     private titleService = inject(Title);
-    public appVersion = '1.0.0';
+    public appVersion = '1.1.0';
     public Math = Math;
 
     // Filters
@@ -89,6 +91,9 @@ export class OrdenesDespachoListComponent implements OnInit {
     handleKeyboardEvent(event: KeyboardEvent) {
         const target = event.target as HTMLElement;
         const isInput = target?.tagName === 'INPUT' || target?.tagName === 'SELECT' || target?.tagName === 'TEXTAREA';
+
+        // v1.3.6: Si el usuario está escribiendo, SALIR INMEDIATAMENTE.
+        if (isInput) return;
 
         if (this.ordenes().length === 0) return;
 
@@ -210,8 +215,8 @@ export class OrdenesDespachoListComponent implements OnInit {
         }
     }
 
-    async buscar(page: number = 0) {
-        this.loadingService.show();
+    async buscar(page: number = 0, silent: boolean = false) {
+        if (!silent) this.loadingService.show();
         this.error.set('');
         this.currentPage.set(page);
         this.selectedIndex.set(0);
@@ -260,10 +265,36 @@ export class OrdenesDespachoListComponent implements OnInit {
     }
 
     purgarTodo() {
-        if (confirm('¿Está seguro de que desea eliminar todas las sesiones locales?')) {
-            this.revisorService.purgeAllSessions();
-            this.buscar();
+        // v1.3.8: LIMPIEZA SILENCIOSA Y DIRECTA (Evita bloqueos de confirm() en Electron)
+        this.loadingService.forceHide();
+        this.error.set('');
+        
+        // Reset de filtros y modelos
+        this.numeroPedido = '';
+        this.estado.set('TODOS');
+        this.fechaDesde = this.getLocalDateString();
+        this.fechaHasta = this.getLocalDateString();
+        this.diaEmbarque = this.getInitialDay();
+
+        // Limpiar lista e interfaz de inmediato
+        this.allOrdenesBase.set([]);
+
+        // Purgar memoria y disco
+        this.revisorService.purgeAllSessions();
+        
+        // Foco de Bajo Nivel (Acceso directo al DOM para saltar cualquier bloqueo de Angular)
+        const el = document.getElementById('numPedidoMaster');
+        if (el) {
+            (el as HTMLInputElement).disabled = false;
+            (el as HTMLInputElement).readOnly = false;
+            (el as HTMLInputElement).value = '';
+            setTimeout(() => {
+                el.focus();
+                (el as HTMLInputElement).select();
+            }, 10);
         }
+
+        this.notificationService.show('Filtros reseteados. Puede escribir ahora.', false, 'LIMPIEZA');
     }
 
     nextPage() { this.buscar(this.currentPage() + 1); }

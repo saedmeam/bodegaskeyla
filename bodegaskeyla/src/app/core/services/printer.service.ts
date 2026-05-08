@@ -97,7 +97,7 @@ export class PrinterService {
         const data = products.map(p => ({
             sucursalRecibe: extra.sucursal || '---',
             numeroDoc: orderFullId,
-            fechaEmision: extra.fecha || new Date().toLocaleString(),
+            fechaEmision: extra.fechaProcesamiento || extra.fecha || new Date().toLocaleString(),
             usuarioEmisor: extra.usuario || 'SISTEMA',
             bodegaOrigen: extra.bodegaOrigen || '---',
             bodegaDestino: extra.bodegaDestino || '---',
@@ -376,7 +376,7 @@ export class PrinterService {
    * Genera el HTML para el reporte de Transferencia de Mercadería
    * v3.0: Inclusión de espacios para firmas y cuadre de bultos (Ajustado para matriz)
    */
-  generateTransferReportHtml(orderNumber: string, products: any[], extra: { sucursal: string, usuario: string, digitador: string, fecha?: string, bodegaOrigen?: string, bodegaDestino?: string, bultos?: any[] }): string {
+  generateTransferReportHtml(orderNumber: string, products: any[], extra: { sucursal: string, usuario: string, digitador: string, fecha?: string, fechaProcesamiento?: string, bodegaOrigen?: string, bodegaDestino?: string, bultos?: any[] }): string {
     const now = new Date();
     const dateStr = extra.fecha || now.toLocaleDateString('es-EC');
     const fullDateStr = `${dateStr} ${now.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
@@ -526,7 +526,7 @@ export class PrinterService {
                         <div class="meta-column">
                             <span class="meta-label">EMISOR:</span> <span>${extra.usuario}</span>
                             <span class="meta-label">BODEGA ORIG:</span> <span>${extra.bodegaOrigen || 'CENTRO DE DISTRIBUCCION'}</span>
-                            <span class="meta-label">FECHA/HORA:</span> <span>${fullDateStr}</span>
+                            <span class="meta-label">FECHA PROCESO:</span> <span>${extra.fechaProcesamiento || fullDateStr}</span>
                         </div>
                         <div class="meta-column">
                             <span class="meta-label">DESTINO/MOV:</span> <span>${extra.sucursal}</span>

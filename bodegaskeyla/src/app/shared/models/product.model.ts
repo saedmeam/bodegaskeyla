@@ -1,10 +1,12 @@
 export interface Batch {
     lote: string;
     caducidad: string;
+    fechaCaducidad?: string;
+    fechaElaboracion?: string;
     stock: number;
     despachado: number;
-    fechaElaboracion?: string;
     codigoExistencia?: string | number;
+    codigoLote?: string;
 }
 
 export interface Product {
