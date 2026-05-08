@@ -37,7 +37,7 @@ export class RevisorService {
     private isLoading = false;
 
     constructor() {
-        // v1.1.0: Persistencia reactiva TOTAL (Se activa con cada cambio en escaneados)
+        // v1.1.3: Persistencia reactiva TOTAL (Se activa con cada cambio en escaneados)
         effect(() => {
             const list = this.escaneados();
             const order = this.currentOrderNumber;
@@ -161,7 +161,7 @@ export class RevisorService {
                     console.log(`[RevisorService] 📦 Productos obtenidos (${detRes?.detalles?.length || 0}). Mapeando lista...`);
                     const detalles = detRes?.detalles || [];
                     const newProducts = detalles.map((d: any, index: number) => {
-                        // v1.1.0: Extracción precisa de código de barras según el JSON del usuario (vía sciExistencias o directo)
+                        // v1.1.3: Extracción precisa de código de barras según el JSON del usuario (vía sciExistencias o directo)
                         let barcode = d.sciExistenciasXCodBarras?.[0]?.codigoBarras?.toString()?.trim();
                         if (!barcode || barcode === 'null' || barcode === '') {
                             barcode = d.codigoBarras?.toString()?.trim();
@@ -207,7 +207,7 @@ export class RevisorService {
                         return p;
                     });
 
-                    // v1.1.0: Restaurar flujo secuencial (Detalle -> Lotes -> Bultos)
+                    // v1.1.3: Restaurar flujo secuencial (Detalle -> Lotes -> Bultos)
                     const meta = this.orderMetadata();
                     console.log('[RevisorService] 🛠️ Iniciando enriquecimiento secuencial (Lotes + Bultos)...');
                     
@@ -228,7 +228,7 @@ export class RevisorService {
                             if (saved && saved.escaneados && saved.escaneados.length > 0) {
                                 console.log(`[RevisorService] 🧠 Restaurando sesión de ${saved.escaneados.length} items.`);
                                 
-                                // v1.1.0 Fix: Sincronizar lotes de la sesión con los lotes enriquecidos de la API
+                                // v1.1.3 Fix: Sincronizar lotes de la sesión con los lotes enriquecidos de la API
                                 const restored = saved.escaneados.map((s: Product) => {
                                     const original = newProducts.find((p: any) => p.lineaDetalle === s.lineaDetalle);
                                     if (original && original.lotes && original.lotes.length > 0) {
@@ -274,7 +274,7 @@ export class RevisorService {
 
             products.forEach(p => {
                 const pCode = p.codigoExistencia?.toString()?.trim();
-                // v1.1.0: El segundo servicio devuelve un objeto con { detalles: [...] }
+                // v1.1.3: El segundo servicio devuelve un objeto con { detalles: [...] }
                 const apiItems = res?.detalles || res?.data || [];
                 const apiItem = apiItems.find((l: any) => l.codigoExistencia?.toString()?.trim() === pCode);
                 
@@ -304,7 +304,7 @@ export class RevisorService {
         return new Promise((resolve, reject) => {
             const searchText = barcode.trim().toUpperCase();
             
-            // v1.1.0: BÚSQUEDA GLOBAL DE LOTES (Si no es producto, ¿es un lote de la orden?)
+            // v1.1.3: BÚSQUEDA GLOBAL DE LOTES (Si no es producto, ¿es un lote de la orden?)
             let match = this.ordenProductos().find(p => {
                 if (lineaDetalle !== undefined && p.lineaDetalle === lineaDetalle) return true;
                 return p.codigoBarras?.trim().toUpperCase() === searchText || p.nombre?.trim().toUpperCase() === searchText;
@@ -338,7 +338,7 @@ export class RevisorService {
 
             if (existingIdx !== -1) {
                 const existing = { ...currentList[existingIdx] };
-                // v1.1.0: Clonación profunda de lotes para evitar problemas de referencia
+                // v1.1.3: Clonación profunda de lotes para evitar problemas de referencia
                 existing.lotes = JSON.parse(JSON.stringify(existing.lotes || []));
                 
                 const nextQty = (Number(existing.despachado) || 0) + 1;
@@ -350,7 +350,7 @@ export class RevisorService {
 
                 existing.despachado = nextQty;
                 
-                // v1.1.0 Fix: Regla de Negocio Estricta de Lotes
+                // v1.1.3 Fix: Regla de Negocio Estricta de Lotes
                 if (lote) {
                     const lotIdx = (existing.lotes!).findIndex((l: any) => l.lote === lote);
                     if (lotIdx !== -1) {
@@ -428,10 +428,10 @@ export class RevisorService {
             }
 
             const updated = { ...currentList[idx], despachado: qty };
-            // v1.1.0: Clonación profunda para evitar mutaciones de referencia
+            // v1.1.3: Clonación profunda para evitar mutaciones de referencia
             updated.lotes = JSON.parse(JSON.stringify(updated.lotes || []));
             
-            // v1.1.0 Fix: Regla Estricta de Edición Manual
+            // v1.1.3 Fix: Regla Estricta de Edición Manual
             if (updated.lotes && updated.lotes.length === 1) {
                 // Único lote -> Sincronización automática de lo que se digite
                 updated.lotes[0].despachado = qty;
@@ -468,7 +468,7 @@ export class RevisorService {
         const allBaseProducts = this.ordenProductos();
         const scannedProducts = this.escaneados();
 
-        // v1.1.0: Combinar base con escaneados para enviar la orden COMPLETA
+        // v1.1.3: Combinar base con escaneados para enviar la orden COMPLETA
         const detalles = allBaseProducts.map(baseP => {
             const scannedP = scannedProducts.find(s => s.item === baseP.item);
             
@@ -530,7 +530,7 @@ export class RevisorService {
             return of({ isError: true, mensaje: 'No hay metadata para finalizar' });
         }
 
-        // v1.1.0: Mapeo exacto de cabecera para producción
+        // v1.1.3: Mapeo exacto de cabecera para producción
         const payload = {
             codigoEmpresa: Number(meta.codigoEmpresa || 1),
             solicitud: Number(meta.numeroSolicitud),

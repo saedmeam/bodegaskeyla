@@ -36,7 +36,7 @@ export class OrdenesDespachoListComponent implements OnInit {
     private configService = inject(ConfigService);
     private dataService = inject(DataService);
     private titleService = inject(Title);
-    public appVersion = '1.1.0';
+    public appVersion = '1.1.3';
     public Math = Math;
 
     // Filters

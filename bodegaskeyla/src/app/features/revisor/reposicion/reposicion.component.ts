@@ -103,7 +103,7 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
     totalVerificados = computed(() => this.escaneados().length);
     totalItems = computed(() => this.totalOrder()); // v2.1: Refiere al total de la orden (ej. 5761) en lugar de escaneados
     totalCorrectos = computed(() => this.escaneados().filter(p => p.color === 'negro').length);
-    public appVersion = '1.1.0';
+    public appVersion = '1.1.3';
     totalIncompletos = computed(() => this.escaneados().filter(p => p.color === 'azul' || p.color === 'naranja').length);
 
     constructor() {
@@ -235,7 +235,7 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
         console.log('[Reposicion] 🔄 Sincronizando bultos desde el servicio...');
         const listFromApi = this.revisorService.tiposBultos() || [];
         
-        // v1.1.0: Mapeo directo y limpio para evitar omitir datos reales de la API (como CAJAS)
+        // v1.1.3: Mapeo directo y limpio para evitar omitir datos reales de la API (como CAJAS)
         const mappedList: BultoType[] = listFromApi.map((t: any) => ({
             codigoTipoBulto: Number(t.codigoTipoBulto || t.codigo || t.id || 0),
             nombreTipoBulto: (t.nombreTipoBulto || t.descripcion || t.nombre || 'Bulto').toUpperCase(),
@@ -575,7 +575,7 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
         
         console.log(`[Reposicion] 💾 Guardando asignación para ${prod.nombre}:`, working.map(l => `${l.lote}: ${l.despachado}`).join(' | '));
 
-        // 3. Sincronizar los lotes y el total en el Signal del servicio (v1.1.0)
+        // 3. Sincronizar los lotes y el total en el Signal del servicio (v1.1.3)
         this.revisorService.escaneados.update(list => {
             const idx = list.findIndex(p => p.item === prod.item);
             if (idx !== -1) {
@@ -943,7 +943,7 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
         this.loadingService.show();
         this.showToast("Sincronizando detalles con el servidor...", false, "PROCESANDO");
 
-        // PASO 1: Guardar Detalles primero (v1.1.0 Fix)
+        // PASO 1: Guardar Detalles primero (v1.1.3 Fix)
         (this.revisorService.executeProcess('API_UPDATE', { tipo: 'FINALIZAR' }) as any)?.subscribe({
             next: (saveRes: any) => {
                 if (saveRes?.isError) {

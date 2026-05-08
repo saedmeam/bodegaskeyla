@@ -63,7 +63,7 @@ export class DataService {
     }
 
     /**
-     * v1.1.0: Método unificado para obtener la empresa actual
+     * v1.1.3: Método unificado para obtener la empresa actual
      */
     getCurrentCompany(): number {
         const user = this.authService?.getStoredUser() as any;
