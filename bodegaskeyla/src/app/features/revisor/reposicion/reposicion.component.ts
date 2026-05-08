@@ -36,6 +36,7 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
     @ViewChild('scannerInput') scannerInput!: ElementRef<HTMLInputElement>;
     @ViewChild('modalActionBtn') modalActionBtn!: ElementRef<HTMLButtonElement>;
     @ViewChild('bultoActionBtn') bultoActionBtn!: ElementRef<HTMLButtonElement>;
+    @ViewChild('scannedListContainer') scannedListContainer!: ElementRef<HTMLDivElement>;
 
     // Estados de UI
     numero = "";
@@ -383,6 +384,10 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
                 this.loteInput = "";
                 this.caducidadInput = "";
                 this.barcodeInput = "";
+                
+                // v1.4.4: Auto-scroll al inicio tras escaneo exitoso
+                this.scrollToTop();
+                
                 return true;
             }
         } catch (error: any) {
@@ -873,6 +878,14 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
             this.showProductDropdown.set(false);
             this.selectedIndexProd.set(-1);
         }, 250);
+    }
+
+    private scrollToTop() {
+        setTimeout(() => {
+            if (this.scannedListContainer) {
+                this.scannedListContainer.nativeElement.scrollTop = 0;
+            }
+        }, 100);
     }
 
     // v1.0.6: Métodos de Sistema (Actualización y Sync)

@@ -377,8 +377,8 @@ export class RevisorService {
                 else if (existing.despachado === solicita) existing.color = 'negro';
                 else existing.color = 'azul';
 
-                const newList = [...currentList];
-                newList[existingIdx] = existing;
+                // v1.4.4: REGLA DE PRIORIDAD - Mover el producto escaneado al inicio de la lista
+                const newList = [existing, ...currentList.filter(p => p.item !== existing.item)];
                 this.escaneados.set(newList);
                 
                 // Persistencia inmediata
