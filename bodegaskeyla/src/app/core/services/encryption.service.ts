@@ -12,6 +12,11 @@ declare global {
             getPrinters: () => Promise<{ success: boolean; data?: any[]; error?: string }>;
             printLabels: (payload: any) => Promise<{ success: boolean; error?: string }>;
             closeApp: () => void;
+            // v1.0.6: Update APIs
+            checkForUpdates: () => Promise<{ success: boolean; data?: any; error?: string }>;
+            gitSync: () => Promise<{ success: boolean; data?: any; error?: string }>;
+            onUpdateStatus: (callback: (status: string) => void) => void;
+            onUpdateProgress: (callback: (percent: number) => void) => void;
         };
     }
 }

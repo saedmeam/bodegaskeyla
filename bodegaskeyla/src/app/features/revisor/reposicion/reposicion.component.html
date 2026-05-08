@@ -6,9 +6,24 @@
     <button class="btn-refresh-v2" (click)="actualizarOrdenData()">
         <span class="icon">🔄</span> ACTUALIZAR
     </button>
+    <button *ngIf="false" class="btn-logout-small" (click)="showSystemMenu = !showSystemMenu">
+        <span class="icon">⚙️</span> Sistema
+    </button>
     <button class="btn-logout-small" (click)="logout()">
         <span class="icon">🚪</span> Salir
     </button>
+
+    <!-- Dropdown Sistema (v1.0.6) -->
+    @if (showSystemMenu) {
+        <div class="system-dropdown-v2">
+            <button (click)="buscarActualizaciones()">
+                <span class="icon">🚀</span> Buscar Actualizaciones (.exe)
+            </button>
+            <button (click)="sincronizarGit()">
+                <span class="icon">☁️</span> Sincronizar Recursos (Nube)
+            </button>
+        </div>
+    }
 </div>
 
 <div class="reposicion-container-v2">
@@ -34,7 +49,7 @@
                     </div>
                     <div class="form-group-v2 w-full">
                         <label>CONCEPTO / OBSERVACIONES</label>
-                        <input type="text" [value]="concepto" readonly class="input-v2 readonly-field">
+                        <input type="text" [value]="concepto || ''" readonly class="input-v2 readonly-field">
                     </div>
                 </div>
             </div>
@@ -281,12 +296,9 @@
                 }
             </div>
         </div>
-        <div class="modal-footer central" style="gap: 15px;">
+        <div class="modal-footer central">
             <button #bultoActionBtn class="btn-modal-action btn-green-premium" (click)="procesarBultos()">
-                Guardar e Imprimir
-            </button>
-            <button class="btn-modal-action btn-teal-premium" (click)="soloImprimir()">
-                Solo Imprimir
+                Procesar
             </button>
         </div>
     </div>

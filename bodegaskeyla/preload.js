@@ -79,6 +79,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
      */
     soapTransaction: (options) => ipcRenderer.invoke('soap-transaction', options),
 
+    /**
+     * v1.0.6: Gestión de Actualizaciones
+     */
+    checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+    gitSync: () => ipcRenderer.invoke('git-sync'),
+    onUpdateStatus: (callback) => ipcRenderer.on('update-status', (event, status) => callback(status)),
+    onUpdateProgress: (callback) => ipcRenderer.on('update-progress', (event, percent) => callback(percent)),
+
     // Flag para indicar que está corriendo en Electron
     isElectron: true
 });

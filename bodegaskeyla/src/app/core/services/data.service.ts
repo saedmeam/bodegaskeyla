@@ -62,9 +62,12 @@ export class DataService {
         return headers;
     }
 
-    private getCurrentCompany(): number {
-        const user = this.authService?.getStoredUser();
-        return user?.empresa?.codigoEmpresa || 0;
+    /**
+     * v1.1.0: Método unificado para obtener la empresa actual
+     */
+    getCurrentCompany(): number {
+        const user = this.authService?.getStoredUser() as any;
+        return Number(user?.empresa?.codigoEmpresa || user?.codigoEmpresa || 1);
     }
 
     getOrdenComparativo(numeroOrden: string): Observable<any[]> {
@@ -129,9 +132,9 @@ export class DataService {
             case 'GET_LABORATORIO':
                 return this.getMockLaboratorio(params.codigo) as Observable<T>;
             case 'UPDATE_ORDEN_DETALLES':
-                return this.finalizarOrdenDespacho(params.params) as Observable<T>;
+                return this.finalizarOrdenDespacho(params) as Observable<T>;
             case 'ACTUALIZAR_ORDEN_DETALLES':
-                return this.actualizarDetallesOrdenDespacho(params.payload) as Observable<T>;
+                return this.actualizarDetallesOrdenDespacho(params) as Observable<T>;
             case 'GET_ORDENES_DESPACHO_LIST':
                 return this.getOrdenesDespachoList(params.empresa, params.filtro, params.valor, params.pagina, params.fechaDesde, params.fechaHasta, params.diaEmbarque) as Observable<T>;
             case 'GET_TIPOS_BULTOS':
@@ -253,21 +256,7 @@ export class DataService {
         const headers = this.getHeaders();
         const url_final = `${this.API_BASE}/XPosConsultas/ordenesDespacho`;
 
-        /* v150.0: Logs deshabilitados para optimizar equipos antiguos
-        console.log(`[DataService] 📡 REQUEST: ${url_final}`, {
-            arg0: params.get('arg0'),
-            arg1: params.get('arg1'),
-            arg2: params.get('arg2'),
-            arg3: params.get('arg3'),
-            arg4: params.get('arg4'),
-            arg5: params.get('arg5'),
-            arg6: params.get('arg6'),
-            arg7: params.get('arg7')
-        });
-        */
-
         return this.http.get(url_final, { params, headers }).pipe(
-            // tap(res => console.log('[DataService] 📥 RESPONSE:', res)),
             catchError(err => {
                 console.error('[DataService] Error consultando lista ordenesDespacho', err);
                 return of({ mensaje: this.handleError(err, 'Error consultando listado'), isError: true, ordenesDespacho: [] });
@@ -305,9 +294,6 @@ export class DataService {
         );
     }
 
-    /**
-     * v200.4: Consulta de lotes para un ítem específico (Uso bajo demanda)
-     */
     getLotesExistencia(codigoExistencia: string, nombreExistencia: string): Observable<any> {
         const params = {
             arg0: this.getCurrentCompany(),
@@ -326,10 +312,8 @@ export class DataService {
     private getTiposBultos(): Observable<any> {
         const params = {
             arg0: this.getCurrentCompany(),
-            arg1: '',
-            arg2: '',
             arg3: 0,
-            arg4: 100
+            arg4: 10
         };
         const headers = this.getHeaders();
         return this.http.get(`${this.API_BASE}${this.config.getEndpoint('TIPOS_BULTOS') || '/XPosConsultas/tiposBultos'}`, { params, headers }).pipe(
@@ -356,37 +340,30 @@ export class DataService {
         const headers = this.getHeaders();
         return this.http.post(`${this.API_BASE}/XPos/actualizarDetallesOrdenDespacho`, payload, { headers }).pipe(
             catchError(err => {
-                console.error('[DataService] Error en actualizarDetallesOrdenDespacho', err);
-                return of({ mensaje: this.handleError(err, 'Error actualizando detalles'), isError: true });
+                console.error('[DataService] ❌ Error en actualizarDetallesOrdenDespacho:', err);
+                return of({ mensaje: this.handleError(err, 'Error guardando detalles de producción'), isError: true });
             })
         );
     }
 
-    /**
-     * v105.0: Servicio de finalización actualizado (POST Body JSON)
-     */
     finalizarOrdenDespacho(payload: any): Observable<any> {
         const headers = this.getHeaders();
-        // El backend ahora espera un JSON body completo
         const finalBody = {
-            codigoEmpresa: this.getCurrentCompany(),
-            numeroSolicitud: payload.solicitud,
-            numeroOrdenDespacho: payload.orden,
+            codigoEmpresa: Number(payload?.codigoEmpresa || this.getCurrentCompany()),
+            numeroSolicitud: Number(payload?.solicitud),
+            numeroOrdenDespacho: Number(payload?.orden),
             codigoUsuario: this.authService?.getStoredUser()?.username || 'DESCONOCIDO',
-            tiposBultosXOrdenDespacho: payload.bultos || []
+            tiposBultosXOrdenDespacho: payload?.bultos || []
         };
 
         return this.http.post(`${this.API_BASE}/XPos/finalizarOrdenDespacho`, finalBody, { headers }).pipe(
             catchError(err => {
-                console.error('[DataService] Error en finalizarOrdenDespacho', err);
-                return of({ mensaje: this.handleError(err, 'Error de conexión'), isError: true });
+                console.error('[DataService] ❌ Error en finalizarOrdenDespacho:', err);
+                return of({ mensaje: this.handleError(err, 'Error en cierre de orden (Producción)'), isError: true });
             })
         );
     }
 
-    /**
-     * v2.0: Servicio para obtener la tirilla formateada para la impresora térmica
-     */
     imprimirTirilla(codigoEmpresa: number, secuencia: number): Observable<any> {
         const headers = this.getHeaders();
         const params = {
@@ -394,19 +371,14 @@ export class DataService {
             arg1: secuencia
         };
 
-        console.log('📡 [DataService] Solicitando Tirilla para impresión...', { params });
-
         return this.http.post(`${this.API_BASE}/XPos/imprimirTirilla`, {}, { headers, params }).pipe(
-            tap(res => console.log('✅ [DataService] Respuesta Tirilla:', res)),
             catchError(err => {
                 console.error('[DataService] Error en imprimirTirilla', err);
                 return of({ mensaje: 'Error al obtener formato de impresión', isError: true });
             })
         );
     }
-    /**
-     * v200.5: Helper centralizado para formateo de errores de API (Soporta Arrays y Objetos)
-     */
+
     private handleError(err: any, defaultMsg: string): string {
         const errorData = Array.isArray(err.error) ? err.error[0] : err.error;
         let errorMsg = errorData?.mensaje || errorData?.causa || err.message || defaultMsg;

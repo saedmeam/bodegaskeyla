@@ -1,6 +1,6 @@
 {
     "name": "bodegaskeyla",
-    "version": "1.0.5",
+    "version": "1.1.0",
     "author": "Neu360",
     "main": "main.js",
     "scripts": {
@@ -37,6 +37,7 @@
         "@angular/platform-server": "^21.1.0",
         "@angular/router": "^21.1.0",
         "@angular/ssr": "^21.1.2",
+        "electron-updater": "^6.8.3",
         "express": "^5.1.0",
         "rxjs": "~7.8.0",
         "tmp-promise": "^3.0.3",
@@ -75,8 +76,7 @@
         ],
         "win": {
             "target": [
-                "nsis",
-                "portable"
+                "nsis"
             ],
             "icon": "public/logo-keyla.ico"
         },
@@ -85,10 +85,15 @@
             "allowToChangeInstallationDirectory": true,
             "installerIcon": "public/logo-keyla.ico",
             "uninstallerIcon": "public/logo-keyla.ico",
-            "createDesktopShortcut": true,
-            "shortcutName": "Bodegas Keyla"
+            "createDesktopShortcut": "always",
+            "shortcutName": "BodegasKeyla",
+            "artifactName": "BodegasKeyla_Setup.${ext}",
+            "uninstallDisplayName": "BodegasKeyla"
         },
         "asar": false,
-        "publish": null
+        "publish": {
+            "provider": "generic",
+            "url": "https://pub-3c3455d8655745658ba9cd481cbdb1b9.r2.dev"
+        }
     }
 }

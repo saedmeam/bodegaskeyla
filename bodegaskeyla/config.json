@@ -3,6 +3,7 @@
     "CARGA_AUTOMATICO_EMPRESA_SUCURSAL": 1,
     "EMPRESA_POR_DEFECTO": 1,
     "SUCURSAL_POR_DEFECTO": 176,
+    "AUTO_UPDATE_URL": "https://pub-3c3455d8655745658ba9cd481cbdb1b9.r2.dev",
     "environments": {
         "desarrollo": {
             "apiUrl": "http://test.neu360.com/X-uitWSRestMagkaz2",
