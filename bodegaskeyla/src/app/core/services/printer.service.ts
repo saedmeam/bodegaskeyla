@@ -91,7 +91,7 @@ export class PrinterService {
         }
 
         const resumenBultos = extra.bultos 
-            ? extra.bultos.map((b: any) => `${b.nombreTipoBulto || b.label}: ${b.cantidad || b.value}`).join(", ") 
+            ? extra.bultos.map((b: any) => `${b.nombreTipoBulto || b.label || b.descripcion || 'Bulto'}: ${b.cantidad || b.value || 0}`).join(", ") 
             : "S/N";
 
         const data = products.map(p => ({
@@ -383,7 +383,7 @@ export class PrinterService {
     
     // Formatear resumen de bultos en una sola línea
     const resumenBultosStr = extra.bultos && extra.bultos.length > 0
-      ? extra.bultos.map(b => `${b.nombreTipoBulto || b.label}: ${b.cantidad || b.value}`).join(', ')
+      ? extra.bultos.map(b => `${b.nombreTipoBulto || b.label || b.descripcion || 'Bulto'}: ${b.cantidad || b.value || 0}`).join(', ')
       : 'S/N';
 
         let html = `
