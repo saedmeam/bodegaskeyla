@@ -43,6 +43,8 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
     fecha = new Date().toLocaleString();
     origenNombre = "";
     destinoNombre = "";
+    clienteNombre = ""; // v1.1.4-v4: Soporte para Franquicias
+    esFranquicia = false;
     concepto = "";
     barcodeInput = "";
     loteInput = "";
@@ -113,12 +115,20 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
             const metadata = this.revisorService.orderMetadata();
             if (metadata) {
                 this.origenNombre = metadata.nombreSucursalOrigen || 'N/A';
-                this.destinoNombre = metadata.nombreSucursalDestino || 'N/A';
-                this.concepto = `orden ${metadata.numeroOrdenDespacho} solicitud ${metadata.numeroSolicitud} | ${metadata.concepto || ''}`;
+                // v1.1.4-v5: Priorizar nombre de cliente sobre sucursal destino en el campo "Destino"
+                this.destinoNombre = metadata.nombreCliente || metadata.nombreSucursalDestino || 'N/A';
+                this.esFranquicia = metadata.esFranquicia === 'S';
+                this.clienteNombre = metadata.nombreCliente || '';
+                
+                // v1.1.4-v4: Inclusión de Grupo de Despacho en el concepto
+                const grupo = metadata.nombreGrupoDespacho ? `[${metadata.nombreGrupoDespacho}] ` : '';
+                this.concepto = `${grupo}Orden ${metadata.numeroOrdenDespacho} | Solicitud ${metadata.numeroSolicitud} | ${metadata.concepto || ''}`;
             } else {
                 // Si no hay orden, limpiamos campos
                 this.origenNombre = "";
                 this.destinoNombre = "";
+                this.clienteNombre = "";
+                this.esFranquicia = false;
                 this.concepto = "";
             }
         });
@@ -734,6 +744,7 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
                 if (err.type === 'STOCK') return '⚠️';
                 if (err.type === 'SURPLUS') return '🚨';
                 if (err.type === 'QTY') return '🔢';
+                if (err.type === 'BATCH_MISMATCH') return '📦';
                 return '🏷️';
             };
 
@@ -996,13 +1007,13 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
 
         // Preparamos datos necesarios para ambos casos
         const extraReport = {
-            sucursal: metadata?.nombreSucursalDestino || metadata?.sucursalDestino || '---',
+            sucursal: (metadata?.esFranquicia === 'S') ? (metadata?.nombreCliente || metadata?.nombreSucursalDestino || '---') : (metadata?.nombreSucursalDestino || metadata?.sucursalDestino || '---'),
             usuario: user?.username || 'SISTEMA',
             digitador: user?.username || 'SISTEMA',
             fecha: new Date().toLocaleDateString('es-EC'),
             fechaProcesamiento: `${new Date().toLocaleDateString('es-EC')} ${new Date().toLocaleTimeString('es-EC')}`,
             bodegaOrigen: metadata?.nombreSucursalOrigen,
-            bodegaDestino: metadata?.nombreSucursalDestino || metadata?.sucursalDestino,
+            bodegaDestino: (metadata?.esFranquicia === 'S') ? (metadata?.nombreCliente || metadata?.nombreSucursalDestino) : (metadata?.nombreSucursalDestino || metadata?.sucursalDestino),
             bultos: bultosParaEnviar
         };
 
@@ -1045,10 +1056,10 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
 
         if (cantidadAPrint > 0) {
             const extraData = {
-                sucursal: metadata?.nombreSucursalDestino || metadata?.sucursalDestino || '---',
+                sucursal: (metadata?.esFranquicia === 'S') ? (metadata?.nombreCliente || metadata?.nombreSucursalDestino || '---') : (metadata?.nombreSucursalDestino || metadata?.sucursalDestino || '---'),
                 digitador: user?.username || 'SISTEMA',
                 fecha: new Date().toLocaleDateString('es-EC'),
-                bodegaDestino: metadata?.nombreSucursalDestino || metadata?.sucursalDestino
+                bodegaDestino: (metadata?.esFranquicia === 'S') ? (metadata?.nombreCliente || metadata?.nombreSucursalDestino) : (metadata?.nombreSucursalDestino || metadata?.sucursalDestino)
             };
             const bultoLabel = { label: 'IMPRESIÓN DE ETIQUETAS', value: cantidadAPrint };
             

@@ -226,17 +226,43 @@ export class RevisorService {
                             // v170.8: Priorizar SIEMPRE la recuperación de la sesión guardada si existe
                             const saved = this.storage.loadLocal<any>(`SCAN_SESSION_${this.currentOrderNumber}`);
                             if (saved && saved.escaneados && saved.escaneados.length > 0) {
-                                console.log(`[RevisorService] 🧠 Restaurando sesión de ${saved.escaneados.length} items.`);
+                                console.log(`[RevisorService] 🧠 Restaurando y Sincronizando sesión de ${saved.escaneados.length} items.`);
                                 
-                                // v1.1.3 Fix: Sincronizar lotes de la sesión con los lotes enriquecidos de la API
+                                // v1.1.4: Sincronización PROFUNDA de datos maestros (Barcode, Stock, Lab, Lotes)
                                 const restored = saved.escaneados.map((s: Product) => {
                                     const original = newProducts.find((p: any) => p.lineaDetalle === s.lineaDetalle);
-                                    if (original && original.lotes && original.lotes.length > 0) {
-                                        // Si el producto tiene lotes, asegurar que mantenemos las cantidades pistoleadas
-                                        s.lotes = original.lotes.map((l: any) => {
-                                            const savedLot = s.lotes?.find((sl: any) => (sl.lote || sl.codigoLote) === (l.lote || l.codigoLote));
-                                            return { ...l, despachado: savedLot?.despachado || 0 };
-                                        });
+                                    if (original) {
+                                        // Actualizamos datos maestros que pueden haber cambiado en el ERP
+                                        // v1.1.4-v2: Sincronizamos el item ID por si el código de barras cambió
+                                        s.item = original.item; 
+                                        s.codigoBarras = original.codigoBarras;
+                                        s.nombre = original.nombre;
+                                        s.invBod = original.invBod;
+                                        s.solicita = original.solicita;
+                                        s.laboratorio = original.laboratorio;
+                                        s.unidad = original.unidad;
+                                        s.unidadesXCaja = original.unidadesXCaja;
+                                        s.codigoExistencia = original.codigoExistencia;
+                                        
+                                        // Sincronizar lotes preservando lo pistoleado
+                                        if (original.lotes && original.lotes.length > 0) {
+                                            s.lotes = original.lotes.map((l: any) => {
+                                                const savedLot = s.lotes?.find((sl: any) => (sl.lote || sl.codigoLote) === (l.lote || l.codigoLote));
+                                                return { ...l, despachado: savedLot?.despachado || 0 };
+                                            });
+
+                                            // v1.1.4-v3: Auto-asignación si solo hay 1 lote (REQUERIMIENTO USUARIO)
+                                            if (s.lotes && s.lotes.length === 1 && s.despachado > 0) {
+                                                s.lotes[0].despachado = s.despachado;
+                                            }
+                                        }
+
+                                        // Recalcular color según el nuevo Stock/Solicitud
+                                        const solicita = Number(original.solicita || 0);
+                                        const stock = Number(original.invBod || 0);
+                                        if (s.despachado > stock || s.despachado > solicita) s.color = 'verde';
+                                        else if (s.despachado === solicita) s.color = 'negro';
+                                        else s.color = 'azul';
                                     }
                                     return s;
                                 });
@@ -562,6 +588,21 @@ export class RevisorService {
                 }
                 if (Number(e.despachado) > Number(orig.invBod || 0)) {
                     errors.push({ type: 'STOCK', item: e.item, message: 'Stock insuficiente en bodega', isCritical: true, detail: `${e.nombre} (Stock: ${orig.invBod})` });
+                }
+
+                // v1.1.4-v3: Validación de asignación de lotes (REQUERIMIENTO USUARIO)
+                // Bloquea el proceso si la suma de lotes no coincide con el total despachado
+                if (e.lotes && e.lotes.length > 0) {
+                    const totalLotes = e.lotes.reduce((sum, l) => sum + (Number(l.despachado) || 0), 0);
+                    if (totalLotes !== Number(e.despachado)) {
+                        errors.push({ 
+                            type: 'BATCH_MISMATCH', 
+                            item: e.item, 
+                            message: 'Lote no asignado', 
+                            isCritical: true, 
+                            detail: `La existencia no: ${e.codigoExistencia}, ${e.nombre} no tiene lote asignado.` 
+                        });
+                    }
                 }
             }
         });

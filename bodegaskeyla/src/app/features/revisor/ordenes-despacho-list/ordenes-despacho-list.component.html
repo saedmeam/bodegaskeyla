@@ -106,7 +106,12 @@
                         <tr class="order-row-v2" [class.selected-row]="selectedIndex() === i">
                             <td class="bold">{{ order.solicitudOrden }}</td>
                             <td class="branch-cell" [title]="order.nombreSucursalOrigen">{{ order.nombreSucursalOrigen }}</td>
-                            <td class="branch-cell" [title]="order.nombreSucursalDestino">{{ order.nombreSucursalDestino }}</td>
+                            <td class="branch-cell" [title]="order.nombreSucursalDestino">
+                                {{ order.nombreSucursalDestino }}
+                                @if (order.esFranquicia === 'S') {
+                                    <br><span style="color: #0369a1; font-size: 0.6rem; font-weight: 800;">[CLI: {{ order.nombreCliente }}]</span>
+                                }
+                            </td>
                             <td class="loc-cell" [title]="order.grupoDespacho">{{ order.grupoDespacho }}</td>
                             <td class="user-cell" [title]="order.nombreUsuarioDespachador">{{ order.nombreUsuarioDespachador }}</td>
                             <td class="date-cell">{{ formatDate(order.fechaEmision) }}</td>
@@ -131,11 +136,9 @@
                                     </button>
 
                                     @if (order.codigoEstado === 'DP' || order.codigoEstado === 'DT' || order.codigoEstado === 'PRO') {
-                                        @if (false) {
-                                            <button class="btn-direct-print" (click)="imprimirOrdenDirecto(order)" title="Reimprimir Reporte de Transferencia">
-                                                <span class="icon">🖨️</span>
-                                            </button>
-                                        }
+                                        <button class="btn-direct-print" (click)="imprimirOrdenDirecto(order)" title="Reimprimir Reporte de Transferencia">
+                                            <span class="icon">🖨️</span>
+                                        </button>
                                         <button class="btn-label-print" (click)="abrirModalEtiquetas(order)" title="Reimprimir Etiquetas">
                                             <span class="icon">🏷️</span>
                                         </button>

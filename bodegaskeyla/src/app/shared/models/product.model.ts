@@ -73,6 +73,10 @@ export interface DispatchOrder {
     codigoGrupoDespacho?: number;
     nombreGrupoDespacho?: string;
     usuarioIngreso?: string;
+    // v1.1.4-v4: Franchise and Client support
+    esFranquicia?: string;
+    nombreCliente?: string;
+    codigoCliente?: number;
 }
 
 export interface BultoType {

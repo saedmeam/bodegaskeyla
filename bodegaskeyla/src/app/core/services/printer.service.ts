@@ -95,7 +95,9 @@ export class PrinterService {
             : "S/N";
 
         const data = products.map(p => ({
+            sucursal: extra.sucursal || '---',
             sucursalRecibe: extra.sucursal || '---',
+            sucursalDestino: extra.bodegaDestino || extra.sucursal || '---',
             numeroDoc: orderFullId,
             fechaEmision: extra.fechaProcesamiento || extra.fecha || new Date().toLocaleString(),
             usuarioEmisor: extra.usuario || 'SISTEMA',

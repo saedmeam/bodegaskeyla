@@ -469,9 +469,8 @@ function createWindow() {
                     label: 'Actualizar Sistema',
                     accelerator: 'CmdOrCtrl+U',
                     click: () => {
-                        console.log('[Electron:Main] 🔄 Manual update trigger from Menu');
-                        if (win) win.webContents.send('update-status', '🔍 Buscando actualizaciones en el servidor...');
-                        autoUpdater.checkForUpdatesAndNotify();
+                        console.log('[Electron:Main] 🔄 Manual update trigger disabled');
+                        if (win) win.webContents.send('update-status', '⚠️ El sistema de actualizaciones está desactivado por el momento.');
                     }
                 }
             ]
@@ -533,10 +532,12 @@ app.on('ready', () => {
     createWindow();
     setupAutoUpdater();
     
-    // v1.0.7: Búsqueda automática al inicio en producción
+    // v1.1.4-v6: Búsqueda automática DESACTIVADA temporalmente por requerimiento
+    /*
     if (app.isPackaged) {
         autoUpdater.checkForUpdatesAndNotify();
     }
+    */
 });
 
 /**

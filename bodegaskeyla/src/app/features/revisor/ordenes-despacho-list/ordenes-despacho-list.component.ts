@@ -36,7 +36,7 @@ export class OrdenesDespachoListComponent implements OnInit {
     private configService = inject(ConfigService);
     private dataService = inject(DataService);
     private titleService = inject(Title);
-    public appVersion = '1.1.3';
+    public appVersion = '1.1.4';
     public Math = Math;
 
     // Filters
@@ -311,7 +311,11 @@ export class OrdenesDespachoListComponent implements OnInit {
         console.log('[Revisor:Mantenimiento] 🖨️ Reimpresión directa unificada:', orden.solicitudOrden);
         this.loadingService.show();
         try {
-            // 1. Obtener detalles de la orden para el reporte de transferencia
+            // 1. Obtener cabecera para asegurar datos de Franquicia/Cliente (v200.7)
+            const headRes = await firstValueFrom(this.dataService.executeAction<any>('GET_ORDEN_DESPACHO', { numero: `${orden.numeroSolicitud}-${orden.numeroOrdenDespacho}` }));
+            const fullOrder = (headRes?.ordenesDespacho && headRes.ordenesDespacho.length > 0) ? headRes.ordenesDespacho[0] : orden;
+
+            // 2. Obtener detalles de la orden para el reporte de transferencia
             const detRes = await firstValueFrom(this.dataService.getDetallesOrdenDespacho(orden.numeroSolicitud, orden.numeroOrdenDespacho));
 
             if (detRes?.isError || !detRes?.detalles) {
@@ -322,8 +326,8 @@ export class OrdenesDespachoListComponent implements OnInit {
                 item: d.sciExistenciasXCodBarras?.[0]?.codigoBarras?.toString() || d.codigoBarras?.toString() || '',
                 nombre: d.nombreExistencia || 'SIN NOMBRE',
                 unidad: d.tipoMedida || 'U/C',
-                solicita: d.cantidad || d.cantidad || 0,
-                despachado: d.cantidad || d.cantidad || 0,
+                solicita: d.cantidad || 0,
+                despachado: d.cantidadDespachadaEnCajas || 0,
                 lote: d.lote || '',
                 caducidad: d.caducidad || '',
                 codigoExistencia: d.codigoExistencia?.toString() || '',
@@ -336,12 +340,12 @@ export class OrdenesDespachoListComponent implements OnInit {
             const ordenFullId = `${orden.numeroSolicitud}-${orden.numeroOrdenDespacho}`;
 
             const extraData = {
-                sucursal: orden.nombreSucursalDestino || orden.nombreSucursal || '---',
+                sucursal: (fullOrder.esFranquicia === 'S') ? (fullOrder.nombreCliente || fullOrder.nombreSucursalDestino || '---') : (fullOrder.nombreSucursalDestino || fullOrder.nombreSucursal || '---'),
                 usuario: user?.username || 'SISTEMA',
                 digitador: user?.username || 'SISTEMA',
                 fecha: new Date().toLocaleDateString('es-EC'),
-                bodegaOrigen: orden.nombreSucursalOrigen,
-                bodegaDestino: orden.nombreSucursalDestino || orden.nombreSucursal,
+                bodegaOrigen: fullOrder.nombreSucursalOrigen,
+                bodegaDestino: (fullOrder.esFranquicia === 'S') ? (fullOrder.nombreCliente || fullOrder.nombreSucursalDestino) : (fullOrder.nombreSucursalDestino || fullOrder.nombreSucursal),
                 bultos: []
             };
  
@@ -444,13 +448,17 @@ export class OrdenesDespachoListComponent implements OnInit {
             const user = this.authService.getStoredUser();
             const ordenFullId = `${orden.numeroSolicitud}-${orden.numeroOrdenDespacho}`;
 
+            // v200.7: Obtener cabecera para asegurar datos de Franquicia/Cliente en etiquetas
+            const headRes = await firstValueFrom(this.dataService.executeAction<any>('GET_ORDEN_DESPACHO', { numero: ordenFullId }));
+            const fullOrder = (headRes?.ordenesDespacho && headRes.ordenesDespacho.length > 0) ? headRes.ordenesDespacho[0] : orden;
+
             const extraData = {
-                sucursal: orden.nombreSucursalDestino || orden.nombreSucursal || '---',
+                sucursal: (fullOrder.esFranquicia === 'S') ? (fullOrder.nombreCliente || fullOrder.nombreSucursalDestino || '---') : (fullOrder.nombreSucursalDestino || fullOrder.nombreSucursal || '---'),
                 usuario: user?.username || 'SISTEMA',
                 digitador: user?.username || 'SISTEMA',
                 fecha: new Date().toLocaleDateString('es-EC'),
-                bodegaOrigen: orden.nombreSucursalOrigen,
-                bodegaDestino: orden.nombreSucursalDestino || orden.nombreSucursal,
+                bodegaOrigen: fullOrder.nombreSucursalOrigen,
+                bodegaDestino: (fullOrder.esFranquicia === 'S') ? (fullOrder.nombreCliente || fullOrder.nombreSucursalDestino) : (fullOrder.nombreSucursalDestino || fullOrder.nombreSucursal),
                 bultos: [{ codigoTipoBulto: bulto.codigoTipoBulto, nombreTipoBulto: bulto.nombreTipoBulto, cantidad: quantity }]
             };
 
