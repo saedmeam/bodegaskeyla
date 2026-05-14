@@ -180,7 +180,7 @@ export class RevisorService {
                             nombre: d.nombreExistencia || 'SIN NOMBRE',
                             unidad: d.tipoMedida || 'U/C',
                             solicita: d.cantidad || d.cantidad || 0,
-                            invBod: d.saldoActualEnCajas || d.stock || 0,
+                            invBod: d.saldoActualEnCajas ?? d.stock ?? 0,
                             // v104.9: Si la orden ya está procesada (DP/DT), cargamos lo que se despachó realmente
                             despachado: (this.orderMetadata()?.estado !== 'ING') ? (d.cantidadADespachar || d.cantidadUnidadMedidaStockB || 0) : 0,
                             color: (this.orderMetadata()?.estado !== 'ING') ? 'negro' : 'naranja',
@@ -200,7 +200,7 @@ export class RevisorService {
                             observacion: d.observacion || 'API_REFRESH',
                             esActivo: d.esActivo || 'S',
                             vtas: d.vtas || 0,
-                            sLocal: d.sLocal || d.saldoActualEnCajas || 0,
+                            sLocal: d.sLocal ?? d.saldoActualEnCajas ?? 0,
                             suger: d.suger || 0,
                             lotes: [] // Se llenará con el segundo servicio
                         };
@@ -308,7 +308,7 @@ export class RevisorService {
                     p.lotes = apiItem.lotesXExistencia.map((l: any) => ({
                         lote: (l.codigoLote || l.lote || 'SIN LOTE').toString().trim(),
                         caducidad: l.fechaCaducidad || l.caducidad || 'N/A',
-                        stock: l.saldoActualEnCajas || l.cantidadDisponible || 0,
+                        stock: l.saldoActualEnCajas ?? l.cantidadDisponible ?? 0,
                         // v1.4.3: Recuperar lo que ya esté despachado en este lote desde Oracle
                         despachado: Number(l.cantidadADespachar || l.cantidad || 0),
                         fechaElaboracion: l.fechaElaboracion,
@@ -494,12 +494,10 @@ export class RevisorService {
         const allBaseProducts = this.ordenProductos();
         const scannedProducts = this.escaneados();
 
-        // v1.1.3: Combinar base con escaneados para enviar la orden COMPLETA
+        // v1.1.9: Enviar TODO el listado (Requerimiento Usuario)
+        // Los no escaneados van con despachado 0 y cantidad original
         const detalles = allBaseProducts.map(baseP => {
             const scannedP = scannedProducts.find(s => s.item === baseP.item);
-            
-            // v1.4.2: Si NO está escaneado, FORZAMOS 0. 
-            // Ignoramos cualquier valor previo que venga de la base de datos (p.despachado).
             const despachadoTotal = scannedP ? Number(scannedP.despachado || 0) : 0;
             
             const p = scannedP || baseP;
