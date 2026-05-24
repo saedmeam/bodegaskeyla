@@ -3,7 +3,7 @@
 ; Logic: Bundles the win-unpacked output from electron-builder into a professional Setup.exe
 
 #define AppName "BodegasKeyla"
-#define AppVersion "1.1.0"
+#define AppVersion "1.1.8"
 #define AppPublisher "Neu360"
 #define AppURL "https://www.keyla.com.ec"
 #define AppExeName "BodegasKeyla.exe"
@@ -22,7 +22,7 @@ DisableProgramGroupPage=yes
 DefaultGroupName={#AppName}
 SourceDir=.
 OutputDir=Output
-OutputBaseFilename=BodegasKeyla_Setup1.1.0
+OutputBaseFilename=BodegasKeyla_Setup1.1.8_PROD
 SetupIconFile=public\logo-keyla.ico
 Compression=lzma
 SolidCompression=yes
@@ -31,6 +31,7 @@ ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
 PrivilegesRequired=admin
 CloseApplications=force
+RestartApplications=yes
 
 [Languages]
 Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"

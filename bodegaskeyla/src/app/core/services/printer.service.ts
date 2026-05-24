@@ -18,6 +18,28 @@ export class PrinterService {
         return [];
     }
 
+    async getAppConfig(): Promise<any> {
+        if ((window as any).electronAPI && (window as any).electronAPI.getAppConfig) {
+            const result = await (window as any).electronAPI.getAppConfig();
+            if (result.success) {
+                return result.data;
+            }
+        }
+        return null;
+    }
+
+    async savePrinterConfig(printerName: string): Promise<boolean> {
+        if ((window as any).electronAPI && (window as any).electronAPI.saveAppConfig) {
+            // Obtenemos la config actual para no borrar otros campos
+            const currentConfig = await this.getAppConfig() || {};
+            const newConfig = { ...currentConfig, IMPRESORA_TICKET: printerName };
+            
+            const result = await (window as any).electronAPI.saveAppConfig(newConfig);
+            return result.success;
+        }
+        return false;
+    }
+
     async printLabels(html: string, printerName?: string, options?: any, preview: boolean = false): Promise<boolean> {
         // Legado: Sigue funcionando para HTML si es necesario
         if ((window as any).electronAPI) {
@@ -39,9 +61,9 @@ export class PrinterService {
     async imprimirJasper(reportFileName: string, jsonData: any, printerName?: string, preview: boolean = true): Promise<{ success: boolean; error?: string }> {
         if ((window as any).electronAPI && (window as any).electronAPI.printJasper) {
             console.log(`📡 [PrinterService] Solicitando impresión Jasper: ${reportFileName} (Vista Previa: ${preview})`);
-            const result = await (window as any).electronAPI.printJasper({ 
-                printerName: printerName || '', 
-                reportFileName, 
+            const result = await (window as any).electronAPI.printJasper({
+                printerName: printerName || '',
+                reportFileName,
                 jsonData,
                 preview
             });
@@ -73,7 +95,9 @@ export class PrinterService {
             : "S/N";
 
         const data = products.map(p => ({
+            sucursal: extra.sucursal || '---',
             sucursalRecibe: extra.sucursal || '---',
+            sucursalDestino: extra.bodegaDestino || extra.sucursal || '---',
             numeroDoc: orderFullId,
             fechaEmision: extra.fechaProcesamiento || extra.fecha || new Date().toLocaleString(),
             usuarioEmisor: extra.usuario || 'SISTEMA',
@@ -194,10 +218,10 @@ export class PrinterService {
               size: 104mm 50.8mm landscape;
               margin: 0;
             }
-            body { 
-              margin: 0; 
-              padding: 0; 
-              width: 100%; 
+            body {
+              margin: 0;
+              padding: 0;
+              width: 100%;
               height: 100%;
               font-family: Arial, sans-serif;
             }
@@ -364,7 +388,7 @@ export class PrinterService {
       ? extra.bultos.map(b => `${b.nombreTipoBulto || b.label || b.descripcion || 'Bulto'}: ${b.cantidad || b.value || 0}`).join(', ')
       : 'S/N';
 
-    let html = `
+        let html = `
       <html>
         <head>
           <style>
@@ -564,6 +588,6 @@ export class PrinterService {
       </html>
     `;
 
-    return html;
-  }
+        return html;
+    }
 }

@@ -18,7 +18,7 @@
                 <label>Día Embarque:</label>
                 <select [(ngModel)]="diaEmbarque" (change)="buscar()">
                     @for (dia of diasSemana; track dia.value) {
-                        <option [value]="dia.value">{{ dia.label }}</option>
+                    <option [value]="dia.value">{{ dia.label }}</option>
                     }
                 </select>
             </div>
@@ -40,11 +40,9 @@
                 </select>
             </div>
             <div class="filter-group-inline flex-grow">
-                <input #numPedidoInput id="numPedidoMaster" type="text" [(ngModel)]="numeroPedido" 
-                    placeholder="Escriba aquí el Número de Pedido..." 
-                    (keyup.enter)="buscar()"
-                    (click)="$event.stopPropagation()"
-                    class="input-search-master">
+                <input #numPedidoInput id="numPedidoMaster" type="text" [(ngModel)]="numeroPedido"
+                    placeholder="Escriba aquí el Número de Pedido..." (keyup.enter)="buscar()"
+                    (click)="$event.stopPropagation()" class="input-search-master">
             </div>
         </div>
 
@@ -54,8 +52,7 @@
                 <label>Sucursal:</label>
                 <div class="searchable-select-enterprise" [class.is-open]="showSucursalDropdown">
                     <div class="select-trigger-enterprise" (click)="toggleSucursalDropdown()">
-                        <input type="text" [value]="selectedSucursal ? selectedSucursal.nombreSucursal : 'Portete'"
-                            readonly>
+                        <input type="text" [value]="selectedSucursal ? selectedSucursal.nombreSucursal : 'Portete'" readonly>
                         <span class="arrow">▼</span>
                     </div>
                     @if (showSucursalDropdown) {
@@ -65,8 +62,7 @@
                                 placeholder="Buscar sucursal..." (click)="$event.stopPropagation()">
                         </div>
                         <div class="options-list">
-                            <div class="option-item"
-                                (click)="selectSucursal({codigoSucursal: 0, nombreSucursal: 'Todas', codigoEmpresa: 0, esActivo: 'S'}); $event.stopPropagation()">
+                            <div class="option-item" (click)="selectSucursal({codigoSucursal: 0, nombreSucursal: 'Todas', codigoEmpresa: 0, esActivo: 'S'}); $event.stopPropagation()">
                                 <span class="item-name">Todas</span>
                             </div>
                             @for (suc of sucursalesFiltradas; track suc.codigoSucursal) {
@@ -97,7 +93,7 @@
                         <tr>
                             <th class="col-id">Orden de Despacho</th>
                             <th class="col-branch">Origen</th>
-                            <th class="col-branch">Destino</th>
+                            <th class="col-branch">DESTINO/ CLIENTE</th>
                             <th class="col-loc">Grupo Despacho/Línea</th>
                             <th class="col-user">Despachador</th>
                             <th class="col-date">Fecha</th>
@@ -110,7 +106,12 @@
                         <tr class="order-row-v2" [class.selected-row]="selectedIndex() === i">
                             <td class="bold">{{ order.solicitudOrden }}</td>
                             <td class="branch-cell" [title]="order.nombreSucursalOrigen">{{ order.nombreSucursalOrigen }}</td>
-                            <td class="branch-cell" [title]="order.nombreSucursalDestino">{{ order.nombreSucursalDestino }}</td>
+                            <td class="branch-cell" [title]="order.nombreSucursalDestino" [style.font-weight]="order.esFranquicia === 'S' ? '700' : 'normal'">
+                                <div>{{ order.nombreSucursalDestino }}</div>
+                                @if (order.esFranquicia === 'S' && order.nombreCliente) {
+                                    <div style="font-size: 0.75rem; margin-top: 2px;">[{{ order.nombreCliente }}]</div>
+                                }
+                            </td>
                             <td class="loc-cell" [title]="order.grupoDespacho">{{ order.grupoDespacho }}</td>
                             <td class="user-cell" [title]="order.nombreUsuarioDespachador">{{ order.nombreUsuarioDespachador }}</td>
                             <td class="date-cell">{{ formatDate(order.fechaEmision) }}</td>
@@ -129,23 +130,19 @@
                                         }
                                     }
 
-                                    @if (false) {
-                                        <!-- v200.3: Botón de impresión bloqueado temporalmente por fallos en formato -->
-                                        <button class="btn-mass-print" (click)="imprimirOrdenMasivo(order)" title="Imprimir Orden de Despacho Masiva">
-                                            <span class="icon">📋</span>
+                                    <!-- v200.4: Botón de impresión masiva restaurado por requerimiento del usuario -->
+                                    <button class="btn-mass-print" (click)="imprimirOrdenMasivo(order)" title="Imprimir Orden de Despacho Masiva">
+                                        <span class="icon">📋</span>
+                                    </button>
+
+                                    @if (order.codigoEstado === 'DP' || order.codigoEstado === 'DT' || order.codigoEstado === 'PRO') {
+                                        <button class="btn-direct-print" (click)="imprimirOrdenDirecto(order)" title="Reimprimir Reporte de Transferencia">
+                                            <span class="icon">🖨️</span>
+                                        </button>
+                                        <button class="btn-label-print" (click)="abrirModalEtiquetas(order)" title="Reimprimir Etiquetas">
+                                            <span class="icon">🏷️</span>
                                         </button>
                                     }
-
-                                        @if (order.codigoEstado === 'DP' || order.codigoEstado === 'DT' || order.codigoEstado === 'PRO') {
-                                            @if (false) {
-                                                <button class="btn-direct-print" (click)="imprimirOrdenDirecto(order)" title="Reimprimir Reporte de Transferencia">
-                                                    <span class="icon">🖨️</span>
-                                                </button>
-                                            }
-                                            <button class="btn-label-print" (click)="abrirModalEtiquetas(order)" title="Reimprimir Etiquetas">
-                                                <span class="icon">🏷️</span>
-                                            </button>
-                                        }
                                 </div>
                             </td>
                         </tr>
@@ -208,7 +205,7 @@
         <div class="modal-body">
             <div class="label-setup-container">
                 <p class="setup-intro">Configure la cantidad de etiquetas para la orden <strong>{{ selectedOrderForLabels()?.solicitudOrden }}</strong></p>
-                
+
                 <div class="setup-grid-single">
                     <div class="setup-field centered">
                         <label>Cantidad de Etiquetas a Reimprimir</label>

@@ -45,8 +45,9 @@
                     </div>
                     <div class="form-group-v2">
                         <label>BODEGA DESTINO</label>
-                        <input type="text" [value]="destinoNombre" readonly class="input-v2 readonly-field">
+                        <input type="text" [value]="destinoNombre" readonly class="input-v2 readonly-field" [style.font-weight]="esFranquicia ? '700' : 'normal'">
                     </div>
+
                     <div class="form-group-v2 w-full">
                         <label>CONCEPTO / OBSERVACIONES</label>
                         <input type="text" [value]="concepto || ''" readonly class="input-v2 readonly-field">
@@ -107,7 +108,7 @@
                             <span class="badge-v2">Verificados: {{ totalVerificados() }} / {{ totalOrder() }}</span>
                         </div>
                     </div>
-                    <div class="grid-body-v2">
+                    <div class="grid-body-v2" #scannedListContainer>
                         <table class="neu-table-v2">
                             <thead>
                                 <tr>

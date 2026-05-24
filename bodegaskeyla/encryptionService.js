@@ -1,8 +1,9 @@
-const { exec } = require('child_process');
+const { exec, execFile } = require('child_process');
 const path = require('path');
 const { promisify } = require('util');
 
 const execPromise = promisify(exec);
+const execFilePromise = promisify(execFile);
 
 /**
  * Servicio de Encriptación usando encrypter-xuit.jar
@@ -20,17 +21,40 @@ class EncryptionService {
      */
     getJarPath() {
         const { app } = require('electron');
-        const isPackaged = app ? app.isPackaged : false;
+        let appPath = '';
+        try {
+            if (app) appPath = app.getAppPath();
+        } catch (e) {
+            console.error('[Electron:Encryption] Error al obtener appPath:', e.message);
+        }
+
+        const execDir = path.dirname(process.execPath);
 
         const possiblePaths = [
             path.join(process.cwd(), 'encrypter-xuit.jar'),
             path.join(__dirname, 'encrypter-xuit.jar'),
-            path.join(process.resourcesPath, 'encrypter-xuit.jar'),
-            path.join(process.resourcesPath, 'app', 'encrypter-xuit.jar')
-        ];
+            path.join(process.resourcesPath || '', 'encrypter-xuit.jar'),
+            path.join(process.resourcesPath || '', 'app', 'encrypter-xuit.jar'),
+            appPath ? path.join(appPath, 'encrypter-xuit.jar') : '',
+            path.join(execDir, 'resources', 'encrypter-xuit.jar'),
+            path.join(execDir, 'resources', 'app', 'encrypter-xuit.jar')
+        ].filter(Boolean);
+
+        console.log('[Electron:Encryption] 🔍 Buscando encrypter-xuit.jar en:');
+        possiblePaths.forEach(p => {
+            const exists = require('fs').existsSync(p);
+            console.log(`  - [${exists ? 'ENCONTRADO' : 'NO EXISTE'}] ${p}`);
+        });
 
         let finalPath = possiblePaths.find(p => require('fs').existsSync(p));
-        return finalPath || path.join(__dirname, 'encrypter-xuit.jar');
+        if (finalPath) {
+            console.log('[Electron:Encryption] 🎯 Usando JAR seleccionado:', finalPath);
+            return finalPath;
+        }
+
+        const fallback = path.join(__dirname, 'encrypter-xuit.jar');
+        console.warn('[Electron:Encryption] ⚠️ No se encontró el JAR. Usando fallback:', fallback);
+        return fallback;
     }
 
     /**
@@ -40,7 +64,7 @@ class EncryptionService {
         if (this._javaChecked !== undefined) return this._javaChecked;
         
         try {
-            await execPromise('java -version');
+            await execFilePromise('java', ['-version']);
             this._javaChecked = true;
             return true;
         } catch (error) {
@@ -64,17 +88,18 @@ class EncryptionService {
                 throw new Error('Java no está instalado. Por favor instale Java para continuar.');
             }
 
+            // Verificar que el JAR exista
+            if (!require('fs').existsSync(this.jarPath)) {
+                console.error(`❌ [MN] JAR de encriptación no encontrado en: ${this.jarPath}`);
+                throw new Error(`El archivo de encriptación 'encrypter-xuit.jar' no fue encontrado. Ruta intentada: ${this.jarPath}`);
+            }
+
             console.log('[Electron:Encryption] 🔐 Iniciando proceso de encriptación...');
             console.log('[Electron:Encryption] 📂 Usando JAR en:', this.jarPath);
 
-            // Escapar el texto para evitar problemas con caracteres especiales
-            const escapedText = text.replace(/"/g, '\\"');
+            console.log('[Electron:Encryption] ⚙️ Ejecutando comando JAR con execFile...');
 
-            const command = `java -jar "${this.jarPath}" encrypt "${escapedText}"`;
-
-            console.log('[Electron:Encryption] ⚙️ Ejecutando comando JAR...');
-
-            const { stdout, stderr } = await execPromise(command, {
+            const { stdout, stderr } = await execFilePromise('java', ['-jar', this.jarPath, 'encrypt', text], {
                 timeout: 10000, // 10 segundos de timeout
                 maxBuffer: 1024 * 1024 // 1MB buffer
             });
@@ -111,14 +136,16 @@ class EncryptionService {
                 throw new Error('Java no está instalado.');
             }
 
+            // Verificar que el JAR exista
+            if (!require('fs').existsSync(this.jarPath)) {
+                console.error(`❌ [MN] JAR de desencriptación no encontrado en: ${this.jarPath}`);
+                throw new Error(`El archivo de encriptación 'encrypter-xuit.jar' no fue encontrado. Ruta intentada: ${this.jarPath}`);
+            }
+
             console.log('🔓 Desencriptando texto...');
+            console.log('⚙️ Ejecutando desencriptación con execFile...');
 
-            const escapedText = encryptedText.replace(/"/g, '\\"');
-            const command = `java -jar "${this.jarPath}" decrypt "${escapedText}"`;
-
-            console.log('⚙️ Ejecutando comando:', command);
-
-            const { stdout, stderr } = await execPromise(command, {
+            const { stdout, stderr } = await execFilePromise('java', ['-jar', this.jarPath, 'decrypt', encryptedText], {
                 timeout: 10000,
                 maxBuffer: 1024 * 1024
             });

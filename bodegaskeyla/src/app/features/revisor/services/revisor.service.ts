@@ -37,7 +37,7 @@ export class RevisorService {
     private isLoading = false;
 
     constructor() {
-        // v1.1.0: Persistencia reactiva TOTAL (Se activa con cada cambio en escaneados)
+        // v1.1.3: Persistencia reactiva TOTAL (Se activa con cada cambio en escaneados)
         effect(() => {
             const list = this.escaneados();
             const order = this.currentOrderNumber;
@@ -161,7 +161,7 @@ export class RevisorService {
                     console.log(`[RevisorService] 📦 Productos obtenidos (${detRes?.detalles?.length || 0}). Mapeando lista...`);
                     const detalles = detRes?.detalles || [];
                     const newProducts = detalles.map((d: any, index: number) => {
-                        // v1.1.0: Extracción precisa de código de barras según el JSON del usuario (vía sciExistencias o directo)
+                        // v1.1.3: Extracción precisa de código de barras según el JSON del usuario (vía sciExistencias o directo)
                         let barcode = d.sciExistenciasXCodBarras?.[0]?.codigoBarras?.toString()?.trim();
                         if (!barcode || barcode === 'null' || barcode === '') {
                             barcode = d.codigoBarras?.toString()?.trim();
@@ -180,7 +180,7 @@ export class RevisorService {
                             nombre: d.nombreExistencia || 'SIN NOMBRE',
                             unidad: d.tipoMedida || 'U/C',
                             solicita: d.cantidad || d.cantidad || 0,
-                            invBod: d.saldoActualEnCajas || d.stock || 0,
+                            invBod: d.saldoActualEnCajas ?? d.stock ?? 0,
                             // v104.9: Si la orden ya está procesada (DP/DT), cargamos lo que se despachó realmente
                             despachado: (this.orderMetadata()?.estado !== 'ING') ? (d.cantidadADespachar || d.cantidadUnidadMedidaStockB || 0) : 0,
                             color: (this.orderMetadata()?.estado !== 'ING') ? 'negro' : 'naranja',
@@ -200,14 +200,14 @@ export class RevisorService {
                             observacion: d.observacion || 'API_REFRESH',
                             esActivo: d.esActivo || 'S',
                             vtas: d.vtas || 0,
-                            sLocal: d.sLocal || d.saldoActualEnCajas || 0,
+                            sLocal: d.sLocal ?? d.saldoActualEnCajas ?? 0,
                             suger: d.suger || 0,
                             lotes: [] // Se llenará con el segundo servicio
                         };
                         return p;
                     });
 
-                    // v1.1.0: Restaurar flujo secuencial (Detalle -> Lotes -> Bultos)
+                    // v1.1.3: Restaurar flujo secuencial (Detalle -> Lotes -> Bultos)
                     const meta = this.orderMetadata();
                     console.log('[RevisorService] 🛠️ Iniciando enriquecimiento secuencial (Lotes + Bultos)...');
                     
@@ -226,17 +226,43 @@ export class RevisorService {
                             // v170.8: Priorizar SIEMPRE la recuperación de la sesión guardada si existe
                             const saved = this.storage.loadLocal<any>(`SCAN_SESSION_${this.currentOrderNumber}`);
                             if (saved && saved.escaneados && saved.escaneados.length > 0) {
-                                console.log(`[RevisorService] 🧠 Restaurando sesión de ${saved.escaneados.length} items.`);
+                                console.log(`[RevisorService] 🧠 Restaurando y Sincronizando sesión de ${saved.escaneados.length} items.`);
                                 
-                                // v1.1.0 Fix: Sincronizar lotes de la sesión con los lotes enriquecidos de la API
+                                // v1.1.4: Sincronización PROFUNDA de datos maestros (Barcode, Stock, Lab, Lotes)
                                 const restored = saved.escaneados.map((s: Product) => {
                                     const original = newProducts.find((p: any) => p.lineaDetalle === s.lineaDetalle);
-                                    if (original && original.lotes && original.lotes.length > 0) {
-                                        // Si el producto tiene lotes, asegurar que mantenemos las cantidades pistoleadas
-                                        s.lotes = original.lotes.map((l: any) => {
-                                            const savedLot = s.lotes?.find((sl: any) => (sl.lote || sl.codigoLote) === (l.lote || l.codigoLote));
-                                            return { ...l, despachado: savedLot?.despachado || 0 };
-                                        });
+                                    if (original) {
+                                        // Actualizamos datos maestros que pueden haber cambiado en el ERP
+                                        // v1.1.4-v2: Sincronizamos el item ID por si el código de barras cambió
+                                        s.item = original.item; 
+                                        s.codigoBarras = original.codigoBarras;
+                                        s.nombre = original.nombre;
+                                        s.invBod = original.invBod;
+                                        s.solicita = original.solicita;
+                                        s.laboratorio = original.laboratorio;
+                                        s.unidad = original.unidad;
+                                        s.unidadesXCaja = original.unidadesXCaja;
+                                        s.codigoExistencia = original.codigoExistencia;
+                                        
+                                        // Sincronizar lotes preservando lo pistoleado
+                                        if (original.lotes && original.lotes.length > 0) {
+                                            s.lotes = original.lotes.map((l: any) => {
+                                                const savedLot = s.lotes?.find((sl: any) => (sl.lote || sl.codigoLote) === (l.lote || l.codigoLote));
+                                                return { ...l, despachado: savedLot?.despachado || 0 };
+                                            });
+
+                                            // v1.1.4-v3: Auto-asignación si solo hay 1 lote (REQUERIMIENTO USUARIO)
+                                            if (s.lotes && s.lotes.length === 1 && s.despachado > 0) {
+                                                s.lotes[0].despachado = s.despachado;
+                                            }
+                                        }
+
+                                        // Recalcular color según el nuevo Stock/Solicitud
+                                        const solicita = Number(original.solicita || 0);
+                                        const stock = Number(original.invBod || 0);
+                                        if (s.despachado > stock || s.despachado > solicita) s.color = 'verde';
+                                        else if (s.despachado === solicita) s.color = 'negro';
+                                        else s.color = 'azul';
                                     }
                                     return s;
                                 });
@@ -274,7 +300,7 @@ export class RevisorService {
 
             products.forEach(p => {
                 const pCode = p.codigoExistencia?.toString()?.trim();
-                // v1.1.0: El segundo servicio devuelve un objeto con { detalles: [...] }
+                // v1.1.3: El segundo servicio devuelve un objeto con { detalles: [...] }
                 const apiItems = res?.detalles || res?.data || [];
                 const apiItem = apiItems.find((l: any) => l.codigoExistencia?.toString()?.trim() === pCode);
                 
@@ -282,7 +308,7 @@ export class RevisorService {
                     p.lotes = apiItem.lotesXExistencia.map((l: any) => ({
                         lote: (l.codigoLote || l.lote || 'SIN LOTE').toString().trim(),
                         caducidad: l.fechaCaducidad || l.caducidad || 'N/A',
-                        stock: l.saldoActualEnCajas || l.cantidadDisponible || 0,
+                        stock: l.saldoActualEnCajas ?? l.cantidadDisponible ?? 0,
                         // v1.4.3: Recuperar lo que ya esté despachado en este lote desde Oracle
                         despachado: Number(l.cantidadADespachar || l.cantidad || 0),
                         fechaElaboracion: l.fechaElaboracion,
@@ -304,7 +330,7 @@ export class RevisorService {
         return new Promise((resolve, reject) => {
             const searchText = barcode.trim().toUpperCase();
             
-            // v1.1.0: BÚSQUEDA GLOBAL DE LOTES (Si no es producto, ¿es un lote de la orden?)
+            // v1.1.3: BÚSQUEDA GLOBAL DE LOTES (Si no es producto, ¿es un lote de la orden?)
             let match = this.ordenProductos().find(p => {
                 if (lineaDetalle !== undefined && p.lineaDetalle === lineaDetalle) return true;
                 return p.codigoBarras?.trim().toUpperCase() === searchText || p.nombre?.trim().toUpperCase() === searchText;
@@ -338,7 +364,7 @@ export class RevisorService {
 
             if (existingIdx !== -1) {
                 const existing = { ...currentList[existingIdx] };
-                // v1.1.0: Clonación profunda de lotes para evitar problemas de referencia
+                // v1.1.3: Clonación profunda de lotes para evitar problemas de referencia
                 existing.lotes = JSON.parse(JSON.stringify(existing.lotes || []));
                 
                 const nextQty = (Number(existing.despachado) || 0) + 1;
@@ -350,7 +376,7 @@ export class RevisorService {
 
                 existing.despachado = nextQty;
                 
-                // v1.1.0 Fix: Regla de Negocio Estricta de Lotes
+                // v1.1.3 Fix: Regla de Negocio Estricta de Lotes
                 if (lote) {
                     const lotIdx = (existing.lotes!).findIndex((l: any) => l.lote === lote);
                     if (lotIdx !== -1) {
@@ -377,8 +403,8 @@ export class RevisorService {
                 else if (existing.despachado === solicita) existing.color = 'negro';
                 else existing.color = 'azul';
 
-                const newList = [...currentList];
-                newList[existingIdx] = existing;
+                // v1.4.4: REGLA DE PRIORIDAD - Mover el producto escaneado al inicio de la lista
+                const newList = [existing, ...currentList.filter(p => p.item !== existing.item)];
                 this.escaneados.set(newList);
                 
                 // Persistencia inmediata
@@ -428,10 +454,10 @@ export class RevisorService {
             }
 
             const updated = { ...currentList[idx], despachado: qty };
-            // v1.1.0: Clonación profunda para evitar mutaciones de referencia
+            // v1.1.3: Clonación profunda para evitar mutaciones de referencia
             updated.lotes = JSON.parse(JSON.stringify(updated.lotes || []));
             
-            // v1.1.0 Fix: Regla Estricta de Edición Manual
+            // v1.1.3 Fix: Regla Estricta de Edición Manual
             if (updated.lotes && updated.lotes.length === 1) {
                 // Único lote -> Sincronización automática de lo que se digite
                 updated.lotes[0].despachado = qty;
@@ -468,12 +494,10 @@ export class RevisorService {
         const allBaseProducts = this.ordenProductos();
         const scannedProducts = this.escaneados();
 
-        // v1.1.0: Combinar base con escaneados para enviar la orden COMPLETA
+        // v1.1.9: Enviar TODO el listado (Requerimiento Usuario)
+        // Los no escaneados van con despachado 0 y cantidad original
         const detalles = allBaseProducts.map(baseP => {
             const scannedP = scannedProducts.find(s => s.item === baseP.item);
-            
-            // v1.4.2: Si NO está escaneado, FORZAMOS 0. 
-            // Ignoramos cualquier valor previo que venga de la base de datos (p.despachado).
             const despachadoTotal = scannedP ? Number(scannedP.despachado || 0) : 0;
             
             const p = scannedP || baseP;
@@ -530,7 +554,7 @@ export class RevisorService {
             return of({ isError: true, mensaje: 'No hay metadata para finalizar' });
         }
 
-        // v1.1.0: Mapeo exacto de cabecera para producción
+        // v1.1.3: Mapeo exacto de cabecera para producción
         const payload = {
             codigoEmpresa: Number(meta.codigoEmpresa || 1),
             solicitud: Number(meta.numeroSolicitud),
@@ -562,6 +586,21 @@ export class RevisorService {
                 }
                 if (Number(e.despachado) > Number(orig.invBod || 0)) {
                     errors.push({ type: 'STOCK', item: e.item, message: 'Stock insuficiente en bodega', isCritical: true, detail: `${e.nombre} (Stock: ${orig.invBod})` });
+                }
+
+                // v1.1.4-v3: Validación de asignación de lotes (REQUERIMIENTO USUARIO)
+                // Bloquea el proceso si la suma de lotes no coincide con el total despachado
+                if (e.lotes && e.lotes.length > 0) {
+                    const totalLotes = e.lotes.reduce((sum, l) => sum + (Number(l.despachado) || 0), 0);
+                    if (totalLotes !== Number(e.despachado)) {
+                        errors.push({ 
+                            type: 'BATCH_MISMATCH', 
+                            item: e.item, 
+                            message: 'Lote no asignado', 
+                            isCritical: true, 
+                            detail: `La existencia no: ${e.codigoExistencia}, ${e.nombre} no tiene lote asignado.` 
+                        });
+                    }
                 }
             }
         });

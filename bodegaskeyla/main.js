@@ -469,9 +469,8 @@ function createWindow() {
                     label: 'Actualizar Sistema',
                     accelerator: 'CmdOrCtrl+U',
                     click: () => {
-                        console.log('[Electron:Main] 🔄 Manual update trigger from Menu');
-                        if (win) win.webContents.send('update-status', '🔍 Buscando actualizaciones en el servidor...');
-                        autoUpdater.checkForUpdatesAndNotify();
+                        console.log('[Electron:Main] 🔄 Manual update trigger disabled');
+                        if (win) win.webContents.send('update-status', '⚠️ El sistema de actualizaciones está desactivado por el momento.');
                     }
                 }
             ]
@@ -533,11 +532,148 @@ app.on('ready', () => {
     createWindow();
     setupAutoUpdater();
     
-    // v1.0.7: Búsqueda automática al inicio en producción
+    // v1.1.4-v6: Búsqueda automática DESACTIVADA temporalmente por requerimiento
+    /*
     if (app.isPackaged) {
         autoUpdater.checkForUpdatesAndNotify();
     }
+    */
 });
+
+/**
+ * v1.0.6: Sistema de Auto-Actualización (Basado en Inno Setup)
+ * No requiere Git instalado en el cliente.
+ */
+async function checkForUpdates() {
+    console.log('[Updater] Verificando actualizaciones...');
+    const https = require('https');
+    const { dialog } = require('electron');
+    const pkg = require('./package.json');
+    const currentVersion = pkg.version;
+    const updateUrl = 'https://raw.githubusercontent.com/saedmeam/bodegaskeyla/impresion_automatica/bodegaskeyla/latest_version.json';
+
+    const fetchJson = (url) => {
+        return new Promise((resolve, reject) => {
+            https.get(url, (res) => {
+                // Manejar redirecciones (301, 302)
+                if (res.statusCode === 301 || res.statusCode === 302) {
+                    return fetchJson(res.headers.location).then(resolve).catch(reject);
+                }
+
+                if (res.statusCode !== 200) {
+                    return reject(new Error(`Servidor respondió con código ${res.statusCode}`));
+                }
+
+                let data = '';
+                res.setEncoding('utf8'); // Asegurar que leemos texto UTF-8
+                res.on('data', (chunk) => data += chunk);
+                res.on('end', () => resolve(data.trim()));
+            }).on('error', reject);
+        });
+    };
+
+    try {
+        const data = await fetchJson(updateUrl);
+        const remote = JSON.parse(data);
+        console.log(`[Updater] Local: ${currentVersion}, Remoto: ${remote.version}`);
+
+        if (remote.version !== currentVersion) {
+            const choice = dialog.showMessageBoxSync(win, {
+                type: 'info',
+                buttons: ['Actualizar Ahora', 'Más Tarde'],
+                title: 'Actualización Disponible',
+                message: `Hay una nueva versión disponible (${remote.version}). ¿Deseas actualizar ahora?`,
+                detail: remote.notes || ''
+            });
+
+            if (choice === 0) {
+                downloadAndInstall(remote.url);
+            }
+        } else {
+            console.log('[Updater] El sistema está actualizado.');
+        }
+    } catch (e) {
+        console.error('[Updater] Error verificando actualizaciones:', e.message);
+    }
+}
+
+function downloadAndInstall(url) {
+    const https = require('https');
+    const fs = require('fs');
+    const os = require('os');
+    const { exec } = require('child_process');
+    const { dialog } = require('electron');
+
+    const tempPath = path.join(os.tmpdir(), 'BodegasKeyla_Update.exe');
+    const file = fs.createWriteStream(tempPath);
+
+    // Notificar inicio de descarga
+    const progressWin = new BrowserWindow({
+        width: 400,
+        height: 150,
+        frame: false,
+        alwaysOnTop: true,
+        transparent: true,
+        webPreferences: { nodeIntegration: true }
+    });
+    progressWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(`
+        <body style="background:#222; color:white; font-family:sans-serif; display:flex; flex-direction:column; align-items:center; justify-content:center; border:1px solid #444;">
+            <h3>Descargando Actualización...</h3>
+            <p>Espere un momento, el sistema se reiniciará solo.</p>
+            <div style="width:80%; height:10px; background:#444; border-radius:5px; overflow:hidden;">
+                <div id="bar" style="width:0%; height:100%; background:#4caf50;"></div>
+            </div>
+        </body>
+    `)}`);
+
+    console.log(`[Updater] Descargando de: ${url}`);
+
+    https.get(url, (res) => {
+        // Manejar redireccionamientos de GitHub
+        if (res.statusCode === 302 || res.statusCode === 301) {
+            return downloadAndInstall(res.headers.location);
+        }
+
+        const totalSize = parseInt(res.headers['content-length'], 10);
+        let downloaded = 0;
+
+        res.on('data', (chunk) => {
+            downloaded += chunk.length;
+            const progress = Math.round((downloaded / totalSize) * 100);
+            if (!progressWin.isDestroyed()) {
+                progressWin.webContents.executeJavaScript(`document.getElementById("bar").style.width = "${progress}%"`);
+            }
+        });
+
+        res.pipe(file);
+
+        file.on('finish', () => {
+            file.close();
+            console.log('[Updater] Descarga completada. Ejecutando instalador...');
+            
+            // Ejecutar instalador en modo ultra silencioso
+            // /VERYSILENT: Sin interfaz
+            // /SUPPRESSMSGBOXES: Sin preguntas
+            // /RESTARTEXITCODE: Código de salida para reinicio
+            const cmd = `"${tempPath}" /VERYSILENT /SUPPRESSMSGBOXES /FORCECLOSEAPPLICATIONS`;
+            
+            exec(cmd, (err) => {
+                if (err) {
+                    console.error('[Updater] Error ejecutando instalador', err.message);
+                }
+            });
+
+            // Cerrar la app para que el instalador pueda sobreescribir los archivos
+            setTimeout(() => {
+                app.quit();
+            }, 1000);
+        });
+    }).on('error', (err) => {
+        console.error('[Updater] Error descargando el archivo', err.message);
+        if (!progressWin.isDestroyed()) progressWin.close();
+    });
+}
+
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
         app.quit();

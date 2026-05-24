@@ -36,12 +36,15 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
     @ViewChild('scannerInput') scannerInput!: ElementRef<HTMLInputElement>;
     @ViewChild('modalActionBtn') modalActionBtn!: ElementRef<HTMLButtonElement>;
     @ViewChild('bultoActionBtn') bultoActionBtn!: ElementRef<HTMLButtonElement>;
+    @ViewChild('scannedListContainer') scannedListContainer!: ElementRef<HTMLDivElement>;
 
     // Estados de UI
     numero = "";
     fecha = new Date().toLocaleString();
     origenNombre = "";
     destinoNombre = "";
+    clienteNombre = ""; // v1.1.4-v4: Soporte para Franquicias
+    esFranquicia = false;
     concepto = "";
     barcodeInput = "";
     loteInput = "";
@@ -102,7 +105,7 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
     totalVerificados = computed(() => this.escaneados().length);
     totalItems = computed(() => this.totalOrder()); // v2.1: Refiere al total de la orden (ej. 5761) en lugar de escaneados
     totalCorrectos = computed(() => this.escaneados().filter(p => p.color === 'negro').length);
-    public appVersion = '1.1.0';
+    public appVersion = '1.1.8';
     totalIncompletos = computed(() => this.escaneados().filter(p => p.color === 'azul' || p.color === 'naranja').length);
 
     constructor() {
@@ -112,12 +115,22 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
             const metadata = this.revisorService.orderMetadata();
             if (metadata) {
                 this.origenNombre = metadata.nombreSucursalOrigen || 'N/A';
-                this.destinoNombre = metadata.nombreSucursalDestino || 'N/A';
-                this.concepto = `orden ${metadata.numeroOrdenDespacho} solicitud ${metadata.numeroSolicitud} | ${metadata.concepto || ''}`;
+                // v200.8: Mostrar nombre de cliente y bodega destino (localidad) para franquicias
+                this.destinoNombre = (metadata.esFranquicia === 'S')
+                    ? `${metadata.nombreSucursalDestino || '---'} [${metadata.nombreCliente || ''}]`
+                    : (metadata.nombreSucursalDestino || 'N/A');
+                this.esFranquicia = metadata.esFranquicia === 'S';
+                this.clienteNombre = metadata.nombreCliente || '';
+                
+                // v1.1.4-v4: Inclusión de Grupo de Despacho en el concepto
+                const grupo = metadata.nombreGrupoDespacho ? `[${metadata.nombreGrupoDespacho}] ` : '';
+                this.concepto = `${grupo}Orden ${metadata.numeroOrdenDespacho} | Solicitud ${metadata.numeroSolicitud} | ${metadata.concepto || ''}`;
             } else {
                 // Si no hay orden, limpiamos campos
                 this.origenNombre = "";
                 this.destinoNombre = "";
+                this.clienteNombre = "";
+                this.esFranquicia = false;
                 this.concepto = "";
             }
         });
@@ -234,7 +247,7 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
         console.log('[Reposicion] 🔄 Sincronizando bultos desde el servicio...');
         const listFromApi = this.revisorService.tiposBultos() || [];
         
-        // v1.1.0: Mapeo directo y limpio para evitar omitir datos reales de la API (como CAJAS)
+        // v1.1.3: Mapeo directo y limpio para evitar omitir datos reales de la API (como CAJAS)
         const mappedList: BultoType[] = listFromApi.map((t: any) => ({
             codigoTipoBulto: Number(t.codigoTipoBulto || t.codigo || t.id || 0),
             nombreTipoBulto: (t.nombreTipoBulto || t.descripcion || t.nombre || 'Bulto').toUpperCase(),
@@ -383,6 +396,10 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
                 this.loteInput = "";
                 this.caducidadInput = "";
                 this.barcodeInput = "";
+                
+                // v1.4.4: Auto-scroll al inicio tras escaneo exitoso
+                this.scrollToTop();
+                
                 return true;
             }
         } catch (error: any) {
@@ -570,7 +587,7 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
         
         console.log(`[Reposicion] 💾 Guardando asignación para ${prod.nombre}:`, working.map(l => `${l.lote}: ${l.despachado}`).join(' | '));
 
-        // 3. Sincronizar los lotes y el total en el Signal del servicio (v1.1.0)
+        // 3. Sincronizar los lotes y el total en el Signal del servicio (v1.1.3)
         this.revisorService.escaneados.update(list => {
             const idx = list.findIndex(p => p.item === prod.item);
             if (idx !== -1) {
@@ -729,6 +746,7 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
                 if (err.type === 'STOCK') return '⚠️';
                 if (err.type === 'SURPLUS') return '🚨';
                 if (err.type === 'QTY') return '🔢';
+                if (err.type === 'BATCH_MISMATCH') return '📦';
                 return '🏷️';
             };
 
@@ -876,6 +894,14 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
         }, 250);
     }
 
+    private scrollToTop() {
+        setTimeout(() => {
+            if (this.scannedListContainer) {
+                this.scannedListContainer.nativeElement.scrollTop = 0;
+            }
+        }, 100);
+    }
+
     // v1.0.6: Métodos de Sistema (Actualización y Sync)
     async buscarActualizaciones() {
         this.showSystemMenu = false;
@@ -930,7 +956,7 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
         this.loadingService.show();
         this.showToast("Sincronizando detalles con el servidor...", false, "PROCESANDO");
 
-        // PASO 1: Guardar Detalles primero (v1.1.0 Fix)
+        // PASO 1: Guardar Detalles primero (v1.1.3 Fix)
         (this.revisorService.executeProcess('API_UPDATE', { tipo: 'FINALIZAR' }) as any)?.subscribe({
             next: (saveRes: any) => {
                 if (saveRes?.isError) {

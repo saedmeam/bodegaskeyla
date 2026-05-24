@@ -1,6 +1,6 @@
 {
     "name": "bodegaskeyla",
-    "version": "1.1.0",
+    "version": "1.1.8",
     "author": "Neu360",
     "main": "main.js",
     "scripts": {
@@ -93,7 +93,7 @@
         "asar": false,
         "publish": {
             "provider": "generic",
-            "url": "https://pub-3c3455d8655745658ba9cd481cbdb1b9.r2.dev"
+            "url": ""
         }
     }
 }

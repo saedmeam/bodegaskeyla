@@ -111,6 +111,8 @@ module.exports = {
                         args.push("-N", printName);
                     }
                 }
+                
+                // Si preview es false y no hay printName, JasperStarter usará la impresora predeterminada del sistema.
 
                 console.log(`[Jasper] 🚀 Ejecutando: ${jasperStarterExe} ${args.join(" ")}`);
 
