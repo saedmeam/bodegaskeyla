@@ -105,7 +105,7 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
     totalVerificados = computed(() => this.escaneados().length);
     totalItems = computed(() => this.totalOrder()); // v2.1: Refiere al total de la orden (ej. 5761) en lugar de escaneados
     totalCorrectos = computed(() => this.escaneados().filter(p => p.color === 'negro').length);
-    public appVersion = '1.1.7';
+    public appVersion = '1.1.8';
     totalIncompletos = computed(() => this.escaneados().filter(p => p.color === 'azul' || p.color === 'naranja').length);
 
     constructor() {
@@ -115,8 +115,10 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
             const metadata = this.revisorService.orderMetadata();
             if (metadata) {
                 this.origenNombre = metadata.nombreSucursalOrigen || 'N/A';
-                // v1.1.4-v5: Priorizar nombre de cliente sobre sucursal destino en el campo "Destino"
-                this.destinoNombre = metadata.nombreCliente || metadata.nombreSucursalDestino || 'N/A';
+                // v200.8: Mostrar nombre de cliente y bodega destino (localidad) para franquicias
+                this.destinoNombre = (metadata.esFranquicia === 'S')
+                    ? `${metadata.nombreSucursalDestino || '---'} [${metadata.nombreCliente || ''}]`
+                    : (metadata.nombreSucursalDestino || 'N/A');
                 this.esFranquicia = metadata.esFranquicia === 'S';
                 this.clienteNombre = metadata.nombreCliente || '';
                 
@@ -1007,13 +1009,13 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
 
         // Preparamos datos necesarios para ambos casos
         const extraReport = {
-            sucursal: (metadata?.esFranquicia === 'S') ? (metadata?.nombreCliente || metadata?.nombreSucursalDestino || '---') : (metadata?.nombreSucursalDestino || metadata?.sucursalDestino || '---'),
+            sucursal: metadata?.nombreSucursalDestino || metadata?.sucursalDestino || '---',
             usuario: user?.username || 'SISTEMA',
             digitador: user?.username || 'SISTEMA',
             fecha: new Date().toLocaleDateString('es-EC'),
             fechaProcesamiento: `${new Date().toLocaleDateString('es-EC')} ${new Date().toLocaleTimeString('es-EC')}`,
             bodegaOrigen: metadata?.nombreSucursalOrigen,
-            bodegaDestino: (metadata?.esFranquicia === 'S') ? (metadata?.nombreCliente || metadata?.nombreSucursalDestino) : (metadata?.nombreSucursalDestino || metadata?.sucursalDestino),
+            bodegaDestino: metadata?.nombreSucursalDestino || metadata?.sucursalDestino,
             bultos: bultosParaEnviar
         };
 
@@ -1056,10 +1058,10 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
 
         if (cantidadAPrint > 0) {
             const extraData = {
-                sucursal: (metadata?.esFranquicia === 'S') ? (metadata?.nombreCliente || metadata?.nombreSucursalDestino || '---') : (metadata?.nombreSucursalDestino || metadata?.sucursalDestino || '---'),
+                sucursal: metadata?.nombreSucursalDestino || metadata?.sucursalDestino || '---',
                 digitador: user?.username || 'SISTEMA',
                 fecha: new Date().toLocaleDateString('es-EC'),
-                bodegaDestino: (metadata?.esFranquicia === 'S') ? (metadata?.nombreCliente || metadata?.nombreSucursalDestino) : (metadata?.nombreSucursalDestino || metadata?.sucursalDestino)
+                bodegaDestino: metadata?.nombreSucursalDestino || metadata?.sucursalDestino
             };
             const bultoLabel = { label: 'IMPRESIÓN DE ETIQUETAS', value: cantidadAPrint };
             

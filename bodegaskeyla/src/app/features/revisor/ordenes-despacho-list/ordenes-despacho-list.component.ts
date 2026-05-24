@@ -36,7 +36,7 @@ export class OrdenesDespachoListComponent implements OnInit {
     private configService = inject(ConfigService);
     private dataService = inject(DataService);
     private titleService = inject(Title);
-    public appVersion = '1.1.7';
+    public appVersion = '1.1.8';
     public Math = Math;
 
     // Filters
@@ -322,7 +322,9 @@ export class OrdenesDespachoListComponent implements OnInit {
                 throw new Error(detRes?.mensaje || 'No se pudieron obtener los detalles de la orden.');
             }
 
-            const products: Product[] = detRes.detalles.map((d: any) => ({
+            const products: Product[] = detRes.detalles
+                .filter((d: any) => d.cantidadDespachadaEnCajas && d.cantidadDespachadaEnCajas > 0)
+                .map((d: any) => ({
                 item: d.sciExistenciasXCodBarras?.[0]?.codigoBarras?.toString() || d.codigoBarras?.toString() || '',
                 nombre: d.nombreExistencia || 'SIN NOMBRE',
                 unidad: d.tipoMedida || 'U/C',
@@ -340,12 +342,12 @@ export class OrdenesDespachoListComponent implements OnInit {
             const ordenFullId = `${orden.numeroSolicitud}-${orden.numeroOrdenDespacho}`;
 
             const extraData = {
-                sucursal: (fullOrder.esFranquicia === 'S') ? (fullOrder.nombreCliente || fullOrder.nombreSucursalDestino || '---') : (fullOrder.nombreSucursalDestino || fullOrder.nombreSucursal || '---'),
+                sucursal: fullOrder.nombreSucursalDestino || fullOrder.nombreSucursal || '---',
                 usuario: user?.username || 'SISTEMA',
                 digitador: user?.username || 'SISTEMA',
                 fecha: new Date().toLocaleDateString('es-EC'),
                 bodegaOrigen: fullOrder.nombreSucursalOrigen,
-                bodegaDestino: (fullOrder.esFranquicia === 'S') ? (fullOrder.nombreCliente || fullOrder.nombreSucursalDestino) : (fullOrder.nombreSucursalDestino || fullOrder.nombreSucursal),
+                bodegaDestino: fullOrder.nombreSucursalDestino || fullOrder.nombreSucursal,
                 bultos: []
             };
  
@@ -453,12 +455,12 @@ export class OrdenesDespachoListComponent implements OnInit {
             const fullOrder = (headRes?.ordenesDespacho && headRes.ordenesDespacho.length > 0) ? headRes.ordenesDespacho[0] : orden;
 
             const extraData = {
-                sucursal: (fullOrder.esFranquicia === 'S') ? (fullOrder.nombreCliente || fullOrder.nombreSucursalDestino || '---') : (fullOrder.nombreSucursalDestino || fullOrder.nombreSucursal || '---'),
+                sucursal: fullOrder.nombreSucursalDestino || fullOrder.nombreSucursal || '---',
                 usuario: user?.username || 'SISTEMA',
                 digitador: user?.username || 'SISTEMA',
                 fecha: new Date().toLocaleDateString('es-EC'),
                 bodegaOrigen: fullOrder.nombreSucursalOrigen,
-                bodegaDestino: (fullOrder.esFranquicia === 'S') ? (fullOrder.nombreCliente || fullOrder.nombreSucursalDestino) : (fullOrder.nombreSucursalDestino || fullOrder.nombreSucursal),
+                bodegaDestino: fullOrder.nombreSucursalDestino || fullOrder.nombreSucursal,
                 bultos: [{ codigoTipoBulto: bulto.codigoTipoBulto, nombreTipoBulto: bulto.nombreTipoBulto, cantidad: quantity }]
             };
 

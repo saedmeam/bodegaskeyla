@@ -106,14 +106,10 @@
                         <tr class="order-row-v2" [class.selected-row]="selectedIndex() === i">
                             <td class="bold">{{ order.solicitudOrden }}</td>
                             <td class="branch-cell" [title]="order.nombreSucursalOrigen">{{ order.nombreSucursalOrigen }}</td>
-                            <td class="branch-cell" [title]="order.nombreSucursalDestino">
-                                @if (order.esFranquicia === 'S') {
-                                    <div style="font-weight: 700;">{{ order.nombreCliente }}</div>
-                                    @if (order.nombreSucursal) {
-                                        <span style="color: #0369a1; font-size: 0.6rem; font-weight: 800;">[{{ order.nombreSucursal }}]</span>
-                                    }
-                                } @else {
-                                    {{ order.nombreSucursalDestino }}
+                            <td class="branch-cell" [title]="order.nombreSucursalDestino" [style.font-weight]="order.esFranquicia === 'S' ? '700' : 'normal'">
+                                <div>{{ order.nombreSucursalDestino }}</div>
+                                @if (order.esFranquicia === 'S' && order.nombreCliente) {
+                                    <div style="font-size: 0.75rem; margin-top: 2px;">[{{ order.nombreCliente }}]</div>
                                 }
                             </td>
                             <td class="loc-cell" [title]="order.grupoDespacho">{{ order.grupoDespacho }}</td>
