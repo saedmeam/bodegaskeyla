@@ -80,7 +80,7 @@ export class DataService {
             }),
             map(response => {
                 const detalles = response?.detalles || [];
-                return detalles.map((d: any) => {
+                return detalles.map((d: any, index: number) => {
                     // v170.0: Priorizar el código de barras dentro del arreglo sciExistenciasXCodBarras[0]
                     const barcode = d.sciExistenciasXCodBarras?.[0]?.codigoBarras?.toString()
                         || d.codigoBarras?.toString()
@@ -102,7 +102,8 @@ export class DataService {
                         bulto: d.unidadesXCaja || 1,
                         lote: d.lote || '',
                         caducidad: d.caducidad || '',
-                        laboratorio: d.fabricante || ''
+                        laboratorio: d.fabricante || '',
+                        fueDespachado: d.codigoEstado === 'DT' || d.codigoEstado === 'DP'
                     };
                 });
             }),

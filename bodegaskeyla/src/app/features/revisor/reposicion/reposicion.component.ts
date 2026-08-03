@@ -105,7 +105,7 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
     totalVerificados = computed(() => this.escaneados().length);
     totalItems = computed(() => this.totalOrder()); // v2.1: Refiere al total de la orden (ej. 5761) en lugar de escaneados
     totalCorrectos = computed(() => this.escaneados().filter(p => p.color === 'negro').length);
-    public appVersion = '1.1.8';
+    public appVersion = '1.1.9';
     totalIncompletos = computed(() => this.escaneados().filter(p => p.color === 'azul' || p.color === 'naranja').length);
 
     constructor() {
@@ -353,6 +353,14 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
 
         if (matches.length === 0) {
             this.openModal("ERROR", `ERROR el código o nombre : [${this.barcodeInput}] no existe en esta orden.`, "❌", "alert");
+            this.barcodeInput = "";
+            return false;
+        }
+
+        // VALIDACIÓN DE PRODUCTOS YA DESPACHADOS (v170.8)
+        const productToScan = matches[0];
+        if (productToScan.fueDespachado) {
+            this.openModal("PRODUCTO YA DESPACHADO", `El producto <b>${productToScan.nombre}</b> ya fue despachado anteriormente. Continúa con los demás.`, "⚠️", "alert");
             this.barcodeInput = "";
             return false;
         }
