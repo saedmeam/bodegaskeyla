@@ -44,6 +44,7 @@ export interface Product {
     laboratorio?: string;
     // v170.2: Sophisticated multi-batch support
     lotes?: Batch[];
+    fueDespachado?: boolean;
 }
 
 export interface DispatchOrder {

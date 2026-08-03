@@ -188,6 +188,7 @@ export class RevisorService {
                             lote: d.lote || '',
                             caducidad: d.caducidad || '',
                             laboratorio: d.fabricante || '',
+                            fueDespachado: d.codigoEstado === 'DT' || d.codigoEstado === 'DP',
                             lineaDetalle: d.lineaDetalle,
                             estado: d.codigoEstado,
                             unidadesXCaja: d.unidadesXCaja || 0,

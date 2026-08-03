@@ -74,6 +74,7 @@
                             @for (prod of productosFiltrados(); track prod.item; let i = $index) {
                             <div class="autocomplete-item-v2" 
                                 [class.active]="i === selectedIndexProd()"
+                                [class.fue-despachado]="prod.fueDespachado"
                                 (click)="seleccionarProducto(prod)">
                                 <div class="prod-item-info">
                                     <div class="prod-name-row">
@@ -200,7 +201,8 @@
                     @let status = getScannedProduct(prod.item);
                     <div class="comparativo-item clickable" (dblclick)="onProductDblClick(prod)"
                         [title]="prod.nombre"
-                        [ngClass]="'c-bg-' + (status ? (status?.color || 'naranja') : 'naranja')">
+                        [ngClass]="'c-bg-' + (status ? (status?.color || 'naranja') : 'naranja')"
+                        [class.fue-despachado]="prod.fueDespachado">
                         <div class="c-indicator" [class]="status ? (status?.color || 'naranja') : 'naranja'"></div>
                         <div class="c-info">
                             <strong class="c-title" [title]="prod.nombre">{{ prod.nombre }}</strong>
