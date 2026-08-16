@@ -105,7 +105,7 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
     totalVerificados = computed(() => this.escaneados().length);
     totalItems = computed(() => this.totalOrder()); // v2.1: Refiere al total de la orden (ej. 5761) en lugar de escaneados
     totalCorrectos = computed(() => this.escaneados().filter(p => p.color === 'negro').length);
-    public appVersion = '1.1.9';
+    public appVersion = '1.2.0';
     totalIncompletos = computed(() => this.escaneados().filter(p => p.color === 'azul' || p.color === 'naranja').length);
 
     constructor() {
@@ -684,6 +684,8 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
             }
             return;
         }
+        // v1.1.9: La validación de productos nuevos fue removida por solicitud del usuario
+        // para permitir despachar sin necesidad de actualizar el detalle de la orden.
 
         this.revisorService.executeProcess('SORT_PRIORITY');
         const errors = this.revisorService.getValidationErrors();
@@ -962,41 +964,59 @@ export class ReposicionComponent implements OnInit, AfterViewInit {
 
     private ejecutarEnvioFinal(bultos?: any[]) {
         this.loadingService.show();
+
+        const procederAlCierre = () => {
+            this.showToast("Generando cierre de bultos...", false, "PROCESANDO");
+            (this.revisorService.finalizeProcess(bultos || []) as any)?.subscribe({
+                next: (res: any) => {
+                    this.loadingService.hide();
+                    if (res?.mensaje === 'OK' || res?.codigo === '000') {
+                        this.imprimirReportesFinales(bultos);
+                        this.revisorService.clearCurrentSession();
+
+                        const config = this.configService.getConfig();
+                        const hasPreviews = (config?.PREVIEW_REPORTE !== false) || (config?.PREVIEW_TICKET === true);
+                        
+                        if (!hasPreviews) {
+                            setTimeout(() => this.router.navigate(['/despacho-lista']), 2500);
+                        }
+                    } else {
+                        this.openModal("ERROR EN CIERRE", `${res?.mensaje || 'Error desconocido'}`, "❌", "alert");
+                    }
+                },
+                error: () => {
+                    this.loadingService.hide();
+                    this.showToast("Error de conexión fatal en cierre", true);
+                }
+            });
+        };
+
+        const nuevosEscaneados = this.escaneados().filter(p => !p.fueDespachado && (p.despachado || 0) > 0);
+
+        if (nuevosEscaneados.length === 0) {
+            // Si no hay productos nuevos, saltamos el guardado de detalles y vamos directo al cierre
+            procederAlCierre();
+            return;
+        }
+
         this.showToast("Sincronizando detalles con el servidor...", false, "PROCESANDO");
 
         // PASO 1: Guardar Detalles primero (v1.1.3 Fix)
         (this.revisorService.executeProcess('API_UPDATE', { tipo: 'FINALIZAR' }) as any)?.subscribe({
             next: (saveRes: any) => {
                 if (saveRes?.isError) {
-                    this.loadingService.hide();
-                    this.openModal("ERROR AL GUARDAR DETALLES", saveRes.mensaje, "❌", "alert");
-                    return;
+                    // Si el error es porque no hay detalles (nodo vacío), ignorarlo y continuar con el cierre
+                    if (saveRes.mensaje && saveRes.mensaje.toLowerCase().includes('vacío')) {
+                        console.warn('Saltando guardado de detalles porque el nodo está vacío.');
+                    } else {
+                        this.loadingService.hide();
+                        this.openModal("ERROR AL GUARDAR DETALLES", saveRes.mensaje, "❌", "alert");
+                        return;
+                    }
                 }
 
                 // PASO 2: Finalizar con Bultos una vez confirmados los detalles
-                this.showToast("Generando cierre de bultos...", false, "PROCESANDO");
-                (this.revisorService.finalizeProcess(bultos || []) as any)?.subscribe({
-                    next: (res: any) => {
-                        this.loadingService.hide();
-                        if (res?.mensaje === 'OK' || res?.codigo === '000') {
-                            this.imprimirReportesFinales(bultos);
-                            this.revisorService.clearCurrentSession();
-
-                            const config = this.configService.getConfig();
-                            const hasPreviews = (config?.PREVIEW_REPORTE !== false) || (config?.PREVIEW_TICKET === true);
-                            
-                            if (!hasPreviews) {
-                                setTimeout(() => this.router.navigate(['/despacho-lista']), 2500);
-                            }
-                        } else {
-                            this.openModal("ERROR EN CIERRE", `${res?.mensaje || 'Error desconocido'}`, "❌", "alert");
-                        }
-                    },
-                    error: () => {
-                        this.loadingService.hide();
-                        this.showToast("Error de conexión fatal en cierre", true);
-                    }
-                });
+                procederAlCierre();
             },
             error: () => {
                 this.loadingService.hide();

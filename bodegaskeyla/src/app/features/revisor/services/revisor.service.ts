@@ -261,15 +261,27 @@ export class RevisorService {
                                         // Recalcular color según el nuevo Stock/Solicitud
                                         const solicita = Number(original.solicita || 0);
                                         const stock = Number(original.invBod || 0);
-                                        if (s.despachado > stock || s.despachado > solicita) s.color = 'verde';
+                                        if (original.fueDespachado) s.color = 'morado';
+                                        else if (s.despachado > stock || s.despachado > solicita) s.color = 'verde';
                                         else if (s.despachado === solicita) s.color = 'negro';
                                         else s.color = 'azul';
                                     }
                                     return s;
                                 });
-                                this.escaneados.set(restored);
+                                
+                                // Asegurar que los pre-despachados que no estaban en la sesión guardada se agreguen
+                                const preDespachados = newProducts
+                                    .filter((p: any) => p.fueDespachado && !restored.find((r: any) => r.item === p.item))
+                                    .map((p: any) => ({ ...p, despachado: p.solicita, color: 'morado' }));
+                                
+                                this.escaneados.set([...restored, ...preDespachados]);
                             } else {
-                                this.escaneados.set(previousEscaneados);
+                                // Auto-poblar los pre-despachados en una sesión nueva
+                                const preDespachados = newProducts
+                                    .filter((p: any) => p.fueDespachado)
+                                    .map((p: any) => ({ ...p, despachado: p.solicita, color: 'morado' }));
+                                    
+                                this.escaneados.set([...previousEscaneados, ...preDespachados]);
                             }
 
                             this.isLoading = false;
@@ -495,9 +507,10 @@ export class RevisorService {
         const allBaseProducts = this.ordenProductos();
         const scannedProducts = this.escaneados();
 
-        // v1.1.9: Enviar TODO el listado (Requerimiento Usuario)
-        // Los no escaneados van con despachado 0 y cantidad original
-        const detalles = allBaseProducts.map(baseP => {
+        // v1.1.9: Filtrar los productos pre-despachados (fueDespachado === true) para que no viajen
+        const pendientes = allBaseProducts.filter(p => !p.fueDespachado);
+
+        const detalles = pendientes.map(baseP => {
             const scannedP = scannedProducts.find(s => s.item === baseP.item);
             const despachadoTotal = scannedP ? Number(scannedP.despachado || 0) : 0;
             
@@ -579,6 +592,8 @@ export class RevisorService {
 
         escaneados.forEach(e => {
             const orig = originales.find(o => o.item === e.item);
+            if (orig?.fueDespachado) return; // v1.1.9: No validar productos pre-despachados
+            
             if (!orig) {
                 errors.push({ type: 'NOT_FOUND', item: e.item, message: 'Producto no pertenece a la orden', isCritical: true, detail: e.nombre });
             } else {
@@ -608,6 +623,8 @@ export class RevisorService {
 
         // v160.8: Auditoría de productos faltantes o incompletos (No Crítico)
         originales.forEach(orig => {
+            if (orig.fueDespachado) return; // v1.1.9: No auditar productos pre-despachados
+            
             const esc = escaneados.find(e => e.item === orig.item);
             if (!esc) {
                 errors.push({ type: 'MISSING', item: orig.item, message: 'Producto no pistoleado', isCritical: false, detail: orig.nombre });

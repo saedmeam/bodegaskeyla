@@ -126,7 +126,7 @@
                             <tbody>
                                 @for (item of escaneados(); track item.item) {
                                 @let orig = getOriginalRequested(item.item);
-                                <tr [class]="'tr-status-' + (item?.color || 'naranja')">
+                                <tr [class]="'tr-status-' + (item?.color || 'naranja')" [class.fue-despachado]="orig?.fueDespachado">
                                     <td class="cell-code-name">
                                         <div class="product-info-composite">
                                             <span class="product-name-main">{{ item.nombre }}</span>
@@ -149,10 +149,10 @@
                                             <!-- v170.2: Si tiene múltiples lotes, el input es readonly y se modifica vía modal -->
                                             <input type="number" [ngModel]="item?.despachado || 0"
                                                 (ngModelChange)="updateQty(item.item, $event)" 
-                                                [readonly]="(item.lotes || []).length > 1 || isConsultaMode()"
+                                                [readonly]="(item.lotes || []).length > 1 || isConsultaMode() || orig?.fueDespachado"
                                                 (focus)="$any($event.target).select()"
                                                 [title]="(item.lotes || []).length > 1 ? 'Producto con múltiples lotes. Use el botón de caja para asignar cantidades.' : ''"
-                                                class="input-v2 w-tiny" [class.readonly-field]="(item.lotes || []).length > 1 || isConsultaMode()">
+                                                class="input-v2 w-tiny" [class.readonly-field]="(item.lotes || []).length > 1 || isConsultaMode() || orig?.fueDespachado">
                                         </div>
                                     </td>
                                     <td>
@@ -164,10 +164,10 @@
 
                                     <td class="cell-action-buttons">
                                         <div class="action-btn-group">
-                                            <button class="btn-lote-modify" (click)="onLoteModify(item)" title="Modificar Lotes" [disabled]="isConsultaMode()">
+                                            <button class="btn-lote-modify" (click)="onLoteModify(item)" title="Modificar Lotes" [disabled]="isConsultaMode() || orig?.fueDespachado">
                                                 <span class="icon">📦</span>
                                             </button>
-                                            <button class="btn-delete-v2" (click)="eliminarItem(item.item)" [disabled]="isConsultaMode()">×</button>
+                                            <button class="btn-delete-v2" (click)="eliminarItem(item.item)" [disabled]="isConsultaMode() || orig?.fueDespachado">×</button>
                                         </div>
                                     </td>
                                 </tr>

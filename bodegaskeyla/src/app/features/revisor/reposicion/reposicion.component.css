@@ -1477,13 +1477,13 @@
 }
 
 /* v170.8: Clases para visualización de producto ya despachado */
-.fue-despachado {
+.fue-despachado, .fue-despachado td {
     background-color: #f5eef8 !important;
     border: 1px dashed #af7ac5 !important;
     opacity: 0.8;
 }
 
-.fue-despachado .c-title, .fue-despachado .prod-name {
+.fue-despachado .c-title, .fue-despachado .prod-name, .fue-despachado .product-name-main {
     text-decoration: line-through;
     color: #7d3c98 !important;
 }
