@@ -117,23 +117,25 @@ export class LoginComponent implements OnInit {
                     // INTELIGENCIA DE LOGIN: AUTO-SELECCIÓN DE EMPRESA
                     // =================================================================================
                     const config = this.configService.getConfig();
-                    if (config?.CARGA_AUTOMATICO_EMPRESA_SUCURSAL === 1 && config?.EMPRESA_POR_DEFECTO) {
-                        const empresaDefecto = this.empresas.find(e => Number(e.codigoEmpresa) === Number(config.EMPRESA_POR_DEFECTO));
-                        if (empresaDefecto) {
-                            console.log(`[LoginComponent] 🤖 Auto-seleccionando empresa por defecto: ${empresaDefecto.nombreEmpresa}`);
-                            this.selectEmpresa(empresaDefecto);
-                            this.goToStep3(); // Avanzar automáticamente al siguiente paso
-                            return;
+                    if (config?.CARGA_AUTOMATICO_EMPRESA_SUCURSAL === 1) {
+                        if (config?.EMPRESA_POR_DEFECTO) {
+                            const empresaDefecto = this.empresas.find(e => Number(e.codigoEmpresa) === Number(config.EMPRESA_POR_DEFECTO));
+                            if (empresaDefecto) {
+                                console.log(`[LoginComponent] 🤖 Auto-seleccionando empresa por defecto: ${empresaDefecto.nombreEmpresa}`);
+                                this.selectEmpresa(empresaDefecto);
+                                this.goToStep3(); // Avanzar automáticamente al siguiente paso
+                                return;
+                            }
                         }
-                    }
 
-                    // v160.26: Auto-selección si solo hay una empresa disponible
-                    if (this.empresas.length === 1) {
-                        setTimeout(() => {
-                            console.log('[LoginComponent] 🤖 Auto-seleccionando única empresa:', this.empresas[0].nombreEmpresa);
-                            this.selectEmpresa(this.empresas[0]);
-                            this.goToStep3(); // Avanzar al siguiente paso automáticamente
-                        }, 500);
+                        // v160.26: Auto-selección si solo hay una empresa disponible
+                        if (this.empresas.length === 1) {
+                            setTimeout(() => {
+                                console.log('[LoginComponent] 🤖 Auto-seleccionando única empresa:', this.empresas[0].nombreEmpresa);
+                                this.selectEmpresa(this.empresas[0]);
+                                this.goToStep3(); // Avanzar al siguiente paso automáticamente
+                            }, 500);
+                        }
                     }
                 });
             } else {
@@ -235,26 +237,28 @@ export class LoginComponent implements OnInit {
                 // INTELIGENCIA DE LOGIN: AUTO-SELECCIÓN DE SUCURSAL (BODEGA)
                 // =================================================================================
                 const config = this.configService.getConfig();
-                if (config?.CARGA_AUTOMATICO_EMPRESA_SUCURSAL === 1 && config?.SUCURSAL_POR_DEFECTO) {
-                    const sucursalDefecto = this.sucursales.find(s => Number(s.codigoSucursal) === Number(config.SUCURSAL_POR_DEFECTO));
-                    if (sucursalDefecto) {
-                        console.log(`[LoginComponent] 🤖 Auto-seleccionando sucursal por defecto: ${sucursalDefecto.nombreSucursal}`);
-                        this.selectSucursal(sucursalDefecto);
-                        
-                        // En Bodega no se manejan cajas, así que finalizamos login directamente
-                        console.log('[LoginComponent] 🤖 Bodega detectada (Sin Cajas). Finalizando login directo.');
-                        this.finishLoginWithoutCaja();
-                        return;
+                if (config?.CARGA_AUTOMATICO_EMPRESA_SUCURSAL === 1) {
+                    if (config?.SUCURSAL_POR_DEFECTO) {
+                        const sucursalDefecto = this.sucursales.find(s => Number(s.codigoSucursal) === Number(config.SUCURSAL_POR_DEFECTO));
+                        if (sucursalDefecto) {
+                            console.log(`[LoginComponent] 🤖 Auto-seleccionando sucursal por defecto: ${sucursalDefecto.nombreSucursal}`);
+                            this.selectSucursal(sucursalDefecto);
+                            
+                            // En Bodega no se manejan cajas, así que finalizamos login directamente
+                            console.log('[LoginComponent] 🤖 Bodega detectada (Sin Cajas). Finalizando login directo.');
+                            this.finishLoginWithoutCaja();
+                            return;
+                        }
                     }
-                }
 
-                // 2. Auto-selección si solo hay una sucursal disponible
-                if (this.sucursales.length === 1) {
-                    setTimeout(() => {
-                        console.log('[LoginComponent] 🤖 Auto-seleccionando única sucursal:', this.sucursales[0].nombreSucursal);
-                        this.selectSucursal(this.sucursales[0]);
-                        this.finishLoginWithoutCaja(); // Finalizar login automáticamente
-                    }, 500);
+                    // 2. Auto-selección si solo hay una sucursal disponible
+                    if (this.sucursales.length === 1) {
+                        setTimeout(() => {
+                            console.log('[LoginComponent] 🤖 Auto-seleccionando única sucursal:', this.sucursales[0].nombreSucursal);
+                            this.selectSucursal(this.sucursales[0]);
+                            this.finishLoginWithoutCaja(); // Finalizar login automáticamente
+                        }, 500);
+                    }
                 }
             });
         } catch (e: any) {

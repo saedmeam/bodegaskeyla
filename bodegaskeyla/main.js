@@ -217,12 +217,13 @@ function setupIpcHandlers() {
         const userConfigPath = path.join(app.getPath('userData'), 'user-config.json');
 
         let mergedConfig = {};
+        let baseConfig = null;
 
         // 1. Cargar Base
         if (fs.existsSync(baseConfigPath)) {
             try {
-                const base = JSON.parse(fs.readFileSync(baseConfigPath, 'utf8'));
-                mergedConfig = { ...base };
+                baseConfig = JSON.parse(fs.readFileSync(baseConfigPath, 'utf8'));
+                mergedConfig = { ...baseConfig };
             } catch (e) {
                 console.error('Error reading base config:', e.message);
             }
@@ -242,6 +243,19 @@ function setupIpcHandlers() {
                 // para evitar que configuraciones viejas de Test/Preproducción se queden pegadas.
                 if (originalEnv) {
                     mergedConfig.environment = originalEnv;
+                }
+
+                // Forzamos las reglas de autoselección desde el archivo base del código fuente
+                if (baseConfig) {
+                    if (baseConfig.CARGA_AUTOMATICO_EMPRESA_SUCURSAL !== undefined) {
+                        mergedConfig.CARGA_AUTOMATICO_EMPRESA_SUCURSAL = baseConfig.CARGA_AUTOMATICO_EMPRESA_SUCURSAL;
+                    }
+                    if (baseConfig.EMPRESA_POR_DEFECTO !== undefined) {
+                        mergedConfig.EMPRESA_POR_DEFECTO = baseConfig.EMPRESA_POR_DEFECTO;
+                    }
+                    if (baseConfig.SUCURSAL_POR_DEFECTO !== undefined) {
+                        mergedConfig.SUCURSAL_POR_DEFECTO = baseConfig.SUCURSAL_POR_DEFECTO;
+                    }
                 }
 
                 console.log(`[Electron:Main] Config de usuario cargada. Entorno forzado a: ${mergedConfig.environment}`);
