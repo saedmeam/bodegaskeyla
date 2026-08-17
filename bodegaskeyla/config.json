@@ -1,8 +1,8 @@
 {
-    "environment": "nueva_api",
-    "CARGA_AUTOMATICO_EMPRESA_SUCURSAL": 0,
-    "EMPRESA_POR_DEFECTO": "",
-    "SUCURSAL_POR_DEFECTO": "",
+    "environment": "produccion",
+    "CARGA_AUTOMATICO_EMPRESA_SUCURSAL": 1,
+    "EMPRESA_POR_DEFECTO": 1,
+    "SUCURSAL_POR_DEFECTO": 176,
     "AUTO_UPDATE_URL": "",
     "environments": {
         "desarrollo": {
