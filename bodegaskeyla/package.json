@@ -1,5 +1,5 @@
 {
-    "name": "bodegaskeyla",
+    "name": "bodegaspancali",
     "version": "1.2.0",
     "author": "Neu360",
     "main": "main.js",
@@ -56,8 +56,8 @@
         "vitest": "^4.0.8"
     },
     "build": {
-        "appId": "com.neu360.bodegaskeyla",
-        "productName": "BodegasKeyla",
+        "appId": "com.neu360.bodegaspancali",
+        "productName": "BodegasPancali",
         "copyright": "Copyright © 2026 Neu360",
         "directories": {
             "output": "release"
@@ -86,9 +86,9 @@
             "installerIcon": "public/logo-keyla.ico",
             "uninstallerIcon": "public/logo-keyla.ico",
             "createDesktopShortcut": "always",
-            "shortcutName": "BodegasKeyla",
-            "artifactName": "BodegasKeyla_Setup.${ext}",
-            "uninstallDisplayName": "BodegasKeyla"
+            "shortcutName": "BodegasPancali",
+            "artifactName": "BodegasPancali_Setup.${ext}",
+            "uninstallDisplayName": "BodegasPancali"
         },
         "asar": false,
         "publish": {
