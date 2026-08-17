@@ -2,11 +2,11 @@
 ; Optimized for Inno Setup 6+
 ; Logic: Bundles the win-unpacked output from electron-builder into a professional Setup.exe
 
-#define AppName "BodegasKeyla"
+#define AppName "BodegasPancali"
 #define AppVersion "1.2.0"
 #define AppPublisher "Neu360"
 #define AppURL "https://www.keyla.com.ec"
-#define AppExeName "BodegasKeyla.exe"
+#define AppExeName "BodegasPancali.exe"
 #define AppId "{{0C7AE8E9-1736-4C5D-8E1E-1798305F8C7A}"
 
 [Setup]
@@ -22,7 +22,7 @@ DisableProgramGroupPage=yes
 DefaultGroupName={#AppName}
 SourceDir=.
 OutputDir=Output
-OutputBaseFilename=BodegasKeyla_Setup1.2.0_PROD
+OutputBaseFilename=BodegasPancali_Setup_1.2.0_TEST
 SetupIconFile=public\logo-keyla.ico
 Compression=lzma
 SolidCompression=yes

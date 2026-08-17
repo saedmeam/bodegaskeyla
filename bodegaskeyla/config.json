@@ -1,5 +1,5 @@
 {
-    "environment": "nueva_api",
+    "environment": "test-neu",
     "CARGA_AUTOMATICO_EMPRESA_SUCURSAL": 0,
     "EMPRESA_POR_DEFECTO": "",
     "SUCURSAL_POR_DEFECTO": "",
@@ -12,8 +12,15 @@
                 "pass": "n3UE60@s3Rv1c10@Xp0s"
             }
         },
-        "test": {
+        "testkeyla": {
             "apiUrl": "https://test-erp.farmaciaskeyla.com/X-uitWSRest",
+            "auth": {
+                "user": "wsxpos",
+                "pass": "n3UE60@s3Rv1c10@Xp0s"
+            }
+        },
+        "test-neu": {
+            "apiUrl": "http://test.neu360.com/X-uitWSRest",
             "auth": {
                 "user": "wsxpos",
                 "pass": "n3UE60@s3Rv1c10@Xp0s"
@@ -21,13 +28,6 @@
         },
         "produccion": {
             "apiUrl": "https://pos-erp.farmaciaskeyla.com/X-uitWSRest",
-            "auth": {
-                "user": "wsxpos",
-                "pass": "n3UE60@s3Rv1c10@Xp0s"
-            }
-        },
-        "nueva_api": {
-            "apiUrl": "http://test.neu360.com/X-uitWSRest",
             "auth": {
                 "user": "wsxpos",
                 "pass": "n3UE60@s3Rv1c10@Xp0s"
